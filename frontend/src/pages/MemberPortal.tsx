@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, LifeBuoy, LogOut, Plus, Send, 
   MessageSquare, Clock, Building, User, CreditCard, 
-  CheckCircle2, AlertCircle, History, Menu, X, Printer, FileText, Download 
+  History, Menu, X, Printer, FileText 
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -256,13 +256,6 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
   const [showReceipt, setShowReceipt] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
 
-  const getStatusBadge = (s: string) => {
-    switch(s) {
-      case 'PAID': return <span className="badge badge-success">Paid</span>;
-      case 'PENDING': return <span className="badge badge-error">Pending</span>;
-      default: return <span className="badge">{s}</span>;
-    }
-  };
 
   const viewReceipt = (p: any) => {
     setSelectedPayment({
