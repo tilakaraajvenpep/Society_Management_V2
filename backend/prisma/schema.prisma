@@ -1,0 +1,301 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id                 String            @id @default(uuid())
+  name               String
+  address            String
+  billingCycle       BillingCycle      @default(MONTHLY)
+  maintenanceAmount  Float             @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  status             String            @default("ACTIVE")
+  lastRenewalDate    DateTime?
+  nextRenewalDate    DateTime?
+  slug               String            @unique
+  subscriptionAmount Float             @default(0)
+  annualAmount       Float?
+  halfYearlyAmount   Float?
+  quarterlyAmount    Float?
+  enableForums       Boolean           @default(false)
+  
+  auditLogs          AuditLog[]
+  cashTransactions   CashTransaction[]
+  expenses           Expense[]
+  masterData         MasterData[]
+  members            Member[]
+  payments           Payment[]
+  subscriptions      Subscription[]
+  users              User[]
+  vendors            Vendor[]
+  tickets            Ticket[]
+}
+
+model User {
+  id                String            @id @default(uuid())
+  tenantId          String?
+  email             String?
+  password          String
+  name              String
+  role              Role              @default(MEMBER)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  mobile            String?
+  designation       String?
+
+  cashBalance       CashBalance?
+  sentHandovers     CashTransaction[] @relation("SentBy")
+  receivedHandovers CashTransaction[] @relation("ReceivedBy")
+  memberProfile     Member?
+  collectedPayments Payment[]         @relation("CollectedBy")
+  tenant            Tenant?           @relation(fields: [tenantId], references: [id])
+  ticketComments    TicketComment[]
+
+  @@unique([email, tenantId])
+  @@unique([mobile, tenantId])
+}
+
+model Member {
+  id              String         @id @default(uuid())
+  tenantId        String
+  name            String
+  email           String?
+  mobile          String
+  address         String?
+  status          String         @default("ACTIVE")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  flatNo          String
+  outstandingDues Float          @default(0)
+  userId          String?        @unique
+  paidUntil       DateTime?
+  defaultTenure   String         @default("MONTHLY")
+  
+  expensesPaid    Expense[]      @relation("PaidBy")
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
+  payments        Payment[]
+  subscriptions   Subscription[]
+  tickets         Ticket[]
+  ticketComments  TicketComment[]
+}
+
+model Subscription {
+  id                String        @id @default(uuid())
+  tenantId          String
+  memberId          String
+  maintenanceAmount Float
+  billingCycle      BillingCycle
+  startDate         DateTime
+  dueDate           DateTime
+  status            PaymentStatus @default(PENDING)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  payments          Payment[]
+  member            Member        @relation(fields: [memberId], references: [id])
+  tenant            Tenant        @relation(fields: [tenantId], references: [id])
+}
+
+model Payment {
+  id                String         @id @default(uuid())
+  tenantId          String
+  memberId          String
+  subscriptionId    String?
+  amount            Float
+  paymentDate       DateTime       @default(now())
+  mode              PaymentMode
+  status            PaymentStatus  @default(PAID)
+  notes             String?
+  collectedById     String
+  handoverStatus    HandoverStatus @default(WITH_COLLECTOR)
+  handoverDate      DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  lastEditedAt      DateTime?
+  lastEditedBy      String?
+  receiptNumber     String?
+  paidMonths        Int            @default(1)
+  periodLabel       String?
+  coverageEndDate   DateTime?
+  coverageStartDate DateTime?
+  
+  collectedBy       User           @relation("CollectedBy", fields: [collectedById], references: [id])
+  member            Member         @relation(fields: [memberId], references: [id])
+  subscription      Subscription?  @relation(fields: [subscriptionId], references: [id])
+  tenant            Tenant         @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, receiptNumber])
+}
+
+model Ticket {
+  id          String         @id @default(uuid())
+  tenantId    String
+  memberId    String
+  subject     String
+  description String
+  priority    TicketPriority @default(MEDIUM)
+  status      TicketStatus   @default(OPEN)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  member      Member         @relation(fields: [memberId], references: [id])
+  comments    TicketComment[]
+}
+
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  memberId  String?
+  userId    String?  // Admin ID
+  content   String
+  createdAt DateTime @default(now())
+  
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  member    Member?  @relation(fields: [memberId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model CashBalance {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model CashTransaction {
+  id            String   @id @default(uuid())
+  tenantId      String
+  fromAdminId   String
+  toAdminId     String?
+  amount        Float
+  type          String
+  referenceNote String?
+  createdAt     DateTime @default(now())
+  status        String   @default("PENDING")
+  updatedAt     DateTime @updatedAt
+  
+  fromAdmin     User     @relation("SentBy", fields: [fromAdminId], references: [id])
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  toAdmin       User?    @relation("ReceivedBy", fields: [toAdminId], references: [id])
+}
+
+model Expense {
+  id             String   @id @default(uuid())
+  tenantId       String
+  title          String
+  amount         Float
+  date           DateTime @default(now())
+  vendorId       String?
+  isRecurring    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  notes          String?
+  paymentType    String   @default("ONE_TIME")
+  category       String
+  paidByMemberId String?
+  
+  member         Member?  @relation("PaidBy", fields: [paidByMemberId], references: [id])
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  vendor         Vendor?  @relation(fields: [vendorId], references: [id])
+}
+
+model Vendor {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  serviceType String
+  contact     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  address     String?
+  email       String?
+  notes       String?
+  
+  expenses    Expense[]
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  tenantId    String
+  actionType  String
+  performedBy String
+  timestamp   DateTime @default(now())
+  referenceId String?
+  details     String?
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model MasterData {
+  id        String   @id @default(uuid())
+  tenantId  String
+  category  String
+  value     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, category, value])
+}
+
+enum Role {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  MEMBER
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+  PARTIAL
+  CANCELLED
+}
+
+enum PaymentMode {
+  CASH
+  BANK
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  ADJUSTMENT
+}
+
+enum HandoverStatus {
+  WITH_COLLECTOR
+  TRANSFERRED_TO_BANK
+  HANDED_OVER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  ARCHIVED
+}
