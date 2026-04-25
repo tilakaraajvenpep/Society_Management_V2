@@ -76,6 +76,8 @@ model Member {
   userId          String?        @unique
   paidUntil       DateTime?
   defaultTenure   String         @default("MONTHLY")
+  photoUrl        String?
+  idProofUrl      String?
   
   expensesPaid    Expense[]      @relation("PaidBy")
   tenant          Tenant         @relation(fields: [tenantId], references: [id])

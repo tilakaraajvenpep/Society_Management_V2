@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users,
   ArrowDownLeft, Landmark, LogOut, Plus, Send,
   TrendingUp, Users2, Receipt, Building, Settings, History, Download, Upload, Edit, XCircle, Printer, Eye, UserCheck, Trash2, Calendar, BarChart2, Menu, X,
-  MessageSquare, LifeBuoy, Clock
+  MessageSquare, LifeBuoy, Clock, FileText, Image, Camera
 } from 'lucide-react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -920,9 +920,64 @@ const TenantAdminDashboard = () => {
     name: '', email: '', mobile: '', flatNo: '', address: '', 
     outstandingDues: 0, password: '', enableLogin: false, 
     defaultTenure: 'MONTHLY', paidUntil: '',
-    initialPaymentAmount: 0, initialPaymentMode: 'CASH', initialPaymentNotes: '' 
+    initialPaymentAmount: 0, initialPaymentMode: 'CASH', initialPaymentNotes: '',
+    photoUrl: '', idProofUrl: ''
   });
   const [editingMember, setEditingMember] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<{url: string, type: string} | null>(null);
+
+  const handleFileUpload = async (file: File, type: 'photo' | 'idProof') => {
+    setUploading(true);
+    const formData = new FormData();
+    formData.append(type, file);
+
+    try {
+      const res = await axios.post('/upload/member-docs', formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}` 
+        }
+      });
+      
+      const url = res.data[type === 'photo' ? 'photoUrl' : 'idProofUrl'];
+      
+      if (showModal === 'member') {
+        setNewMember(prev => ({ 
+          ...prev, 
+          [type === 'photo' ? 'photoUrl' : 'idProofUrl']: url 
+        }));
+      } else if (editingMember) {
+        setEditingMember(prev => ({ 
+          ...prev, 
+          [type === 'photo' ? 'photoUrl' : 'idProofUrl']: url 
+        }));
+      }
+      alert(`${type === 'photo' ? 'Photo' : 'ID Proof'} uploaded successfully!`);
+    } catch (err) {
+      console.error('Upload error', err);
+      alert('Error uploading file.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const DocumentViewer = ({ url, type, onClose }: { url: string, type: string, onClose: () => void }) => (
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, padding: '2rem' }} onClick={onClose}>
+      <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '-2.5rem', right: '-0.5rem', background: 'none', border: 'none', color: 'white', fontSize: '2rem', cursor: 'pointer' }}>&times;</button>
+        {url.toLowerCase().endsWith('.pdf') ? (
+          <iframe src={url} style={{ width: '80vw', height: '80vh', border: 'none', borderRadius: '0.5rem' }} title="Document Viewer" />
+        ) : (
+          <img src={url} alt={type} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '0.5rem', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }} />
+        )}
+        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+          <a href={url} target="_blank" rel="noreferrer" className="btn btn-primary">Open in New Tab</a>
+          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
   const [newPayment, setNewPayment] = useState({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '' });
   const [upcomingMembers, setUpcomingMembers] = useState([]);
   const [newTransfer, setNewTransfer] = useState({ toAdminId: '', amount: 0, type: 'HANDOVER', referenceNote: '' });
@@ -1468,7 +1523,14 @@ const TenantAdminDashboard = () => {
                     <tr key={m.id}>
                       <td><strong>{m.name}</strong></td>
                       <td><code style={{ backgroundColor: 'var(--bg-tertiary)', padding: '0.2rem 0.4rem', borderRadius: '0.25rem' }}>{m.flatNo}</code></td>
-                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', wordBreak: 'break-all' }}>{m.email}<br />{m.mobile}</td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', wordBreak: 'break-all' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+                          {m.email}
+                          {m.photoUrl && <Image size={14} style={{ color: 'var(--primary)', cursor: 'pointer' }} onClick={() => setSelectedDoc({url: m.photoUrl, type: 'Profile Photo'})} />}
+                          {m.idProofUrl && <FileText size={14} style={{ color: 'var(--success)', cursor: 'pointer' }} onClick={() => setSelectedDoc({url: m.idProofUrl, type: 'ID Proof'})} />}
+                        </div>
+                        {m.mobile}
+                      </td>
                       <td>
                         <span style={{ fontWeight: 600, color: m.outstandingDues > 0 ? 'var(--error)' : 'var(--success)' }}>
                           ₹{m.outstandingDues?.toLocaleString()}
@@ -2139,9 +2201,38 @@ const TenantAdminDashboard = () => {
                       <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Mobile Number</label>
                       <input type="text" required value={newMember.mobile} onChange={(e) => setNewMember({ ...newMember, mobile: e.target.value })} />
                     </div>
-                    <div>
                       <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Email Address</label>
                       <input type="email" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} />
+                    </div>
+
+                    <div style={{ backgroundColor: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem', gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', border: '1px solid var(--border-color)' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Camera size={14} /> Profile Photo
+                        </label>
+                        {newMember.photoUrl ? (
+                          <div style={{ position: 'relative', width: '60px', height: '60px' }}>
+                            <img src={newMember.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem' }} />
+                            <button type="button" onClick={() => setNewMember({...newMember, photoUrl: ''})} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'var(--error)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer' }}>&times;</button>
+                          </div>
+                        ) : (
+                          <input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'photo')} disabled={uploading} style={{ fontSize: '0.75rem' }} />
+                        )}
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <FileText size={14} /> ID Proof (Aadhar/PAN)
+                        </label>
+                        {newMember.idProofUrl ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span className="badge badge-success">Uploaded</span>
+                            <button type="button" onClick={() => setNewMember({...newMember, idProofUrl: ''})} style={{ fontSize: '0.7rem', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer' }}>Remove</button>
+                          </div>
+                        ) : (
+                          <input type="file" accept="image/*,.pdf" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'idProof')} disabled={uploading} style={{ fontSize: '0.75rem' }} />
+                        )}
+                      </div>
+                      {uploading && <div style={{ gridColumn: 'span 2', fontSize: '0.75rem', color: 'var(--primary)', fontStyle: 'italic' }}>Uploading document...</div>}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', gridColumn: 'span 2' }}>
                       <input
@@ -2406,6 +2497,35 @@ const TenantAdminDashboard = () => {
                       <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Email Address</label>
                       <input type="email" value={editingMember.email} onChange={(e) => setEditingMember({ ...editingMember, email: e.target.value })} />
                     </div>
+
+                    <div style={{ backgroundColor: 'var(--bg-tertiary)', padding: '1rem', borderRadius: '0.75rem', gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', border: '1px solid var(--border-color)' }}>
+                      <div>
+                        <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Camera size={14} /> Profile Photo
+                        </label>
+                        {editingMember.photoUrl ? (
+                          <div style={{ position: 'relative', width: '60px', height: '60px' }}>
+                            <img src={editingMember.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem' }} />
+                            <button type="button" onClick={() => setEditingMember({...editingMember, photoUrl: ''})} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'var(--error)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer' }}>&times;</button>
+                          </div>
+                        ) : (
+                          <input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'photo')} disabled={uploading} style={{ fontSize: '0.75rem' }} />
+                        )}
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <FileText size={14} /> ID Proof (Aadhar/PAN)
+                        </label>
+                        {editingMember.idProofUrl ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span className="badge badge-success">Uploaded</span>
+                            <button type="button" onClick={() => setEditingMember({...editingMember, idProofUrl: ''})} style={{ fontSize: '0.7rem', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer' }}>Remove</button>
+                          </div>
+                        ) : (
+                          <input type="file" accept="image/*,.pdf" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'idProof')} disabled={uploading} style={{ fontSize: '0.75rem' }} />
+                        )}
+                      </div>
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', gridColumn: 'span 2' }}>
                       <input
                         type="checkbox"
@@ -2602,6 +2722,7 @@ const TenantAdminDashboard = () => {
           </div>
         </div>
       )}
+      {selectedDoc && <DocumentViewer url={selectedDoc.url} type={selectedDoc.type} onClose={() => setSelectedDoc(null)} />}
     </div>
   );
 };

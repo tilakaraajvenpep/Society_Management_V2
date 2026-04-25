@@ -43,7 +43,7 @@ router.get("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 });
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { name, email, mobile, flatNo, address, outstandingDues, password, enableLogin, defaultTenure, paidUntil, initialPaymentAmount, initialPaymentMode, initialPaymentNotes } = req.body;
+  const { name, email, mobile, flatNo, address, outstandingDues, password, enableLogin, defaultTenure, paidUntil, initialPaymentAmount, initialPaymentMode, initialPaymentNotes, photoUrl, idProofUrl } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       let userId = undefined;
@@ -103,6 +103,8 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           userId,
           defaultTenure: defaultTenure || "MONTHLY",
           paidUntil: paidUntil ? new Date(paidUntil) : null,
+          photoUrl,
+          idProofUrl,
         },
       });
 
@@ -196,7 +198,7 @@ router.patch("/:id/vacant", authorize(["TENANT_ADMIN"]), async (req: any, res) =
 });
 
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { name, email, mobile, flatNo, address, outstandingDues, status, password, enableLogin, defaultTenure, paidUntil } = req.body;
+  const { name, email, mobile, flatNo, address, outstandingDues, status, password, enableLogin, defaultTenure, paidUntil, photoUrl, idProofUrl } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const currentMember = await tx.member.findUnique({
@@ -249,6 +251,8 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           userId,
           defaultTenure: defaultTenure || undefined,
           paidUntil: paidUntil ? new Date(paidUntil) : undefined,
+          photoUrl: photoUrl !== undefined ? photoUrl : undefined,
+          idProofUrl: idProofUrl !== undefined ? idProofUrl : undefined,
         },
       });
 
