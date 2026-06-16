@@ -7,7 +7,11 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
-const masterPool = new pg.Pool({ connectionString: masterConnectionString });
+const isLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
+const masterPool = new pg.Pool({ 
+  connectionString: masterConnectionString,
+  ssl: isLocalhost ? false : { rejectUnauthorized: false }
+});
 const masterAdapter = new PrismaPg(masterPool);
 
 export const masterPrisma = new PrismaClient({ adapter: masterAdapter });
@@ -30,7 +34,11 @@ export const getTenantDbUrl = (tenantSlug: string): string => {
 export const getTenantPrisma = (tenantSlug: string): PrismaClient => {
   if (!tenantClients[tenantSlug]) {
     const dbUrl = getTenantDbUrl(tenantSlug);
-    const tenantPool = new pg.Pool({ connectionString: dbUrl });
+    const isTenantLocalhost = dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1");
+    const tenantPool = new pg.Pool({ 
+      connectionString: dbUrl,
+      ssl: isTenantLocalhost ? false : { rejectUnauthorized: false }
+    });
     const tenantAdapter = new PrismaPg(tenantPool);
     tenantClients[tenantSlug] = new PrismaClient({ adapter: tenantAdapter });
   }

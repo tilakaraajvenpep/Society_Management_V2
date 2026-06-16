@@ -52,8 +52,10 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
     } catch (e) {
       pgConnectionString = masterConnectionString.replace(/\/society_management$/, "/postgres");
     }
+    const isClientLocalhost = pgConnectionString.includes("localhost") || pgConnectionString.includes("127.0.0.1");
     const pgClient = new Client({
-      connectionString: pgConnectionString
+      connectionString: pgConnectionString,
+      ssl: isClientLocalhost ? false : { rejectUnauthorized: false }
     });
     await pgClient.connect();
     const checkDb = await pgClient.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
@@ -247,8 +249,10 @@ router.delete("/:id", authenticate, authorize(["SUPER_ADMIN"]), async (req, res)
     } catch (e) {
       pgConnectionString = masterConnectionString.replace(/\/society_management$/, "/postgres");
     }
+    const isClientLocalhost = pgConnectionString.includes("localhost") || pgConnectionString.includes("127.0.0.1");
     const pgClient = new Client({
-      connectionString: pgConnectionString
+      connectionString: pgConnectionString,
+      ssl: isClientLocalhost ? false : { rejectUnauthorized: false }
     });
     await pgClient.connect();
     // Terminate any active connections to release locks
