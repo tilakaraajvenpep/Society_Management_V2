@@ -12,11 +12,18 @@ router.post("/member-docs", authenticate, upload.fields([
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const result: any = {};
 
+    const getFileUrl = (file: Express.Multer.File) => {
+      if (file.path && (file.path.startsWith('http://') || file.path.startsWith('https://'))) {
+        return file.path;
+      }
+      return `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
+    };
+
     if (files.photo) {
-      result.photoUrl = files.photo[0].path;
+      result.photoUrl = getFileUrl(files.photo[0]);
     }
     if (files.idProof) {
-      result.idProofUrl = files.idProof[0].path;
+      result.idProofUrl = getFileUrl(files.idProof[0]);
     }
 
     res.json(result);

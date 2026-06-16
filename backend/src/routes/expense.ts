@@ -15,7 +15,7 @@ router.get("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 });
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { title, category, amount, date, vendorId, isRecurring, paymentType, notes, paidByMemberId, reimbursementType } = req.body;
+  const { title, category, amount, date, vendorId, isRecurring, paymentType, notes, paidByMemberId, reimbursementType, paymentMode } = req.body;
   try {
     const expense = await prisma.$transaction(async (tx) => {
       const expAmount = parseFloat(amount.toString());
@@ -67,6 +67,18 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
             create: { userId: req.user.id, balance: -expAmount }
           });
         }
+      } else {
+        // Expense paid directly by society
+        // If paid in cash, deduct from the treasurer's cash in hand
+        const mode = (paymentMode || 'CASH').toUpperCase();
+        if (mode === 'CASH') {
+          await tx.cashBalance.upsert({
+            where: { userId: req.user.id },
+            update: { balance: { decrement: expAmount } },
+            create: { userId: req.user.id, balance: -expAmount }
+          });
+        }
+        // BANK mode: no CashBalance change needed (paid from bank account directly)
       }
 
       return newExpense;

@@ -12,11 +12,12 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   try {
-    const tenants = await prisma.tenant.count();
-    const members = await prisma.member.count();
-    const users = await prisma.user.count();
-    const tickets = await prisma.ticket.count();
-    console.log({ tenants, members, users, tickets });
+    const membersList = await prisma.member.findMany({
+      include: {
+        user: true
+      }
+    });
+    console.log(JSON.stringify(membersList, null, 2));
   } catch (err) {
     console.error("Error in check-data:", err);
   }

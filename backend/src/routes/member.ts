@@ -5,6 +5,19 @@ import { authenticate, authorize } from "../middleware/auth";
 
 const router = express.Router();
 
+const getFinancialYear = (date: Date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth(); // Jan is 0, Apr is 3
+  if (month >= 3) {
+    const nextYr = (year + 1) % 100;
+    return `${year}-${nextYr < 10 ? '0' + nextYr : nextYr}`;
+  } else {
+    const prevYr = year - 1;
+    const currYrShort = year % 100;
+    return `${prevYr}-${currYrShort < 10 ? '0' + currYrShort : currYrShort}`;
+  }
+};
+
 router.use(authenticate);
 
 // Member Profile (for logged in members)
@@ -34,39 +47,132 @@ router.get("/profile", authorize(["MEMBER"]), async (req: any, res) => {
   }
 });
 
+// Update Member Profile (for logged in members)
+router.patch("/profile", authorize(["MEMBER"]), async (req: any, res) => {
+  const { name, email, mobile, password, photoUrl } = req.body;
+  try {
+    const member = await prisma.member.findUnique({
+      where: { userId: req.user.id }
+    });
+
+    if (!member) {
+      return res.status(404).json({ message: "Member profile not found" });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update user details
+      const userUpdateData: any = {};
+      if (name) {
+        userUpdateData.name = name;
+      }
+      if (email !== undefined) {
+        const targetEmail = email ? email.toLowerCase().trim() : null;
+        if (targetEmail) {
+          const existingUser = await tx.user.findFirst({
+            where: {
+              email: targetEmail,
+              tenantId: req.user.tenantId,
+              id: { not: req.user.id }
+            }
+          });
+          if (existingUser) {
+            throw new Error("Email address is already registered for another member in this society.");
+          }
+        }
+        userUpdateData.email = targetEmail;
+      }
+      if (mobile) {
+        // Check if mobile is unique per tenant
+        const existingUser = await tx.user.findFirst({
+          where: {
+            mobile,
+            tenantId: req.user.tenantId,
+            id: { not: req.user.id }
+          }
+        });
+        if (existingUser) {
+          throw new Error("Mobile number is already registered for another member in this society.");
+        }
+        userUpdateData.mobile = mobile;
+      }
+      if (password) {
+        userUpdateData.password = await bcrypt.hash(password, 10);
+      }
+
+      if (Object.keys(userUpdateData).length > 0) {
+        await tx.user.update({
+          where: { id: req.user.id },
+          data: userUpdateData
+        });
+      }
+
+      // 2. Update member details
+      const memberUpdateData: any = {};
+      if (name) {
+        memberUpdateData.name = name;
+      }
+      if (email !== undefined) {
+        memberUpdateData.email = email ? email.toLowerCase().trim() : null;
+      }
+      if (mobile) {
+        memberUpdateData.mobile = mobile;
+      }
+      if (photoUrl !== undefined) {
+        memberUpdateData.photoUrl = photoUrl;
+      }
+
+      const updatedMember = await tx.member.update({
+        where: { id: member.id },
+        data: memberUpdateData
+      });
+
+      return updatedMember;
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: error.message || "Error updating profile" });
+  }
+});
+
 // Tenant Admin only
 router.get("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   const members = await prisma.member.findMany({
     where: { tenantId: req.user.tenantId },
+    orderBy: { createdAt: 'desc' },
   });
   res.json(members);
 });
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { name, email, mobile, flatNo, address, outstandingDues, password, enableLogin, defaultTenure, paidUntil, initialPaymentAmount, initialPaymentMode, initialPaymentNotes, photoUrl, idProofUrl } = req.body;
+  const { name, email, mobile, flatNo, address, outstandingDues, password, enableLogin, loginMethod, defaultTenure, paidUntil, initialPaymentAmount, initialPaymentMode, initialPaymentNotes, photoUrl, idProofUrl, registrationYear, initialPaymentDate } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       let userId = undefined;
       
       if (enableLogin && password) {
-        console.log("Checking existing user (isolated) for:", { email, mobile, tenantId: req.user.tenantId });
+        const targetEmail = (loginMethod === "EMAIL" || loginMethod === "BOTH" || !loginMethod) ? (email?.toLowerCase().trim() || null) : null;
+        const targetMobile = (loginMethod === "MOBILE" || loginMethod === "BOTH" || !loginMethod) ? (mobile?.trim() || null) : null;
+
+        console.log("Checking existing user (isolated) for:", { email: targetEmail, mobile: targetMobile, tenantId: req.user.tenantId });
         // Check if user already exists IN THIS TENANT ONLY
         let existingUser = null;
-        if (email && email.trim() !== "") {
+        if (targetEmail) {
           existingUser = await tx.user.findUnique({ 
             where: { 
               email_tenantId: { 
-                email: email.toLowerCase().trim(), 
+                email: targetEmail, 
                 tenantId: req.user.tenantId 
               } 
             } 
           });
         }
-        if (!existingUser && mobile && mobile.trim() !== "") {
+        if (!existingUser && targetMobile) {
           existingUser = await tx.user.findUnique({ 
             where: { 
               mobile_tenantId: { 
-                mobile: mobile.trim(), 
+                mobile: targetMobile, 
                 tenantId: req.user.tenantId 
               } 
             } 
@@ -75,13 +181,21 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
         if (existingUser) {
           userId = existingUser.id;
+          // Update credentials on existing user to match
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              email: targetEmail,
+              mobile: targetMobile
+            }
+          });
         } else {
           const hashedPassword = await bcrypt.hash(password, 10);
           const user = await tx.user.create({
             data: {
               name,
-              email: email || undefined,
-              mobile: mobile || undefined,
+              email: targetEmail,
+              mobile: targetMobile,
               password: hashedPassword,
               role: "MEMBER",
               tenantId: req.user.tenantId,
@@ -91,6 +205,21 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         }
       }
 
+      const regYear = registrationYear?.trim() || getFinancialYear(new Date());
+      const maintenanceCost = await tx.maintenanceCost.findUnique({
+        where: {
+          tenantId_financialYear: {
+            tenantId: req.user.tenantId,
+            financialYear: regYear
+          }
+        }
+      });
+
+      let initialDues = outstandingDues ? parseFloat(outstandingDues.toString()) : 0;
+      if (maintenanceCost) {
+        initialDues += maintenanceCost.amount;
+      }
+
       const member = await tx.member.create({
         data: {
           name,
@@ -98,13 +227,14 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           mobile,
           flatNo,
           address,
-          outstandingDues: outstandingDues ? parseFloat(outstandingDues.toString()) : 0,
+          outstandingDues: initialDues,
           tenantId: req.user.tenantId,
           userId,
           defaultTenure: defaultTenure || "MONTHLY",
           paidUntil: paidUntil ? new Date(paidUntil) : null,
           photoUrl,
           idProofUrl,
+          registrationYear: regYear,
         },
       });
 
@@ -125,6 +255,7 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
             receiptNumber,
             handoverStatus: mode === "CASH" ? "WITH_COLLECTOR" : "TRANSFERRED_TO_BANK",
             periodLabel: "Initial Onboarding Fee",
+            paymentDate: initialPaymentDate ? new Date(initialPaymentDate) : undefined,
           }
         });
 
@@ -198,7 +329,7 @@ router.patch("/:id/vacant", authorize(["TENANT_ADMIN"]), async (req: any, res) =
 });
 
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { name, email, mobile, flatNo, address, outstandingDues, status, password, enableLogin, defaultTenure, paidUntil, photoUrl, idProofUrl } = req.body;
+  const { name, email, mobile, flatNo, address, outstandingDues, status, password, enableLogin, loginMethod, defaultTenure, paidUntil, photoUrl, idProofUrl, registrationYear } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const currentMember = await tx.member.findUnique({
@@ -211,9 +342,12 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       let userId = currentMember.userId;
 
       if (enableLogin) {
+        const targetEmail = (loginMethod === "EMAIL" || loginMethod === "BOTH" || !loginMethod) ? (email?.toLowerCase().trim() || null) : null;
+        const targetMobile = (loginMethod === "MOBILE" || loginMethod === "BOTH" || !loginMethod) ? (mobile?.trim() || null) : null;
+
         if (userId) {
           // Update existing user
-          const updateData: any = { name, email: email || undefined, mobile: mobile || undefined };
+          const updateData: any = { name, email: targetEmail, mobile: targetMobile };
           if (password) {
             updateData.password = await bcrypt.hash(password, 10);
           }
@@ -227,14 +361,46 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           const user = await tx.user.create({
             data: {
               name,
-              email: email || undefined,
-              mobile: mobile || undefined,
+              email: targetEmail,
+              mobile: targetMobile,
               password: hashedPassword,
               role: "MEMBER",
               tenantId: req.user.tenantId,
             }
           });
           userId = user.id;
+        }
+      } else {
+        if (userId) {
+          await tx.member.update({
+            where: { id: req.params.id },
+            data: { userId: null }
+          });
+          await tx.user.delete({ where: { id: userId } });
+          userId = null;
+        }
+      }
+
+      let finalOutstandingDues = outstandingDues !== undefined ? parseFloat(outstandingDues.toString()) : undefined;
+
+      if (registrationYear !== undefined && registrationYear !== currentMember.registrationYear) {
+        const oldFeeConfig = currentMember.registrationYear ? await tx.maintenanceCost.findUnique({
+          where: { tenantId_financialYear: { tenantId: req.user.tenantId, financialYear: currentMember.registrationYear } }
+        }) : null;
+        const oldFee = oldFeeConfig ? oldFeeConfig.amount : 0;
+
+        const newFeeConfig = registrationYear ? await tx.maintenanceCost.findUnique({
+          where: { tenantId_financialYear: { tenantId: req.user.tenantId, financialYear: registrationYear } }
+        }) : null;
+        const newFee = newFeeConfig ? newFeeConfig.amount : 0;
+
+        const duesAdjustment = newFee - oldFee;
+        if (duesAdjustment !== 0) {
+          if (finalOutstandingDues !== undefined) {
+            finalOutstandingDues += duesAdjustment;
+          } else {
+            finalOutstandingDues = currentMember.outstandingDues + duesAdjustment;
+          }
         }
       }
 
@@ -246,13 +412,14 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           mobile,
           flatNo,
           address,
-          outstandingDues: outstandingDues !== undefined ? parseFloat(outstandingDues.toString()) : undefined,
+          outstandingDues: finalOutstandingDues,
           status,
           userId,
           defaultTenure: defaultTenure || undefined,
           paidUntil: paidUntil ? new Date(paidUntil) : undefined,
           photoUrl: photoUrl !== undefined ? photoUrl : undefined,
           idProofUrl: idProofUrl !== undefined ? idProofUrl : undefined,
+          registrationYear: registrationYear || undefined,
         },
       });
 

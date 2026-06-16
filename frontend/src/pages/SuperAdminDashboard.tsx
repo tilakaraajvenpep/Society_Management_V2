@@ -3,6 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Building, Users, Settings, LogOut, Plus, Trash2, Search, Filter, CreditCard, Menu, X, AlertCircle, Activity } from 'lucide-react';
 import axios from 'axios';
 
+const getTenantUrl = (slug: string) => {
+  const { protocol, host } = window.location;
+  const cleanHost = host.replace(/^www\./, '');
+  return `${protocol}//${slug}.${cleanHost}`;
+};
+
 const SuperAdminDashboard = () => {
   const { logout, token } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -194,6 +200,7 @@ const SuperAdminDashboard = () => {
                       <th>Location</th>
                       <th>Billing Plan</th>
                       <th>Status</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -202,12 +209,58 @@ const SuperAdminDashboard = () => {
                         <td><strong>{t.name}</strong></td>
                         <td style={{ color: 'var(--text-secondary)' }}>{t.address}</td>
                         <td>{t.billingCycle}</td>
-                        <td><span className={`badge ${t.status === 'INACTIVE' ? 'badge-error' : 'badge-success'}`}>{t.status === 'INACTIVE' ? 'Inactive' : 'Active'}</span></td>
+                        <td>
+                          <button 
+                            onClick={() => handleToggleStatus(t.id)}
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+                          >
+                            <span className={`badge ${t.status === 'INACTIVE' ? 'badge-error' : 'badge-success'}`} style={{ cursor: 'pointer' }}>
+                              {t.status === 'INACTIVE' ? 'Inactive' : 'Active'}
+                            </span>
+                          </button>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ padding: '0.4rem' }}
+                              onClick={() => {
+                                const admin = t.users && t.users.length > 0 ? t.users[0] : null;
+                                setEditingTenantId(t.id);
+                                setNewTenant({
+                                  name: t.name,
+                                  address: t.address || '',
+                                  maintenanceAmount: t.maintenanceAmount || 0,
+                                  status: t.status,
+                                  slug: t.slug || '',
+                                  billingCycle: t.billingCycle || 'MONTHLY',
+                                  subscriptionAmount: t.subscriptionAmount || 0,
+                                  startDate: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                                  lastRenewalDate: t.lastRenewalDate || '',
+                                  nextRenewalDate: t.nextRenewalDate || '',
+                                  adminName: admin ? admin.name : '',
+                                  adminEmail: admin ? admin.email : '',
+                                  adminPassword: '',
+                                  enableForums: t.enableForums || false
+                                });
+                                setShowModal(true);
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)' }}
+                              onClick={() => handleDeleteTenant(t.id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                     {tenants.length === 0 && (
                       <tr>
-                        <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No recent data.</td>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No recent data.</td>
                       </tr>
                     )}
                   </tbody>
@@ -253,7 +306,7 @@ const SuperAdminDashboard = () => {
                       <td>
                         <code style={{ fontSize: '0.8125rem', backgroundColor: 'var(--bg-tertiary)', padding: '0.2rem 0.4rem', borderRadius: '0.25rem' }}>{t.slug}</code>
                         <div style={{ fontSize: '0.7rem', marginTop: '0.25rem' }}>
-                          <a href={`/${t.slug}`} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>Visit Site</a>
+                          <a href={getTenantUrl(t.slug)} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>Visit Site</a>
                         </div>
                       </td>
                       <td><span className="badge" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>{t.billingCycle}</span></td>
@@ -428,7 +481,7 @@ const SuperAdminDashboard = () => {
       </div>
 
       <div className="main-content">
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+        <header className="dashboard-header">
           <div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Platform management and monitoring.</p>
@@ -463,7 +516,7 @@ const SuperAdminDashboard = () => {
       </div>
 
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '2rem' }}>
+        <div className="modal-overlay">
           <div className="card" style={{ 
             width: '100%', 
             maxWidth: '600px', 
@@ -477,7 +530,7 @@ const SuperAdminDashboard = () => {
               <button onClick={() => { setShowModal(false); setEditingTenantId(null); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
             </div>
             <form onSubmit={handleSubmitTenant}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div className="responsive-form-grid">
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Society Name</label>
                   <input type="text" required value={newTenant.name} onChange={(e) => setNewTenant({...newTenant, name: e.target.value})} />
@@ -503,7 +556,7 @@ const SuperAdminDashboard = () => {
                 <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <CreditCard size={16} style={{ color: 'var(--primary)' }} /> Platform Billing & Subscription
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="responsive-form-grid">
                   <div>
                     <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Subscription Amount (₹)</label>
                     <input type="number" value={newTenant.subscriptionAmount} onChange={(e) => setNewTenant({...newTenant, subscriptionAmount: parseFloat(e.target.value) || 0})} />
@@ -567,7 +620,7 @@ const SuperAdminDashboard = () => {
                   <h4 style={{ fontSize: '0.875rem', fontWeight: 600 }}>{editingTenantId ? 'Primary Admin Account' : 'Initial Admin Account'}</h4>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="responsive-form-grid">
                   <div style={{ marginBottom: '1rem' }}>
                     <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Admin Name</label>
                     <input type="text" required value={newTenant.adminName} onChange={(e: any) => setNewTenant({...newTenant, adminName: e.target.value})} />

@@ -10,6 +10,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [forgotClicked, setForgotClicked] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
@@ -41,7 +42,7 @@ const LoginPage = () => {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: 'var(--bg-secondary)', padding: '1.5rem' }}>
-      <div className="card" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem' }}>
+      <div className="card" style={{ width: '100%', maxWidth: '400px' }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <div style={{ backgroundColor: 'var(--primary)', color: 'white', padding: '0.75rem', borderRadius: '0.75rem', display: 'inline-flex', marginBottom: '1.5rem' }}>
             {tenant ? <Building size={32} /> : <Shield size={32} />}
@@ -68,7 +69,11 @@ const LoginPage = () => {
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>Password</label>
-              <a href="#" style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'none' }}>Forgot?</a>
+              {forgotClicked ? (
+                <span style={{ fontSize: '0.75rem', color: 'var(--error)', fontWeight: 600 }}>Contact Admin</span>
+              ) : (
+                <a href="#" onClick={(e) => { e.preventDefault(); setForgotClicked(true); }} style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'none' }}>Forgot?</a>
+              )}
             </div>
             <input 
               type="password" 
@@ -88,7 +93,7 @@ const LoginPage = () => {
 
         <div style={{ marginTop: '2rem', textAlign: 'center' }}>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-            Need a platform account? <a href="#" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>Contact Sales</a>
+            Need a platform account? <a href="tel:1234567890" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>Contact Sales: 1234567890</a>
           </p>
         </div>
       </div>

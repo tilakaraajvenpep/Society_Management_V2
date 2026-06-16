@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, LifeBuoy, LogOut, Plus, Send, 
   MessageSquare, Clock, Building, User, CreditCard, 
-  History, Menu, X, Printer, FileText 
+  History, Menu, X, Printer, FileText, Camera, Lock,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -84,9 +85,9 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: selectedTicket ? '350px 1fr' : '1fr', gap: '1.5rem', height: 'calc(100vh - 220px)', minHeight: '500px' }}>
+    <div className={`helpdesk-container ${selectedTicket ? 'has-selected' : ''}`}>
       {/* Ticket List */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+      <div className="card ticket-list-panel" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <MessageSquare size={18} /> My Tickets
@@ -386,32 +387,310 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
   );
 };
 
+const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: any, setMemberInfo: any, token: string | null }) => {
+  const { updateUser } = useAuth();
+  const [name, setName] = useState(memberInfo?.name || '');
+  const [email, setEmail] = useState(memberInfo?.email || '');
+  const [mobile, setMobile] = useState(memberInfo?.mobile || '');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [photoUrl, setPhotoUrl] = useState(memberInfo?.photoUrl || '');
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (memberInfo) {
+      setName(memberInfo.name || '');
+      setEmail(memberInfo.email || '');
+      setMobile(memberInfo.mobile || '');
+      setPhotoUrl(memberInfo.photoUrl || '');
+    }
+  }, [memberInfo]);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      const res = await axios.post('/upload/member-docs', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setPhotoUrl(res.data.photoUrl);
+      alert('Profile photo uploaded successfully! Please click "Save Changes" to save it.');
+    } catch (err) {
+      console.error('Photo upload error', err);
+      alert('Error uploading photo.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password && password !== confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload: any = { name, email, mobile, photoUrl };
+      if (password) payload.password = password;
+
+      const res = await axios.patch('/members/profile', payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setMemberInfo((prev: any) => ({
+        ...prev,
+        name: res.data.name,
+        email: res.data.email,
+        mobile: res.data.mobile,
+        photoUrl: res.data.photoUrl
+      }));
+
+      // Update global auth state
+      updateUser({
+        name: res.data.name,
+        email: res.data.email,
+        mobile: res.data.mobile
+      });
+
+      setPassword('');
+      setConfirmPassword('');
+      alert("Profile updated successfully!");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || "Error updating profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: '650px', margin: '0 auto' }}>
+      <form onSubmit={handleSubmit} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.75rem' }}>
+        <h3 style={{ fontSize: '1.125rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <User size={18} /> Edit Profile
+        </h3>
+
+        {/* Photo Upload */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--primary)', backgroundColor: 'var(--bg-tertiary)' }}>
+            {photoUrl ? (
+              <img src={photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)' }}>
+                <User size={36} />
+              </div>
+            )}
+            {uploading && (
+              <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontSize: '0.7rem' }}>
+                Uploading...
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', padding: '0.4rem 0.8rem', fontSize: '0.8125rem' }}>
+              <Camera size={14} /> {photoUrl ? 'Change Photo' : 'Upload Photo'}
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} disabled={uploading} />
+            </label>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>PNG, JPG or JPEG. Max 5MB.</span>
+          </div>
+        </div>
+
+        {/* Info Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem' }}>
+          <div>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Full Name</label>
+            <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Email Address</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address (Optional)" />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>Flat Number</label>
+            <input value={memberInfo?.flatNo || ''} disabled style={{ backgroundColor: 'var(--bg-tertiary)', cursor: 'not-allowed' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>Billing Cycle</label>
+            <input value={memberInfo?.defaultTenure || ''} disabled style={{ backgroundColor: 'var(--bg-tertiary)', cursor: 'not-allowed' }} />
+          </div>
+        </div>
+
+        <div>
+          <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>Address</label>
+          <textarea value={memberInfo?.address || ''} disabled rows={2} style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'not-allowed', fontSize: '0.875rem' }} />
+        </div>
+
+        {/* Changeable fields */}
+        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <h4 style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)' }}>
+            <Lock size={14} /> Security & Contact Info
+          </h4>
+          
+          <div>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Phone Number</label>
+            <input required type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="Enter phone number" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem' }}>
+            <div>
+              <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>New Password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'block' }}>Leave blank to keep current password</span>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Confirm New Password</label>
+              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+          <button type="submit" className="btn btn-primary" disabled={saving || uploading} style={{ padding: '0.5rem 1.25rem' }}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const getFinancialYear = (dateString: string | Date) => {
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = d.getMonth(); // Jan is 0, Apr is 3
+  if (month >= 3) {
+    const nextYr = (year + 1) % 100;
+    return `${year}-${nextYr < 10 ? '0' + nextYr : nextYr}`;
+  } else {
+    const prevYr = year - 1;
+    const currYrShort = year % 100;
+    return `${prevYr}-${currYrShort < 10 ? '0' + currYrShort : currYrShort}`;
+  }
+};
+
+const getStartYear = (fy: string) => {
+  const match = fy.match(/^(\d{4})/);
+  return match ? parseInt(match[1]) : 0;
+};
+
+const getMonthsForFinancialYear = (fy: string) => {
+  const startYr = getStartYear(fy);
+  const endYr = startYr + 1;
+  return [
+    { name: 'April', monthIndex: 3, year: startYr },
+    { name: 'May', monthIndex: 4, year: startYr },
+    { name: 'June', monthIndex: 5, year: startYr },
+    { name: 'July', monthIndex: 6, year: startYr },
+    { name: 'August', monthIndex: 7, year: startYr },
+    { name: 'September', monthIndex: 8, year: startYr },
+    { name: 'October', monthIndex: 9, year: startYr },
+    { name: 'November', monthIndex: 10, year: startYr },
+    { name: 'December', monthIndex: 11, year: startYr },
+    { name: 'January', monthIndex: 0, year: endYr },
+    { name: 'February', monthIndex: 1, year: endYr },
+    { name: 'March', monthIndex: 2, year: endYr },
+  ];
+};
+
+const isMonthCoveredByPayment = (payment: any, year: number, monthIndex: number) => {
+  if (payment.status === 'CANCELLED') return false;
+  if (payment.periodLabel === 'Initial Onboarding Fee') return false;
+
+  if (payment.coverageStartDate && payment.coverageEndDate) {
+    const start = new Date(payment.coverageStartDate);
+    const end = new Date(payment.coverageEndDate);
+    
+    // Check if the target month [firstDay, lastDay] overlaps with [start, end]
+    const firstDayOfTarget = new Date(year, monthIndex, 1);
+    const lastDayOfTarget = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+    
+    return start <= lastDayOfTarget && end >= firstDayOfTarget;
+  }
+
+  // Fallback: Check if payment date month matches
+  const payDate = new Date(payment.paymentDate);
+  return payDate.getFullYear() === year && payDate.getMonth() === monthIndex;
+};
+
 const MemberPortal = () => {
   const { logout, token, user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [memberInfo, setMemberInfo] = useState<any>(null);
+  const [maintenanceCosts, setMaintenanceCosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
+
+  const toggleYear = (yearId: string) => {
+    setExpandedYears(prev => ({ ...prev, [yearId]: !prev[yearId] }));
+  };
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const res = await axios.get('/members/profile', {
+        const profileRes = await axios.get('/members/profile', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setMemberInfo(res.data);
+        setMemberInfo(profileRes.data);
       } catch (err) {
         console.error("Error fetching profile", err);
-      } finally {
-        setLoading(false);
       }
+
+      try {
+        const costsRes = await axios.get('/maintenance-costs', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setMaintenanceCosts(costsRes.data);
+      } catch (err) {
+        console.error("Error fetching maintenance costs", err);
+      }
+
+      setLoading(false);
     };
-    fetchProfile();
+    if (token) {
+      fetchData();
+    }
   }, [token]);
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'overview':
+      case 'overview': {
+        const regFY = memberInfo?.registrationYear || (memberInfo?.createdAt ? getFinancialYear(memberInfo.createdAt) : '');
+        const matchedCost = maintenanceCosts.find((c: any) => c.financialYear === regFY);
+        const annualCostLabel = matchedCost ? `₹${matchedCost.amount.toLocaleString()}` : 'Not Configured';
+        const subtext = regFY ? `For FY ${regFY} (Registration Year)` : 'No registration year';
+
+        const regStartYear = getStartYear(regFY);
+        const memberHistoryCosts = maintenanceCosts.filter((c: any) => {
+          const costStartYear = getStartYear(c.financialYear);
+          return costStartYear >= regStartYear;
+        });
+
+        const dueMonthsList: string[] = [];
+        memberHistoryCosts.forEach((c: any) => {
+          const months = getMonthsForFinancialYear(c.financialYear);
+          months.forEach((month) => {
+            const isMonthPaid = memberInfo?.payments?.some((p: any) => 
+              isMonthCoveredByPayment(p, month.year, month.monthIndex)
+            );
+            if (!isMonthPaid) {
+              dueMonthsList.push(`${month.name} ${month.year}`);
+            }
+          });
+        });
+
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div className="card" style={{ borderLeft: '4px solid var(--primary)', backgroundColor: 'var(--bg-secondary)' }}>
@@ -435,10 +714,35 @@ const MemberPortal = () => {
                   <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Current Dues</span>
                 </div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 700, color: (memberInfo?.outstandingDues || 0) > 0 ? 'var(--error)' : 'var(--success)' }}>
-                  ₹{(memberInfo?.outstandingDues || 0).toLocaleString()}
+                  ₹{Math.max(0, memberInfo?.outstandingDues || 0).toLocaleString()}
                 </div>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                   {(memberInfo?.outstandingDues || 0) > 0 ? 'Please pay at the society office.' : 'No outstanding dues!'}
+                </p>
+              </div>
+
+              <div className="card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>
+                    <Clock size={20} />
+                  </div>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Due Months</span>
+                </div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, maxHeight: '80px', overflowY: 'auto', color: 'var(--error)' }}>
+                  {dueMonthsList.length > 0 ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                      {dueMonthsList.map((m) => (
+                        <span key={m} style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
+                          {m}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--success)' }}>All months paid!</span>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                  {dueMonthsList.length > 0 ? `${dueMonthsList.length} month(s) pending payment` : 'No pending months'}
                 </p>
               </div>
 
@@ -454,6 +758,21 @@ const MemberPortal = () => {
                 </div>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                   {user?.tenantName}
+                </p>
+              </div>
+
+              <div className="card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#d97706' }}>
+                    <History size={20} />
+                  </div>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Annual Maintenance Cost</span>
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                  {annualCostLabel}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                  {subtext}
                 </p>
               </div>
             </div>
@@ -477,10 +796,120 @@ const MemberPortal = () => {
             </div>
           </div>
         );
+      }
+      case 'dues-history': {
+        const regFY = memberInfo?.registrationYear || (memberInfo?.createdAt ? getFinancialYear(memberInfo.createdAt) : '');
+        const regStartYear = getStartYear(regFY);
+        const memberHistoryCosts = maintenanceCosts.filter((c: any) => {
+          const costStartYear = getStartYear(c.financialYear);
+          return costStartYear >= regStartYear;
+        });
+
+        return (
+          <div className="card">
+            <h3 style={{ marginBottom: '1.25rem', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Clock size={20} style={{ color: 'var(--primary)' }} /> Maintenance Dues History
+            </h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
+                    <th style={{ width: '40px' }}></th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>FINANCIAL YEAR</th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>ANNUAL MAINTENANCE COST</th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)', textAlign: 'right' }}>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {memberHistoryCosts.map((c: any) => {
+                    const isPaid = memberInfo?.payments?.some((p: any) => 
+                      p.status !== 'CANCELLED' && 
+                      p.periodLabel !== 'Initial Onboarding Fee' && 
+                      getFinancialYear(p.paymentDate) === c.financialYear
+                    );
+                    const isExpanded = !!expandedYears[c.id];
+                    const months = getMonthsForFinancialYear(c.financialYear);
+                    const monthlyCost = Math.round(c.amount / 12);
+
+                    return (
+                      <React.Fragment key={c.id}>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => toggleYear(c.id)}>
+                          <td style={{ padding: '1rem', textAlign: 'center' }}>
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </td>
+                          <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600 }}>FY {c.financialYear}</td>
+                          <td style={{ padding: '1rem', fontSize: '0.875rem' }}>₹{c.amount.toLocaleString()}</td>
+                          <td style={{ padding: '1rem', textAlign: 'right' }}>
+                            {isPaid ? (
+                              <span className="badge badge-success">Paid</span>
+                            ) : (
+                              <span className="badge badge-error">Due</span>
+                            )}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '1rem 2rem', backgroundColor: 'var(--bg-secondary)' }}>
+                              <div style={{ marginBottom: '0.5rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                Monthly Fee Breakdown (₹{monthlyCost.toLocaleString()} / month)
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                                {months.map((month) => {
+                                  const isMonthPaid = memberInfo?.payments?.some((p: any) => 
+                                    isMonthCoveredByPayment(p, month.year, month.monthIndex)
+                                  );
+                                  return (
+                                    <div key={month.name} style={{
+                                      padding: '0.75rem',
+                                      borderRadius: '0.5rem',
+                                      backgroundColor: 'var(--bg-primary)',
+                                      border: '1px solid var(--border-color)',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '0.25rem'
+                                    }}>
+                                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                        {month.name} {month.year}
+                                      </div>
+                                      <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                                        ₹{monthlyCost.toLocaleString()}
+                                      </div>
+                                      <div style={{ marginTop: '0.25rem' }}>
+                                        {isMonthPaid ? (
+                                          <span className="badge badge-success" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem' }}>Paid</span>
+                                        ) : (
+                                          <span className="badge badge-error" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem' }}>Due</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                  {memberHistoryCosts.length === 0 && (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                        No maintenance cost history available.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      }
       case 'helpdesk':
         return <MemberHelpdesk token={token} />;
       case 'payments':
         return <MemberPayments memberInfo={memberInfo} user={user} />;
+      case 'profile':
+        return <MemberProfileTab memberInfo={memberInfo} setMemberInfo={setMemberInfo} token={token} />;
       default:
         return null;
     }
@@ -496,10 +925,15 @@ const MemberPortal = () => {
           <Building size={20} style={{ color: 'var(--primary)' }} />
           <span style={{ fontWeight: 700 }}>{user?.tenantName}</span>
         </div>
-        <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)' }}>
+        <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}>
           <Menu size={24} />
         </button>
       </div>
+
+      {/* Sidebar Backdrop */}
+      {isSidebarOpen && (
+        <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} />
+      )}
 
       <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem' }}>
@@ -513,11 +947,17 @@ const MemberPortal = () => {
           <a href="#" className={`nav-link ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}>
             <LayoutDashboard size={20} /> My Home
           </a>
+          <a href="#" className={`nav-link ${activeTab === 'dues-history' ? 'active' : ''}`} onClick={() => { setActiveTab('dues-history'); setIsSidebarOpen(false); }}>
+            <Clock size={20} /> Maintenance Fee History
+          </a>
           <a href="#" className={`nav-link ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => { setActiveTab('payments'); setIsSidebarOpen(false); }}>
             <History size={20} /> Payment History
           </a>
           <a href="#" className={`nav-link ${activeTab === 'helpdesk' ? 'active' : ''}`} onClick={() => { setActiveTab('helpdesk'); setIsSidebarOpen(false); }}>
             <LifeBuoy size={20} /> Helpdesk
+          </a>
+          <a href="#" className={`nav-link ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}>
+            <User size={20} /> My Profile
           </a>
         </nav>
 
@@ -529,9 +969,28 @@ const MemberPortal = () => {
       </div>
 
       <div className="main-content">
-        <header style={{ marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Resident Portal</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{user?.tenantName} • Flat {memberInfo?.flatNo}</p>
+        <header className="dashboard-header">
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Resident Portal</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{user?.tenantName} • Flat {memberInfo?.flatNo}</p>
+          </div>
+          <div 
+            onClick={() => setActiveTab('profile')} 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.4rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
+            className="desktop-only"
+          >
+            <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', border: '1.5px solid var(--primary)', backgroundColor: 'var(--bg-tertiary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              {memberInfo?.photoUrl ? (
+                <img src={memberInfo.photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <User size={16} style={{ color: 'var(--text-secondary)' }} />
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', paddingRight: '0.5rem' }}>
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{user?.name}</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Flat {memberInfo?.flatNo}</span>
+            </div>
+          </div>
         </header>
 
         {renderContent()}

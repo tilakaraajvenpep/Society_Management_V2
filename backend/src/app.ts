@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
 
 dotenv.config();
 
@@ -8,6 +9,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Routes will be imported here
 import authRoutes from "./routes/auth";
@@ -24,6 +26,7 @@ import staffRoutes from "./routes/staff";
 import masterDataRoutes from "./routes/masterData";
 import ticketRoutes from "./routes/ticket";
 import uploadRoutes from "./routes/upload";
+import maintenanceCostRoutes from "./routes/maintenanceCost";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tenants", tenantRoutes);
@@ -39,9 +42,10 @@ app.use("/api/staff", staffRoutes);
 app.use("/api/master-data", masterDataRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/maintenance-costs", maintenanceCostRoutes);
 
 app.get("/", (req, res) => {
   res.send("Society Management API is running...");
 });
 
-export default app;
+export default app; // Trigger dev server reload

@@ -16,7 +16,7 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
     // --- Totals ---
     const [totalIncomeAgg, totalExpensesAgg, outstandingAgg, tenantInfo] = await Promise.all([
-      prisma.payment.aggregate({ where: { tenantId }, _sum: { amount: true } }),
+      prisma.payment.aggregate({ where: { tenantId, status: { not: 'CANCELLED' } }, _sum: { amount: true } }),
       prisma.expense.aggregate({ where: { tenantId }, _sum: { amount: true } }),
       prisma.member.aggregate({ where: { tenantId }, _sum: { outstandingDues: true } }),
       prisma.tenant.findUnique({ 
@@ -33,18 +33,36 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
     // --- This month vs last month ---
     const [thisMonthIncome, lastMonthIncome, thisMonthExpenses, lastMonthExpenses] = await Promise.all([
-      prisma.payment.aggregate({ where: { tenantId, paymentDate: { gte: startOfMonth } }, _sum: { amount: true } }),
-      prisma.payment.aggregate({ where: { tenantId, paymentDate: { gte: startOfLastMonth, lte: endOfLastMonth } }, _sum: { amount: true } }),
+      prisma.payment.aggregate({ where: { tenantId, status: { not: 'CANCELLED' }, paymentDate: { gte: startOfMonth } }, _sum: { amount: true } }),
+      prisma.payment.aggregate({ where: { tenantId, status: { not: 'CANCELLED' }, paymentDate: { gte: startOfLastMonth, lte: endOfLastMonth } }, _sum: { amount: true } }),
       prisma.expense.aggregate({ where: { tenantId, date: { gte: startOfMonth } }, _sum: { amount: true } }),
       prisma.expense.aggregate({ where: { tenantId, date: { gte: startOfLastMonth, lte: endOfLastMonth } }, _sum: { amount: true } }),
     ]);
 
-    // --- Cash in hand (sum of all CashBalance records for this tenant) ---
-    const cashBalanceRows = await prisma.cashBalance.findMany({
-      where: { user: { tenantId } },
-      select: { balance: true },
-    });
-    const totalCashInHand = cashBalanceRows.reduce((s: number, b: any) => s + (b.balance || 0), 0);
+    // --- Cash in hand (derived from first principles for accuracy) ---
+    // Formula: CASH collected − Society-paid expenses − Bank deposits
+    const [cashPaymentsAgg, societyExpensesAgg, bankDepositsAgg] = await Promise.all([
+      // Total cash received from members (excluding cancelled)
+      prisma.payment.aggregate({
+        where: { tenantId, mode: 'CASH', status: { not: 'CANCELLED' } },
+        _sum: { amount: true }
+      }),
+      // Total expenses paid directly by society (not by a member)
+      prisma.expense.aggregate({
+        where: { tenantId, paidByMemberId: null },
+        _sum: { amount: true }
+      }),
+      // Total cash deposited to bank
+      prisma.cashTransaction.aggregate({
+        where: { tenantId, type: 'DEPOSIT', status: 'COMPLETED' },
+        _sum: { amount: true }
+      }),
+    ]);
+
+    const totalCashCollected = cashPaymentsAgg._sum.amount || 0;
+    const totalSocietyExpenses = societyExpensesAgg._sum.amount || 0;
+    const totalDeposited = bankDepositsAgg._sum.amount || 0;
+    const totalCashInHand = Math.max(0, totalCashCollected - totalSocietyExpenses - totalDeposited);
 
     // --- Expense breakdown by category ---
     const expenseByCategory = await prisma.expense.groupBy({
@@ -61,7 +79,7 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       const mEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
       const label = mStart.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
       const [inc, exp] = await Promise.all([
-        prisma.payment.aggregate({ where: { tenantId, paymentDate: { gte: mStart, lte: mEnd } }, _sum: { amount: true } }),
+        prisma.payment.aggregate({ where: { tenantId, status: { not: 'CANCELLED' }, paymentDate: { gte: mStart, lte: mEnd } }, _sum: { amount: true } }),
         prisma.expense.aggregate({ where: { tenantId, date: { gte: mStart, lte: mEnd } }, _sum: { amount: true } }),
       ]);
       monthlyData.push({ month: label, income: inc._sum.amount || 0, expenses: exp._sum.amount || 0, net: (inc._sum.amount || 0) - (exp._sum.amount || 0) });
@@ -83,6 +101,7 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
     const totalIncome = totalIncomeAgg._sum.amount || 0;
     const totalExpenses = totalExpensesAgg._sum.amount || 0;
+    const totalNonCashCollected = totalIncome - totalCashCollected;
 
     res.json({
       // Totals
@@ -91,6 +110,11 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       totalOutstanding: outstandingAgg._sum.outstandingDues || 0,
       netBalance: totalIncome - totalExpenses,
       totalCashInHand,
+      // Cash breakdown (for reconciliation transparency)
+      totalCashCollected,
+      totalNonCashCollected,
+      totalSocietyExpensesPaidCash: totalSocietyExpenses,
+      totalDeposited,
       // This month
       thisMonthIncome: thisMonthIncome._sum.amount || 0,
       thisMonthExpenses: thisMonthExpenses._sum.amount || 0,
@@ -127,6 +151,8 @@ router.get("/financials", authorize(["TENANT_ADMIN"]), async (req: any, res) => 
 
   try {
     let dateFilter: any = {};
+    const asOfDate = endDate ? new Date(endDate as string) : new Date();
+
     if (startDate && endDate) {
       dateFilter = {
         gte: new Date(startDate as string),
@@ -138,66 +164,173 @@ router.get("/financials", authorize(["TENANT_ADMIN"]), async (req: any, res) => 
       dateFilter = { lte: new Date(endDate as string) };
     }
 
+    // --- 1. Period P&L Data ---
     const paymentWhere: any = { tenantId, status: "PAID" };
     if (Object.keys(dateFilter).length > 0) paymentWhere.paymentDate = dateFilter;
 
     const expenseWhere: any = { tenantId };
     if (Object.keys(dateFilter).length > 0) expenseWhere.date = dateFilter;
-    // 1. Profit & Loss Data
-    const incomeCategories = await (prisma.payment as any).groupBy({
+
+    // Period payments grouped by periodLabel (excluding onboarding fee)
+    const periodIncomeCategories = await prisma.payment.groupBy({
       by: ['periodLabel'],
-      where: paymentWhere,
+      where: {
+        ...paymentWhere,
+        periodLabel: { not: "Initial Onboarding Fee" }
+      },
       _sum: { amount: true }
     });
-    
-    const expenseCategories = await prisma.expense.groupBy({
+
+    const periodExpenses = await prisma.expense.groupBy({
       by: ['category'],
       where: expenseWhere,
       _sum: { amount: true }
     });
 
-    const totalIncome = incomeCategories.filter((i: any) => i.periodLabel !== "Initial Onboarding Fee").reduce((acc: number, curr: any) => acc + (curr._sum?.amount || 0), 0);
-    const totalExpenses = expenseCategories.reduce((acc: number, curr: any) => acc + (curr._sum?.amount || 0), 0);
-    const corpusFundsAgg = incomeCategories.find((i: any) => i.periodLabel === "Initial Onboarding Fee");
-    const corpusFunds = corpusFundsAgg?._sum?.amount || 0;
+    // Subscriptions created in the period that are unpaid/pending/overdue
+    const periodOutstandingWhere: any = {
+      tenantId,
+      status: { in: ["PENDING", "OVERDUE", "PARTIAL"] }
+    };
+    if (Object.keys(dateFilter).length > 0) periodOutstandingWhere.startDate = dateFilter;
 
-    // 2. Balance Sheet Data
-    // Assets
-    const cashInHandAgg = await prisma.cashBalance.aggregate({
-      where: { user: { tenantId } },
-      _sum: { balance: true }
+    const periodOutstandingAgg = await prisma.subscription.aggregate({
+      where: periodOutstandingWhere,
+      _sum: { maintenanceAmount: true }
     });
-    const cashInHand = cashInHandAgg._sum.balance || 0;
-    
-    // Total Dues Receivable (Asset)
-    const duesAgg = await prisma.member.aggregate({
+    const periodOutstandingDues = periodOutstandingAgg._sum.maintenanceAmount || 0;
+
+    const periodPaidIncome = periodIncomeCategories.reduce((acc: number, curr: any) => acc + (curr._sum?.amount || 0), 0);
+    const totalPeriodIncome = periodPaidIncome + periodOutstandingDues;
+    const totalPeriodExpenses = periodExpenses.reduce((acc: number, curr: any) => acc + (curr._sum?.amount || 0), 0);
+    const periodNetProfit = totalPeriodIncome - totalPeriodExpenses;
+
+    // --- 2. Cumulative Balance Sheet Data (as of asOfDate) ---
+    // A. Cumulative Income (payments up to asOfDate excluding onboarding fee)
+    const cumulativeIncomeCategories = await prisma.payment.groupBy({
+      by: ['periodLabel'],
+      where: {
+        tenantId,
+        status: "PAID",
+        paymentDate: { lte: asOfDate },
+        periodLabel: { not: "Initial Onboarding Fee" }
+      },
+      _sum: { amount: true }
+    });
+    const cumulativePaidIncome = cumulativeIncomeCategories.reduce((acc: number, curr: any) => acc + (curr._sum?.amount || 0), 0);
+
+    // B. Cumulative Corpus Funds (onboarding fees up to asOfDate)
+    const cumulativeCorpusAgg = await prisma.payment.aggregate({
+      where: {
+        tenantId,
+        status: "PAID",
+        paymentDate: { lte: asOfDate },
+        periodLabel: "Initial Onboarding Fee"
+      },
+      _sum: { amount: true }
+    });
+    const cumulativeCorpusFunds = cumulativeCorpusAgg._sum.amount || 0;
+
+    // C. Cumulative Expenses up to asOfDate
+    const cumulativeExpensesAgg = await prisma.expense.aggregate({
+      where: {
+        tenantId,
+        date: { lte: asOfDate }
+      },
+      _sum: { amount: true }
+    });
+    const cumulativeExpenses = cumulativeExpensesAgg._sum.amount || 0;
+
+    // D. Cumulative Dues Receivable (Outstanding Dues) as of asOfDate
+    // Formula: currentOutstandingDues - futureSubscriptions + futurePayments
+    const currentDuesAgg = await prisma.member.aggregate({
       where: { tenantId },
       _sum: { outstandingDues: true }
     });
-    const duesReceivable = duesAgg._sum.outstandingDues || 0;
+    const currentDues = currentDuesAgg._sum.outstandingDues || 0;
 
-    // Bank Balance (Derived: Total non-cash income minus non-cash expenses)
-    // Simplified logic: all "BANK/UPI" payments - all "BANK" expenses. 
-    // For now, let's treat (totalIncome - totalExpenses - cashInHand) as Bank Balance roughly.
-    const bankBalance = (totalIncome - totalExpenses) - cashInHand;
+    const futureSubscriptionsAgg = await prisma.subscription.aggregate({
+      where: {
+        tenantId,
+        startDate: { gt: asOfDate }
+      },
+      _sum: { maintenanceAmount: true }
+    });
+    const futureSubscriptions = futureSubscriptionsAgg._sum.maintenanceAmount || 0;
+
+    const futurePaymentsAgg = await prisma.payment.aggregate({
+      where: {
+        tenantId,
+        status: "PAID",
+        periodLabel: { not: "Initial Onboarding Fee" },
+        paymentDate: { gt: asOfDate }
+      },
+      _sum: { amount: true }
+    });
+    const futurePayments = futurePaymentsAgg._sum.amount || 0;
+
+    const duesReceivable = Math.max(0, currentDues - futureSubscriptions + futurePayments);
+
+    // E. Cumulative Cash in Hand as of asOfDate
+    // Formula: currentCash - futureCashPayments + futureCashDeposits
+    const currentCashAgg = await prisma.cashBalance.aggregate({
+      where: { user: { tenantId } },
+      _sum: { balance: true }
+    });
+    const currentCash = currentCashAgg._sum.balance || 0;
+
+    const futureCashPaymentsAgg = await prisma.payment.aggregate({
+      where: {
+        tenantId,
+        mode: "CASH",
+        status: "PAID",
+        paymentDate: { gt: asOfDate }
+      },
+      _sum: { amount: true }
+    });
+    const futureCashPayments = futureCashPaymentsAgg._sum.amount || 0;
+
+    const futureCashDepositsAgg = await prisma.cashTransaction.aggregate({
+      where: {
+        tenantId,
+        type: "DEPOSIT",
+        createdAt: { gt: asOfDate }
+      },
+      _sum: { amount: true }
+    });
+    const futureCashDeposits = futureCashDepositsAgg._sum.amount || 0;
+
+    const cashInHand = Math.max(0, currentCash - futureCashPayments + futureCashDeposits);
+
+    // F. Cumulative Bank Balance as of asOfDate
+    // Formula: (cumulativePaidIncome + cumulativeCorpusFunds - cumulativeExpenses) - cashInHand
+    const bankBalance = (cumulativePaidIncome + cumulativeCorpusFunds - cumulativeExpenses) - cashInHand;
+
+    // G. Cumulative Net Profit / Accumulated Surplus as of asOfDate
+    // Formula: (cumulativePaidIncome + duesReceivable) - cumulativeExpenses
+    const cumulativeNetProfit = (cumulativePaidIncome + duesReceivable) - cumulativeExpenses;
 
     res.json({
       profitAndLoss: {
-        income: incomeCategories.filter((i: any) => i.periodLabel !== "Initial Onboarding Fee").map((i: any) => ({ category: i.periodLabel || 'General', amount: i._sum?.amount || 0 })),
-        expenses: expenseCategories.map((e: any) => ({ category: e.category, amount: e._sum?.amount || 0 })),
-        totalIncome,
-        totalExpenses,
-        netProfit: totalIncome - totalExpenses
+        income: [
+          ...periodIncomeCategories.map((i: any) => ({ category: i.periodLabel || 'General', amount: i._sum?.amount || 0 })),
+          ...(periodOutstandingDues > 0 ? [{ category: "Outstanding Dues (Receivable)", amount: periodOutstandingDues }] : [])
+        ],
+        expenses: periodExpenses.map((e: any) => ({ category: e.category, amount: e._sum?.amount || 0 })),
+        totalIncome: totalPeriodIncome,
+        totalExpenses: totalPeriodExpenses,
+        netProfit: periodNetProfit
       },
       balanceSheet: {
         assets: {
           cashInHand,
-          bankBalance: bankBalance > 0 ? bankBalance : 0,
+          bankBalance,
           duesReceivable
         },
         liabilities: {
-          corpusFunds
-        }
+          corpusFunds: cumulativeCorpusFunds
+        },
+        netProfit: cumulativeNetProfit
       }
     });
   } catch (error: any) {

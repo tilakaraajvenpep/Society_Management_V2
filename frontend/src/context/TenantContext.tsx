@@ -27,12 +27,14 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       let slug = '';
 
-      // 1. Check for subdomain (e.g., gkrnagar.localhost)
-      if (parts.length > 1 && parts[0] !== 'www' && parts[1] === 'localhost') {
+      // Check if hostname is not a plain IP or localhost (Subdomain detection)
+      const isIpOrLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+      if (!isIpOrLocalhost && parts.length > 1 && parts[0] !== 'www') {
         slug = parts[0];
-      } 
-      // 2. Fallback: Check for slug in path (e.g., /gkrnagar)
-      else if (pathname !== '/' && pathname.split('/').length === 2) {
+      }
+
+      // Fallback: Check for slug in path (e.g., /rm)
+      if (!slug && pathname !== '/' && pathname.split('/').length === 2) {
         const potentialSlug = pathname.split('/')[1];
         if (!['login', 'super-admin', 'tenant-admin'].includes(potentialSlug)) {
           slug = potentialSlug;

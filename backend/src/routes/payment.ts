@@ -7,7 +7,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { memberId, amount, mode, notes, subscriptionId, paidMonths, periodLabel, coverageStartDate, coverageEndDate } = req.body;
+  const { memberId, amount, mode, notes, subscriptionId, paidMonths, periodLabel, coverageStartDate, coverageEndDate, paymentDate } = req.body;
   try {
     // Fetch member name and current paidUntil
     const currentMember = await prisma.member.findUnique({ where: { id: memberId }, select: { name: true, flatNo: true, paidUntil: true } });
@@ -35,6 +35,7 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           handoverStatus: normalizedMode === "CASH" ? "WITH_COLLECTOR" : "TRANSFERRED_TO_BANK",
           paidMonths: monthsToAdd,
           periodLabel: label,
+          paymentDate: paymentDate ? new Date(paymentDate) : undefined,
           coverageStartDate: coverageStartDate ? new Date(coverageStartDate) : null,
           coverageEndDate: coverageEndDate ? new Date(coverageEndDate) : null,
         },
@@ -114,7 +115,8 @@ router.get("/upcoming", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         status: "ACTIVE",
         OR: [
           { paidUntil: null },
-          { paidUntil: { lte: endOfThisMonth } }
+          { paidUntil: { lte: endOfThisMonth } },
+          { outstandingDues: { gt: 0 } }
         ]
       },
       orderBy: { flatNo: 'asc' }
@@ -127,7 +129,7 @@ router.get("/upcoming", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 });
 
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { status, amount, notes } = req.body;
+  const { status, amount, mode, notes, coverageStartDate, coverageEndDate, paymentDate } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const current = await tx.payment.findUnique({
@@ -138,9 +140,10 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       if (current.status === "CANCELLED") throw new Error("Already cancelled");
 
       let finalStatus = status || current.status;
-      let finalAmount = amount !== undefined ? amount : current.amount;
+      let finalAmount = amount !== undefined ? parseFloat(amount.toString()) : current.amount;
+      let finalMode = mode ? (mode as string).toUpperCase() : current.mode;
       
-      // If cancelling
+      // Handle status cancellation
       if (status === "CANCELLED") {
         if (current.mode === "CASH") {
           await tx.cashBalance.update({
@@ -152,30 +155,88 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           where: { id: current.memberId },
           data: { outstandingDues: { increment: current.amount } }
         });
-      } else if (amount !== undefined && amount !== current.amount) {
-        // If amount changed
-        const diff = amount - current.amount;
-        if (current.mode === "CASH") {
+      } else {
+        // If not cancelling, but updating amount and/or mode
+        const amountDiff = finalAmount - current.amount;
+        
+        // Adjust cash balance based on mode switches/amount differences
+        if (current.mode === "CASH" && finalMode !== "CASH") {
+          // Changed from CASH to something else -> deduct the old amount
           await tx.cashBalance.update({
             where: { userId: current.collectedById },
-            data: { balance: { increment: diff } }
+            data: { balance: { decrement: current.amount } }
+          });
+        } else if (current.mode !== "CASH" && finalMode === "CASH") {
+          // Changed from something else to CASH -> add the whole new amount
+          await tx.cashBalance.upsert({
+            where: { userId: current.collectedById },
+            update: { balance: { increment: finalAmount } },
+            create: { userId: current.collectedById, balance: finalAmount }
+          });
+        } else if (current.mode === "CASH" && finalMode === "CASH" && amountDiff !== 0) {
+          // Stayed CASH but amount changed -> adjust by diff
+          await tx.cashBalance.update({
+            where: { userId: current.collectedById },
+            data: { balance: { increment: amountDiff } }
           });
         }
-        await tx.member.update({
-          where: { id: current.memberId },
-          data: { outstandingDues: { decrement: diff } }
-        });
+
+        // Adjust member outstandingDues
+        if (amountDiff !== 0) {
+          await tx.member.update({
+            where: { id: current.memberId },
+            data: { outstandingDues: { decrement: amountDiff } }
+          });
+        }
+      }
+
+      // Prepare updated fields
+      const updateData: any = {
+        status: finalStatus as any,
+        amount: finalAmount,
+        mode: finalMode as any,
+        notes: notes !== undefined ? notes : current.notes,
+        lastEditedBy: req.user.name,
+        lastEditedAt: new Date(),
+      };
+
+      if (paymentDate) {
+        updateData.paymentDate = new Date(paymentDate);
+      }
+      if (coverageStartDate !== undefined) {
+        updateData.coverageStartDate = coverageStartDate ? new Date(coverageStartDate) : null;
+      }
+      if (coverageEndDate !== undefined) {
+        updateData.coverageEndDate = coverageEndDate ? new Date(coverageEndDate) : null;
       }
 
       const updated = await tx.payment.update({
         where: { id: req.params.id },
-        data: {
-          status: finalStatus as any,
-          amount: finalAmount,
-          notes: notes || current.notes,
-          lastEditedBy: req.user.name,
-          lastEditedAt: new Date(),
+        data: updateData
+      });
+
+      // Recalculate paidUntil for the member based on all active payments
+      const activePayments = await tx.payment.findMany({
+        where: {
+          memberId: current.memberId,
+          status: { not: "CANCELLED" }
+        },
+        orderBy: { coverageEndDate: "desc" }
+      });
+      
+      let maxCoverageEndDate: Date | null = null;
+      for (const pay of activePayments) {
+        if (pay.coverageEndDate) {
+          const d = new Date(pay.coverageEndDate);
+          if (!maxCoverageEndDate || d > maxCoverageEndDate) {
+            maxCoverageEndDate = d;
+          }
         }
+      }
+      
+      await tx.member.update({
+        where: { id: current.memberId },
+        data: { paidUntil: maxCoverageEndDate }
       });
 
       return updated;
