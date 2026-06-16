@@ -26,4 +26,4 @@ databases:
   - name: society-management-db
     plan: free
     databaseName: society_management
-    user: postgres
+
