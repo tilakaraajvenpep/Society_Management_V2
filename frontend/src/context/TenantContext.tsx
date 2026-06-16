@@ -27,9 +27,13 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       let slug = '';
 
-      // Check if hostname is not a plain IP or localhost (Subdomain detection)
+      // Known hosting platforms — not real tenant subdomains
+      const hostingDomains = ['vercel.app', 'onrender.com', 'netlify.app', 'github.io', 'pages.dev'];
+      const isHostingDomain = hostingDomains.some(d => hostname.endsWith(d));
+
+      // Check if hostname is not a plain IP, localhost, or a hosting platform
       const isIpOrLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-      if (!isIpOrLocalhost && parts.length > 1 && parts[0] !== 'www') {
+      if (!isIpOrLocalhost && !isHostingDomain && parts.length > 1 && parts[0] !== 'www') {
         slug = parts[0];
       }
 
