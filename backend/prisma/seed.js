@@ -13,18 +13,24 @@ async function main() {
   const hashedPassword = await bcrypt.hash("admin123", 10);
 
   // Create Super Admin Only
-  await prisma.user.upsert({
-    where: { email: "superadmin@example.com" },
-    update: {},
-    create: {
-      email: "superadmin@example.com",
-      password: hashedPassword,
-      name: "Platform Admin",
-      role: "SUPER_ADMIN",
-    },
+  const existingAdmin = await prisma.user.findFirst({
+    where: { email: "superadmin@example.com", role: "SUPER_ADMIN" }
   });
 
-  console.log("Super Admin created: superadmin@example.com");
+  if (!existingAdmin) {
+    await prisma.user.create({
+      data: {
+        email: "superadmin@example.com",
+        password: hashedPassword,
+        name: "Platform Admin",
+        role: "SUPER_ADMIN",
+        tenantId: null,
+      },
+    });
+    console.log("Super Admin created: superadmin@example.com");
+  } else {
+    console.log("Super Admin already exists: superadmin@example.com");
+  }
 }
 
 main()
