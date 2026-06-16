@@ -7,6 +7,42 @@ const router = express.Router();
 
 import { authenticate } from "../middleware/auth";
 
+router.get("/init-db", async (req, res) => {
+  try {
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+    
+    // Check if Super Admin exists
+    let superAdmin = await masterPrisma.user.findFirst({
+      where: { email: "superadmin@example.com", role: "SUPER_ADMIN" }
+    });
+
+    if (!superAdmin) {
+      superAdmin = await masterPrisma.user.create({
+        data: {
+          email: "superadmin@example.com",
+          password: hashedPassword,
+          name: "Platform Admin",
+          role: "SUPER_ADMIN",
+          tenantId: null
+        }
+      });
+      console.log("Super Admin seeded via endpoint:", superAdmin.email);
+    } else {
+      // Reset password just in case
+      await masterPrisma.user.update({
+        where: { id: superAdmin.id },
+        data: { password: hashedPassword }
+      });
+      console.log("Super Admin password reset via endpoint");
+    }
+
+    res.json({ message: "Database initialized successfully", superAdmin: superAdmin.email });
+  } catch (error: any) {
+    console.error("Init DB Error:", error);
+    res.status(500).json({ message: "Init DB Error", error: error.message });
+  }
+});
+
 router.post("/login", async (req, res) => {
   const { identifier: rawIdentifier, password } = req.body;
   const identifier = rawIdentifier?.trim();
