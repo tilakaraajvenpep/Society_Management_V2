@@ -54,7 +54,34 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
     console.log(`Creating schema: ${schemaName}`);
     await pgClient.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
 
-    // 2. Clone tables from public schema to tenant schema
+    // 2. Clone Enum Types from public to tenant schema
+    console.log(`Cloning enum types from public to ${schemaName}...`);
+    const enumQuery = `
+      SELECT 
+          t.typname AS enum_name,  
+          e.enumlabel AS enum_value
+      FROM pg_type t 
+      JOIN pg_enum e ON t.oid = e.enumtypid  
+      JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace  
+      WHERE n.nspname = 'public'
+      ORDER BY enum_name, e.enumsortorder;
+    `;
+    const enumRes = await pgClient.query(enumQuery);
+    
+    const enums: { [name: string]: string[] } = {};
+    for (const row of enumRes.rows) {
+      if (!enums[row.enum_name]) {
+        enums[row.enum_name] = [];
+      }
+      enums[row.enum_name].push(row.enum_value);
+    }
+
+    for (const [enumName, values] of Object.entries(enums)) {
+      const valuesStr = values.map(v => `'${v}'`).join(', ');
+      await pgClient.query(`CREATE TYPE "${schemaName}"."${enumName}" AS ENUM (${valuesStr})`);
+    }
+
+    // 3. Clone tables from public schema to tenant schema
     console.log(`Cloning tables from public to ${schemaName}...`);
     const tablesRes = await pgClient.query(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name != '_prisma_migrations'`
@@ -65,7 +92,41 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
       await pgClient.query(`CREATE TABLE IF NOT EXISTS "${schemaName}"."${tableName}" (LIKE "public"."${tableName}" INCLUDING ALL)`);
     }
 
-    // 3. Clone foreign key constraints from public schema to tenant schema
+    // 4. Remap column enum types to target schema's enum types
+    console.log(`Remapping column enum types to target schema: ${schemaName}...`);
+    const colsRes = await pgClient.query(`
+      SELECT 
+          table_name, 
+          column_name, 
+          udt_name,
+          column_default
+      FROM 
+          information_schema.columns 
+      WHERE 
+          table_schema = '${schemaName}' 
+          AND udt_schema = 'public'
+    `);
+    for (const col of colsRes.rows) {
+      const hasDefault = col.column_default !== null;
+      if (hasDefault) {
+        await pgClient.query(`ALTER TABLE "${schemaName}"."${col.table_name}" ALTER COLUMN "${col.column_name}" DROP DEFAULT`);
+      }
+      
+      const remapQuery = `
+        ALTER TABLE "${schemaName}"."${col.table_name}" 
+        ALTER COLUMN "${col.column_name}" 
+        TYPE "${schemaName}"."${col.udt_name}" 
+        USING "${col.column_name}"::text::"${schemaName}"."${col.udt_name}"
+      `;
+      await pgClient.query(remapQuery);
+      
+      if (hasDefault) {
+        const rawDefault = col.column_default.split('::')[0];
+        await pgClient.query(`ALTER TABLE "${schemaName}"."${col.table_name}" ALTER COLUMN "${col.column_name}" SET DEFAULT ${rawDefault}::"${schemaName}"."${col.udt_name}"`);
+      }
+    }
+
+    // 5. Clone foreign key constraints from public schema to tenant schema
     console.log(`Cloning foreign key constraints from public to ${schemaName}...`);
     const fkQuery = `
       SELECT 

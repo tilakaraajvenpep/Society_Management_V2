@@ -39,7 +39,7 @@ export const getTenantPrisma = (tenantSlug: string): PrismaClient => {
       connectionString: dbUrl,
       ssl: isTenantLocalhost ? false : { rejectUnauthorized: false }
     });
-    const tenantAdapter = new PrismaPg(tenantPool);
+    const tenantAdapter = new PrismaPg(tenantPool, { schema: `society_${tenantSlug}` });
     tenantClients[tenantSlug] = new PrismaClient({ adapter: tenantAdapter });
   }
   return tenantClients[tenantSlug];
