@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
   Bell, MessageSquare, CreditCard, Landmark, 
-  Megaphone, Info, Check, Trash2, ShieldAlert
+  Megaphone, Info
 } from 'lucide-react';
 
 interface Notification {
