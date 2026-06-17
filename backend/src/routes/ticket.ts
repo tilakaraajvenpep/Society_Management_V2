@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Raise a new ticket (Members only or Admin on behalf of Member)
 router.post("/", authenticate, async (req: any, res) => {
-  const { subject, description, priority, memberId } = req.body;
+  const { subject, description, priority, memberId, imageUrl } = req.body;
   const tenantId = req.user.tenantId;
 
   try {
@@ -33,6 +33,7 @@ router.post("/", authenticate, async (req: any, res) => {
         priority: priority || "MEDIUM",
         tenantId,
         memberId: finalMemberId,
+        imageUrl: imageUrl || null,
       },
       include: { member: true }
     });

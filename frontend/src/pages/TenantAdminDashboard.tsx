@@ -1039,7 +1039,19 @@ const Helpdesk = ({ token }: { token: string | null }) => {
           {/* Description Area */}
           <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }}>
             <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</div>
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{selectedTicket.description}</div>
+            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', marginBottom: selectedTicket.imageUrl ? '1rem' : 0 }}>{selectedTicket.description}</div>
+            {selectedTicket.imageUrl && (
+              <div style={{ marginTop: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Attached Image</div>
+                <a href={selectedTicket.imageUrl} target="_blank" rel="noopener noreferrer">
+                  <img 
+                    src={selectedTicket.imageUrl} 
+                    alt="Attachment" 
+                    style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.5rem', border: '1px solid var(--border-color)', cursor: 'pointer' }} 
+                  />
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Comments Thread */}

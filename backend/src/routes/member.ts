@@ -155,7 +155,7 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         where: { tenantId: req.user.tenantId, email: targetEmail }
       });
       const memberExists = await prisma.member.findFirst({
-        where: { tenantId: req.user.tenantId, email: targetEmail }
+        where: { tenantId: req.user.tenantId, email: targetEmail, status: { not: "VACANT" } }
       });
       if (userExists || memberExists) {
         return res.status(400).json({ message: "This email address is already registered in this society. Please use another email." });
@@ -169,7 +169,7 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         where: { tenantId: req.user.tenantId, mobile: targetMobile }
       });
       const memberExists = await prisma.member.findFirst({
-        where: { tenantId: req.user.tenantId, mobile: targetMobile }
+        where: { tenantId: req.user.tenantId, mobile: targetMobile, status: { not: "VACANT" } }
       });
       if (userExists || memberExists) {
         return res.status(400).json({ message: "This mobile number is already registered in this society. Please use another mobile number." });
@@ -380,7 +380,7 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         where: { tenantId: req.user.tenantId, email: targetEmail }
       });
       const memberExists = await prisma.member.findFirst({
-        where: { tenantId: req.user.tenantId, email: targetEmail, id: { not: req.params.id } }
+        where: { tenantId: req.user.tenantId, email: targetEmail, id: { not: req.params.id }, status: { not: "VACANT" } }
       });
       const currentMember = await prisma.member.findUnique({ where: { id: req.params.id } });
       if ((userExists && userExists.id !== currentMember?.userId) || memberExists) {
@@ -395,7 +395,7 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         where: { tenantId: req.user.tenantId, mobile: targetMobile }
       });
       const memberExists = await prisma.member.findFirst({
-        where: { tenantId: req.user.tenantId, mobile: targetMobile, id: { not: req.params.id } }
+        where: { tenantId: req.user.tenantId, mobile: targetMobile, id: { not: req.params.id }, status: { not: "VACANT" } }
       });
       const currentMember = await prisma.member.findUnique({ where: { id: req.params.id } });
       if ((userExists && userExists.id !== currentMember?.userId) || memberExists) {

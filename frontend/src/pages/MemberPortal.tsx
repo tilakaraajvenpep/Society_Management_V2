@@ -16,6 +16,8 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [newTicket, setNewTicket] = useState({ subject: '', description: '', priority: 'MEDIUM' });
   const [comment, setComment] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -35,15 +37,33 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploadingImage(true);
     try {
-      await axios.post('/tickets', newTicket, {
+      let imageUrl = null;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        const uploadRes = await axios.post('/upload/ticket', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`
+          }
+        });
+        imageUrl = uploadRes.data.imageUrl;
+      }
+
+      await axios.post('/tickets', { ...newTicket, imageUrl }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNewTicket({ subject: '', description: '', priority: 'MEDIUM' });
+      setImageFile(null);
       setShowNewModal(false);
       fetchTickets();
     } catch (err) {
+      console.error(err);
       alert("Error raising ticket");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -157,7 +177,19 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Description</div>
-              <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.925rem' }}>{selectedTicket.description}</p>
+              <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.925rem', marginBottom: selectedTicket.imageUrl ? '1rem' : 0 }}>{selectedTicket.description}</p>
+              {selectedTicket.imageUrl && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Attached Image</div>
+                  <a href={selectedTicket.imageUrl} target="_blank" rel="noopener noreferrer">
+                    <img 
+                      src={selectedTicket.imageUrl} 
+                      alt="Attachment" 
+                      style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '0.5rem', border: '1px solid var(--border-color)', cursor: 'pointer' }} 
+                    />
+                  </a>
+                </div>
+              )}
             </div>
 
             <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -214,23 +246,23 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
           <div className="card" style={{ width: '100%', maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3>Raise New Ticket</h3>
-              <button onClick={() => setShowNewModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem' }}>&times;</button>
+              <button onClick={() => setShowNewModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem' }} disabled={uploadingImage}>&times;</button>
             </div>
             <form onSubmit={handleCreateTicket}>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Subject</label>
-                <input required value={newTicket.subject} onChange={(e) => setNewTicket({...newTicket, subject: e.target.value})} placeholder="Brief title of the issue" />
+                <input required value={newTicket.subject} onChange={(e) => setNewTicket({...newTicket, subject: e.target.value})} placeholder="Brief title of the issue" disabled={uploadingImage} />
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Priority</label>
-                <select value={newTicket.priority} onChange={(e) => setNewTicket({...newTicket, priority: e.target.value})}>
+                <select value={newTicket.priority} onChange={(e) => setNewTicket({...newTicket, priority: e.target.value})} disabled={uploadingImage}>
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
                   <option value="HIGH">High</option>
                   <option value="URGENT">Urgent</option>
                 </select>
               </div>
-              <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
                 <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Description</label>
                 <textarea 
                   required 
@@ -239,11 +271,24 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
                   placeholder="Provide more details about your concern..."
                   rows={4}
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                  disabled={uploadingImage}
+                />
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Attachment (Optional Image)</label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                  style={{ width: '100%', fontSize: '0.875rem' }}
+                  disabled={uploadingImage}
                 />
               </div>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowNewModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Submit Ticket</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowNewModal(false)} disabled={uploadingImage}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={uploadingImage}>
+                  {uploadingImage ? 'Uploading & Submitting...' : 'Submit Ticket'}
+                </button>
               </div>
             </form>
           </div>
