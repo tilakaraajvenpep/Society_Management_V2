@@ -53,6 +53,25 @@ app.get("/", (req, res) => {
   res.send("Society Management API is running...");
 });
 
+import { getTenantPrisma, masterPrisma } from "./utils/prisma";
+app.get("/api/debug-maintenance-costs", async (req, res) => {
+  try {
+    const tenantSlug = "sms";
+    const tenantClient = getTenantPrisma(tenantSlug);
+    const tenant = await masterPrisma.tenant.findFirst({ where: { slug: tenantSlug } });
+    if (!tenant) {
+      return res.status(404).json({ error: "Tenant 'sms' not found" });
+    }
+    const costs = await tenantClient.maintenanceCost.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: { financialYear: "asc" }
+    });
+    res.json(costs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 import pg from "pg";
 app.get("/api/inspect-db", async (req, res) => {
   const connectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
