@@ -53,6 +53,31 @@ app.get("/", (req, res) => {
   res.send("Society Management API is running...");
 });
 
+import pg from "pg";
+app.get("/api/inspect-db", async (req, res) => {
+  const connectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+  const isLocalhost = connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
+  const client = new pg.Client({
+    connectionString,
+    ssl: isLocalhost ? false : { rejectUnauthorized: false }
+  });
+
+  try {
+    await client.connect();
+    const result = await client.query(`
+      SELECT table_schema, table_name, column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'MaintenanceCost' OR table_name = 'Member'
+      ORDER BY table_schema, table_name, column_name
+    `);
+    res.json(result.rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    await client.end();
+  }
+});
+
 // ─── Monthly Dues Notification Scheduler ─────────────────────────────────────
 // Runs on the 1st of every month and sends dues reminders to all members
 // across all tenants who have outstanding dues and a linked portal account.
