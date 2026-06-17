@@ -221,6 +221,34 @@ export async function ensureTenantSchemas() {
             }
           }
         }
+
+        // Synchronize indexes for this table
+        const publicIndexesRes = await pgClient.query(`
+          SELECT indexname, indexdef
+          FROM pg_indexes
+          WHERE schemaname = 'public' AND tablename = $1
+        `, [tableName]);
+
+        const tenantIndexesRes = await pgClient.query(`
+          SELECT indexname
+          FROM pg_indexes
+          WHERE schemaname = $1 AND tablename = $2
+        `, [schemaName, tableName]);
+        const tenantIndexes = new Set(tenantIndexesRes.rows.map(r => r.indexname));
+
+        for (const idx of publicIndexesRes.rows) {
+          if (!tenantIndexes.has(idx.indexname)) {
+            console.log(`Index ${idx.indexname} is missing in table ${tableName} of schema ${schemaName}. Creating...`);
+            let createIdxDef = idx.indexdef;
+            createIdxDef = createIdxDef.replace(`public."${tableName}"`, `"${schemaName}"."${tableName}"`);
+            createIdxDef = createIdxDef.replace(`public.${tableName}`, `"${schemaName}"."${tableName}"`);
+            try {
+              await pgClient.query(createIdxDef);
+            } catch (idxErr: any) {
+              console.error(`Failed to create index ${idx.indexname} in schema ${schemaName}:`, idxErr.message);
+            }
+          }
+        }
       }
     }
   } catch (error) {
