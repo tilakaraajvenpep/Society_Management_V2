@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import prisma from "./utils/prisma";
 
 dotenv.config();
 
@@ -51,5 +52,100 @@ app.use("/api/events", eventRoutes);
 app.get("/", (req, res) => {
   res.send("Society Management API is running...");
 });
+
+// ─── Monthly Dues Notification Scheduler ─────────────────────────────────────
+// Runs on the 1st of every month and sends dues reminders to all members
+// across all tenants who have outstanding dues and a linked portal account.
+async function sendMonthlyDuesReminders() {
+  try {
+    const now = new Date();
+    const monthName = now.toLocaleString("default", { month: "long" });
+    const year = now.getFullYear();
+
+    console.log(`[Scheduler] Running monthly dues reminders for ${monthName} ${year}...`);
+
+    // Get all tenants
+    const tenants = await prisma.tenant.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, name: true },
+    });
+
+    let totalSent = 0;
+
+    for (const tenant of tenants) {
+      const membersWithDues = await prisma.member.findMany({
+        where: {
+          tenantId: tenant.id,
+          status: "ACTIVE",
+          outstandingDues: { gt: 0 },
+          userId: { not: null },
+        },
+        select: {
+          id: true,
+          name: true,
+          flatNo: true,
+          outstandingDues: true,
+          userId: true,
+        },
+      });
+
+      if (membersWithDues.length === 0) continue;
+
+      const notificationsData = membersWithDues.map((m) => ({
+        tenantId: tenant.id,
+        userId: m.userId!,
+        title: `Monthly Dues Reminder — ${monthName} ${year}`,
+        message: `Dear ${m.name}, your maintenance dues of ₹${m.outstandingDues.toLocaleString("en-IN")} for Flat ${m.flatNo} are pending. Please pay at the earliest to avoid inconvenience. Contact the society office if you have any questions.`,
+        type: "DUES_REMINDER",
+      }));
+
+      await prisma.notification.createMany({ data: notificationsData });
+
+      // Log the automated action
+      await prisma.auditLog.create({
+        data: {
+          tenantId: tenant.id,
+          actionType: "AUTO_DUES_REMINDER_SENT",
+          performedBy: "System Scheduler",
+          details: `Automated monthly dues reminder sent to ${membersWithDues.length} member(s) in ${tenant.name} for ${monthName} ${year}.`,
+        },
+      });
+
+      totalSent += membersWithDues.length;
+      console.log(`[Scheduler] Sent ${membersWithDues.length} reminders for tenant: ${tenant.name}`);
+    }
+
+    console.log(`[Scheduler] Monthly dues reminders complete. Total sent: ${totalSent}`);
+  } catch (err) {
+    console.error("[Scheduler] Error sending monthly dues reminders:", err);
+  }
+}
+
+// Schedule to run on the 1st of every month at 9:00 AM
+function scheduleMonthlyDuesReminder() {
+  const checkAndRun = () => {
+    const now = new Date();
+    // Run on the 1st day of the month
+    if (now.getDate() === 1) {
+      sendMonthlyDuesReminders();
+    }
+  };
+
+  // Check every 6 hours to be safe (won't run twice on same day because we track date)
+  let lastRunMonth = -1;
+  setInterval(() => {
+    const now = new Date();
+    if (now.getDate() === 1 && now.getMonth() !== lastRunMonth) {
+      lastRunMonth = now.getMonth();
+      sendMonthlyDuesReminders();
+    }
+  }, 6 * 60 * 60 * 1000); // every 6 hours
+
+  console.log("[Scheduler] Monthly dues reminder scheduler initialized.");
+}
+
+// Start the scheduler when app is loaded
+scheduleMonthlyDuesReminder();
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default app; // Trigger dev server reload

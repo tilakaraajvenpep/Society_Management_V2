@@ -1429,70 +1429,291 @@ const EventManagement = ({ token }: { token: string | null }) => {
   );
 };
 
-const NotificationManagement = ({ token }: { token: string | null }) => {
+const DUES_KEYWORDS = ['due', 'dues', 'pending', 'payment', 'maintenance', 'arrear', 'outstanding', 'unpaid', 'overdue'];
+
+const NotificationManagement = ({ token, members }: { token: string | null; members: any[] }) => {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
+  const [recipient, setRecipient] = useState<'ALL' | 'MEMBER'>('ALL');
+  const [selectedMemberId, setSelectedMemberId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Dues check warning state
+  const [duesWarning, setDuesWarning] = useState<null | { memberName: string; flatNo: string; outstandingDues: number; isPaidUpToDate: boolean }>(null);
+
+  // Monthly dues reminder state
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [reminderResult, setReminderResult] = useState<{ message: string; count: number; members?: any[] } | null>(null);
+
+  const isDuesRelated = (t: string) => DUES_KEYWORDS.some(kw => t.toLowerCase().includes(kw));
+
+  const checkDuesAndSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !message.trim()) {
-      setError("Title and description are required.");
-      return;
+    if (!title.trim() || !message.trim()) { setError("Title and description are required."); return; }
+    if (recipient === 'MEMBER' && !selectedMemberId) { setError("Please select a member to send the notification to."); return; }
+    setError(''); setSuccess('');
+
+    // If sending to a specific member and the title suggests dues — check their dues status
+    if (recipient === 'MEMBER' && selectedMemberId && isDuesRelated(title)) {
+      try {
+        const res = await axios.get(`/notifications/check-member-dues/${selectedMemberId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = res.data;
+        // If the member has no dues / is paid up — warn admin
+        if (!data.hasDues || data.isPaidUpToDate) {
+          setDuesWarning({
+            memberName: data.memberName,
+            flatNo: data.flatNo,
+            outstandingDues: data.outstandingDues,
+            isPaidUpToDate: data.isPaidUpToDate,
+          });
+          return; // Don't send yet — wait for admin decision
+        }
+      } catch (err: any) {
+        // If check fails, still allow sending
+        console.error('Dues check error:', err);
+      }
     }
-    setError('');
-    setSuccess('');
+
+    await doSend();
+  };
+
+  const doSend = async () => {
+    setDuesWarning(null);
     setSubmitting(true);
     try {
-      await axios.post('/notifications', {
-        title: title.trim(),
-        message: message.trim(),
-        type: 'ANNOUNCEMENT'
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSuccess("Notification broadcasted successfully to all members!");
-      setTitle('');
-      setMessage('');
+      const payload: any = { title: title.trim(), message: message.trim(), type: 'ANNOUNCEMENT' };
+      if (recipient === 'MEMBER' && selectedMemberId) {
+        payload.targetMemberId = selectedMemberId;
+      }
+      await axios.post('/notifications', payload, { headers: { Authorization: `Bearer ${token}` } });
+
+      const memberName = members.find(m => m.id === selectedMemberId)?.name;
+      setSuccess(
+        recipient === 'ALL'
+          ? "Notification broadcasted successfully to all members!"
+          : `Notification sent successfully to ${memberName || 'selected member'}!`
+      );
+      setTitle(''); setMessage(''); setSelectedMemberId(''); setRecipient('ALL');
     } catch (err: any) {
-      setError(err.response?.data?.message || "Error broadcasting notification");
+      setError(err.response?.data?.message || "Error sending notification");
     } finally {
       setSubmitting(false);
     }
   };
 
+  const sendMonthlyReminder = async () => {
+    setSendingReminder(true);
+    setReminderResult(null);
+    try {
+      const res = await axios.post('/notifications/send-monthly-dues-reminders', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setReminderResult(res.data);
+    } catch (err: any) {
+      setReminderResult({ message: err.response?.data?.message || "Error sending reminders", count: 0 });
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
+  const activeMembers = members.filter((m: any) => m.status === 'ACTIVE' || m.status === 'INACTIVE');
+
   return (
-    <div className="card" style={{ maxWidth: '650px' }}>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <Bell size={20} style={{ color: 'var(--primary)' }} /> Broadcast Manual Notification
-        </h3>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-          Send a custom announcement or notification to all society members. This will immediately show up in their resident portal.
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '720px' }}>
+
+      {/* ─── Dues Warning Dialog ──────────────────────────────────────── */}
+      {duesWarning && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="card" style={{ maxWidth: '480px', width: '100%', boxShadow: '0 25px 50px rgba(0,0,0,0.4)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Bell size={20} style={{ color: '#f59e0b' }} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Member May Have Paid Already
+                </h3>
+                <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  You are sending a dues-related notification to <strong>{duesWarning.memberName}</strong> (Flat {duesWarning.flatNo}).
+                </p>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: duesWarning.isPaidUpToDate ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${duesWarning.isPaidUpToDate ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`, borderRadius: '0.5rem', padding: '0.875rem', marginBottom: '1.25rem' }}>
+              {duesWarning.isPaidUpToDate ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10b981', fontWeight: 600, fontSize: '0.9rem' }}>
+                  ✅ This member appears to be <strong>paid up for the current month</strong>.
+                </div>
+              ) : (
+                <div style={{ color: '#f59e0b', fontWeight: 600, fontSize: '0.9rem' }}>
+                  ⚠️ Outstanding dues: <strong>₹{duesWarning.outstandingDues.toLocaleString('en-IN')}</strong>
+                  {duesWarning.outstandingDues === 0 && ' — Member has no outstanding dues recorded.'}
+                </div>
+              )}
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
+                Sending a dues-pending notification to a member who has already paid may cause confusion.
+                Do you still want to proceed?
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => { setDuesWarning(null); }}>
+                Cancel — Don't Send
+              </button>
+              <button className="btn btn-primary" onClick={doSend} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Send size={15} /> {submitting ? 'Sending...' : 'Send Anyway'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Manual Notification Card ─────────────────────────────────── */}
+      <div className="card">
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <Bell size={20} style={{ color: 'var(--primary)' }} /> Send Manual Notification
+          </h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Send a targeted notification to a specific member or broadcast to all society members.
+          </p>
+        </div>
+
+        <form onSubmit={checkDuesAndSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* Recipient Selector */}
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.6rem', display: 'block', color: 'var(--text-primary)' }}>
+              Send To *
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: recipient === 'MEMBER' ? '0.75rem' : 0 }}>
+              {[{ val: 'ALL', label: '📢 All Members (Broadcast)' }, { val: 'MEMBER', label: '👤 Specific Member' }].map(opt => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => { setRecipient(opt.val as any); setSelectedMemberId(''); }}
+                  style={{
+                    flex: 1, padding: '0.625rem', fontSize: '0.8125rem', fontWeight: 600, borderRadius: '0.5rem',
+                    border: recipient === opt.val ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                    backgroundColor: recipient === opt.val ? 'rgba(37,99,235,0.08)' : 'var(--bg-secondary)',
+                    color: recipient === opt.val ? 'var(--primary)' : 'var(--text-secondary)',
+                    cursor: 'pointer', transition: 'all 0.15s ease'
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+
+            {recipient === 'MEMBER' && (
+              <div>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
+                  Select Member *
+                </label>
+                <select
+                  required
+                  value={selectedMemberId}
+                  onChange={(e) => setSelectedMemberId(e.target.value)}
+                  style={{ width: '100%', padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)', fontSize: '0.875rem' }}
+                >
+                  <option value="">— Select a Member —</option>
+                  {activeMembers.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.flatNo} — {m.name}{m.outstandingDues > 0 ? ` (Dues: ₹${Number(m.outstandingDues).toLocaleString('en-IN')})` : ' ✓ Paid'}
+                    </option>
+                  ))}
+                </select>
+                {selectedMemberId && !members.find(m => m.id === selectedMemberId)?.userId && (
+                  <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    ⚠️ This member has no portal account. Notifications require an active member login.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Title */}
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Notification Title *</label>
+            <input required type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Water Supply Interruption / Dues Pending Reminder" />
+            {recipient === 'MEMBER' && selectedMemberId && isDuesRelated(title) && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.3rem', fontStyle: 'italic' }}>
+                💡 Dues-related title detected — we'll verify payment status before sending.
+              </div>
+            )}
+          </div>
+
+          {/* Message */}
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Description / Message *</label>
+            <textarea required rows={5} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Enter the detailed description of the notification..." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+          </div>
+
+          {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', padding: '0.5rem', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: '0.375rem' }}>{error}</div>}
+          {success && <div style={{ color: 'var(--success)', fontSize: '0.875rem', fontWeight: 500, padding: '0.5rem', backgroundColor: 'rgba(16,185,129,0.08)', borderRadius: '0.375rem' }}>✅ {success}</div>}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="submit" className="btn btn-primary" disabled={submitting || (recipient === 'MEMBER' && !selectedMemberId)} style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Send size={16} /> {submitting ? 'Sending...' : (recipient === 'ALL' ? 'Broadcast Notification' : 'Send to Member')}
+            </button>
+          </div>
+        </form>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <div>
-          <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Notification Title *</label>
-          <input required type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Water Supply Interruption / Maintenance Alert" />
-        </div>
-        <div>
-          <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Description / Message *</label>
-          <textarea required rows={5} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Enter the detailed description of the notification..." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+      {/* ─── Monthly Dues Reminder Card ───────────────────────────────── */}
+      <div className="card" style={{ border: '1px solid rgba(245,158,11,0.25)', backgroundColor: 'rgba(245,158,11,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div style={{ width: 40, height: 40, borderRadius: '0.625rem', backgroundColor: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Clock size={20} style={{ color: '#f59e0b' }} />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Monthly Dues Reminders
+            </h3>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              Automatically runs on the <strong>1st of every month</strong>. You can also trigger it manually now — only members with outstanding dues will be notified.
+            </p>
+          </div>
         </div>
 
-        {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem' }}>{error}</div>}
-        {success && <div style={{ color: 'var(--success)', fontSize: '0.875rem', fontWeight: 500 }}>{success}</div>}
+        {reminderResult && (
+          <div style={{
+            padding: '0.875rem', borderRadius: '0.5rem', marginBottom: '1rem',
+            backgroundColor: reminderResult.count > 0 ? 'rgba(16,185,129,0.08)' : 'rgba(59,130,246,0.08)',
+            border: `1px solid ${reminderResult.count > 0 ? 'rgba(16,185,129,0.25)' : 'rgba(59,130,246,0.25)'}`
+          }}>
+            <div style={{ fontWeight: 600, color: reminderResult.count > 0 ? 'var(--success)' : 'var(--primary)', marginBottom: reminderResult.count > 0 ? '0.5rem' : 0 }}>
+              {reminderResult.count > 0 ? `✅ Sent ${reminderResult.count} reminder${reminderResult.count > 1 ? 's' : ''}` : 'ℹ️'} — {reminderResult.message}
+            </div>
+            {reminderResult.members && reminderResult.members.length > 0 && (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxHeight: '100px', overflowY: 'auto' }}>
+                {reminderResult.members.map((m: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.2rem 0' }}>
+                    <span>{m.flatNo} — {m.name}</span>
+                    <span style={{ color: 'var(--error)', fontWeight: 600 }}>₹{Number(m.dues).toLocaleString('en-IN')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-          <button type="submit" className="btn btn-primary" disabled={submitting} style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Send size={16} /> {submitting ? 'Broadcasting...' : 'Broadcast Notification'}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+            Members with <strong>₹0 dues</strong> or who are <strong>fully paid</strong> will <strong>not</strong> receive a reminder.
+          </div>
+          <button
+            className="btn btn-secondary"
+            onClick={sendMonthlyReminder}
+            disabled={sendingReminder}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap', borderColor: '#f59e0b', color: '#f59e0b' }}
+          >
+            <Bell size={16} /> {sendingReminder ? 'Sending Reminders...' : 'Send Dues Reminders Now'}
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 };
@@ -3414,7 +3635,7 @@ const TenantAdminDashboard = () => {
       case 'events':
         return <EventManagement token={token} />;
       case 'notifications':
-        return <NotificationManagement token={token} />;
+        return <NotificationManagement token={token} members={members} />;
       default:
         return null;
     }
