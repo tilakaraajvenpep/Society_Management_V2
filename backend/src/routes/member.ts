@@ -416,7 +416,7 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           status,
           userId,
           defaultTenure: defaultTenure || undefined,
-          paidUntil: paidUntil ? new Date(paidUntil) : undefined,
+          paidUntil: req.body.hasOwnProperty('paidUntil') ? (paidUntil ? new Date(paidUntil) : null) : undefined,
           photoUrl: photoUrl !== undefined ? photoUrl : undefined,
           idProofUrl: idProofUrl !== undefined ? idProofUrl : undefined,
           registrationYear: registrationYear || undefined,
