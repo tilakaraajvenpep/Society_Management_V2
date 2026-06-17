@@ -175,6 +175,51 @@ export async function ensureTenantSchemas() {
               }
             }
           }
+        } else {
+          // Table exists. Let's make sure it has all columns that public table has.
+          const publicColsRes = await pgClient.query(`
+            SELECT column_name, data_type, udt_name, udt_schema, is_nullable, column_default
+            FROM information_schema.columns 
+            WHERE table_schema = 'public' AND table_name = $1
+          `, [tableName]);
+
+          const tenantColsRes = await pgClient.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = $1 AND table_name = $2
+          `, [schemaName, tableName]);
+          const tenantCols = new Set(tenantColsRes.rows.map(r => r.column_name));
+
+          for (const col of publicColsRes.rows) {
+            if (!tenantCols.has(col.column_name)) {
+              console.log(`Column ${col.column_name} is missing in table ${tableName} of schema ${schemaName}. Adding...`);
+              
+              let typeStr = col.data_type;
+              if (col.data_type === 'USER-DEFINED') {
+                typeStr = `"${schemaName}"."${col.udt_name}"`;
+              } else if (col.data_type === 'ARRAY' && col.udt_name.startsWith('_')) {
+                const elementUdtName = col.udt_name.substring(1);
+                typeStr = `"${schemaName}"."${elementUdtName}"[]`;
+              }
+
+              let addQuery = `ALTER TABLE "${schemaName}"."${tableName}" ADD COLUMN "${col.column_name}" ${typeStr}`;
+              
+              if (col.is_nullable === 'NO') {
+                addQuery += ' NOT NULL';
+              }
+              
+              if (col.column_default !== null) {
+                const rawDefault = col.column_default.split('::')[0];
+                if (col.data_type === 'USER-DEFINED') {
+                  addQuery += ` DEFAULT ${rawDefault}::"${schemaName}"."${col.udt_name}"`;
+                } else {
+                  addQuery += ` DEFAULT ${col.column_default}`;
+                }
+              }
+
+              await pgClient.query(addQuery);
+            }
+          }
         }
       }
     }
