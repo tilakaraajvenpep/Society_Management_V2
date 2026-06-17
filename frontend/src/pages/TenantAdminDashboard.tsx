@@ -1362,11 +1362,19 @@ const TenantAdminDashboard = () => {
     let monthsPaid = 0;
     if (member.paidUntil) {
       const paidUntilDate = new Date(member.paidUntil);
+      // Normalize to 1st of the month:
+      // If the day is >= 15, we round up to the 1st of the next month.
+      // If the day is < 15, it represents the 1st of this month.
+      if (paidUntilDate.getDate() >= 15) {
+        paidUntilDate.setMonth(paidUntilDate.getMonth() + 1);
+      }
+      paidUntilDate.setDate(1);
+
       if (paidUntilDate >= fyStartDate) {
         const cappedPaidUntil = paidUntilDate < fyEndDate ? paidUntilDate : fyEndDate;
         const pYears = cappedPaidUntil.getFullYear() - fyStartDate.getFullYear();
         const pMonths = cappedPaidUntil.getMonth() - fyStartDate.getMonth();
-        monthsPaid = Math.max(0, pYears * 12 + pMonths + 1);
+        monthsPaid = Math.max(0, pYears * 12 + pMonths);
       }
     }
 
