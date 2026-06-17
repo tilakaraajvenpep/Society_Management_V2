@@ -28,6 +28,7 @@ import ticketRoutes from "./routes/ticket";
 import uploadRoutes from "./routes/upload";
 import maintenanceCostRoutes from "./routes/maintenanceCost";
 import notificationRoutes from "./routes/notification";
+import eventRoutes from "./routes/event";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tenants", tenantRoutes);
@@ -45,6 +46,7 @@ app.use("/api/tickets", ticketRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/maintenance-costs", maintenanceCostRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/events", eventRoutes);
 
 app.get("/", (req, res) => {
   res.send("Society Management API is running...");

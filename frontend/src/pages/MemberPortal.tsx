@@ -4,7 +4,7 @@ import {
   LayoutDashboard, LifeBuoy, LogOut, Plus, Send, 
   MessageSquare, Clock, Building, User, CreditCard, 
   History, Menu, X, Printer, FileText, Camera, Lock,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Calendar
 } from 'lucide-react';
 import axios from 'axios';
 import NotificationPanel from '../components/NotificationPanel';
@@ -625,6 +625,65 @@ const isMonthCoveredByPayment = (payment: any, year: number, monthIndex: number)
   return payDate.getFullYear() === year && payDate.getMonth() === monthIndex;
 };
 
+const MemberEvents = ({ token }: { token: string | null }) => {
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await axios.get('/events', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setEvents(res.data);
+      } catch (err) {
+        console.error("Error fetching events", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
+  }, [token]);
+
+  return (
+    <div className="card">
+      <h3 style={{ marginBottom: '1.25rem', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <Calendar size={20} style={{ color: 'var(--primary)' }} /> Society Events & Meetings
+      </h3>
+
+      {loading ? (
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Loading events...</p>
+      ) : events.length === 0 ? (
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1.5rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem' }}>
+          No upcoming events or meetings scheduled.
+        </p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
+          {events.map((event: any) => {
+            const dateObj = new Date(event.eventDate);
+            return (
+              <div key={event.id} style={{ display: 'flex', flexDirection: 'column', padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', backgroundColor: 'rgba(99, 102, 241, 0.1)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
+                    {dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{event.title}</h4>
+                {event.location && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.75rem' }}>
+                    <strong>📍 Venue:</strong> {event.location}
+                  </div>
+                )}
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', flexGrow: 1 }}>{event.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MemberPortal = () => {
   const { logout, token, user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
@@ -789,6 +848,10 @@ const MemberPortal = () => {
                   <History size={24} />
                   <span>View Payment History</span>
                 </button>
+                <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setActiveTab('events')}>
+                  <Calendar size={24} />
+                  <span>View Society Events</span>
+                </button>
                 <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center', opacity: 0.5, cursor: 'not-allowed' }}>
                   <CreditCard size={24} />
                   <span>Pay Maintenance (Coming Soon)</span>
@@ -911,6 +974,8 @@ const MemberPortal = () => {
         return <MemberPayments memberInfo={memberInfo} user={user} />;
       case 'profile':
         return <MemberProfileTab memberInfo={memberInfo} setMemberInfo={setMemberInfo} token={token} />;
+      case 'events':
+        return <MemberEvents token={token} />;
       default:
         return null;
     }
@@ -956,6 +1021,9 @@ const MemberPortal = () => {
           </a>
           <a href="#" className={`nav-link ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => { setActiveTab('payments'); setIsSidebarOpen(false); }}>
             <History size={20} /> Payment History
+          </a>
+          <a href="#" className={`nav-link ${activeTab === 'events' ? 'active' : ''}`} onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }}>
+            <Calendar size={20} /> Society Events
           </a>
           <a href="#" className={`nav-link ${activeTab === 'helpdesk' ? 'active' : ''}`} onClick={() => { setActiveTab('helpdesk'); setIsSidebarOpen(false); }}>
             <LifeBuoy size={20} /> Helpdesk

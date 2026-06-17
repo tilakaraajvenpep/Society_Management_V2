@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users,
   ArrowDownLeft, Landmark, LogOut, Plus, Send,
-  TrendingUp, Users2, Receipt, Building, Settings, History, Download, Upload, Edit, XCircle, Printer, Eye, UserCheck, Trash2, Calendar, BarChart2, Menu, X,
+  TrendingUp, Users2, Receipt, Building, Settings, History, Download, Upload, Edit, XCircle, Printer, Eye, UserCheck, Trash2, Calendar, BarChart2, Menu, X, Bell,
   MessageSquare, LifeBuoy, Clock, FileText, Image, Search
 } from 'lucide-react';
 import axios from 'axios';
@@ -1250,6 +1250,251 @@ const formatLocalDate = (dateInput: any) => {
   if (isNaN(d.getTime())) return '';
   const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
   return d.toLocaleDateString('en-IN', options);
+};
+
+const EventManagement = ({ token }: { token: string | null }) => {
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', location: '' });
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchEvents = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get('/events', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setEvents(res.data);
+    } catch (err) {
+      console.error("Error fetching events", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title || !form.description || !form.eventDate) {
+      setError("Title, description, and date are required.");
+      return;
+    }
+    setError('');
+    setSubmitting(true);
+    try {
+      if (editingEvent) {
+        await axios.put(`/events/${editingEvent.id}`, form, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert("Event updated successfully!");
+      } else {
+        await axios.post('/events', form, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert("Event created and members notified successfully!");
+      }
+      setShowForm(false);
+      setEditingEvent(null);
+      setForm({ title: '', description: '', eventDate: '', location: '' });
+      fetchEvents();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error saving event");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEdit = (event: any) => {
+    setEditingEvent(event);
+    const d = new Date(event.eventDate);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 16);
+    setForm({
+      title: event.title,
+      description: event.description,
+      eventDate: localISOTime,
+      location: event.location || ''
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`Are you sure you want to delete the event "${title}"?`)) return;
+    try {
+      await axios.delete(`/events/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert("Event deleted successfully!");
+      fetchEvents();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Error deleting event");
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="section-header-row">
+        <div>
+          <h3 style={{ marginBottom: '0.25rem' }}>Society Events</h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Schedule and manage events/meetings in the society. Creating an event automatically sends a notification to all members.
+          </p>
+        </div>
+        {!showForm && (
+          <button className="btn btn-primary" onClick={() => { setEditingEvent(null); setForm({ title: '', description: '', eventDate: '', location: '' }); setShowForm(true); }}>
+            <Plus size={18} /> Add Event
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid var(--border-color)' }}>
+          <h4 style={{ marginBottom: '1rem' }}>{editingEvent ? 'Edit Event' : 'Create New Event'}</h4>
+          <form onSubmit={handleSubmit}>
+            <div className="responsive-form-grid">
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Event Title *</label>
+                <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Annual General Body Meeting" />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Event Date & Time *</label>
+                <input type="datetime-local" required value={form.eventDate} onChange={e => setForm({ ...form, eventDate: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Location / Venue</label>
+                <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. Clubhouse Hall, Block A Lobby" />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Event Description *</label>
+                <textarea required rows={4} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Provide event details, agenda, rules, etc." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+              </div>
+            </div>
+            {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem' }}>{error}</div>}
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Saving...' : (editingEvent ? 'Update Event' : 'Create Event')}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setEditingEvent(null); }}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1rem' }}>Loading events...</p>
+      ) : events.length === 0 ? (
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1.5rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', marginTop: '1rem' }}>
+          No upcoming events scheduled yet. Click "Add Event" to create one.
+        </p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+          {events.map((event: any) => {
+            const dateObj = new Date(event.eventDate);
+            return (
+              <div key={event.id} style={{ display: 'flex', flexDirection: 'column', padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', backgroundColor: 'rgba(99, 102, 241, 0.1)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
+                    {dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                    <button className="btn btn-secondary" style={{ padding: '0.3rem', borderRadius: '0.35rem' }} onClick={() => handleEdit(event)} title="Edit Event">
+                      <Edit size={14} />
+                    </button>
+                    <button className="btn btn-secondary" style={{ padding: '0.3rem', borderRadius: '0.35rem', color: 'var(--error)' }} onClick={() => handleDelete(event.id, event.title)} title="Delete Event">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>{event.title}</h4>
+                {event.location && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.75rem' }}>
+                    <strong>📍 Venue:</strong> {event.location}
+                  </div>
+                )}
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', flexGrow: 1 }}>{event.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const NotificationManagement = ({ token }: { token: string | null }) => {
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !message.trim()) {
+      setError("Title and description are required.");
+      return;
+    }
+    setError('');
+    setSuccess('');
+    setSubmitting(true);
+    try {
+      await axios.post('/notifications', {
+        title: title.trim(),
+        message: message.trim(),
+        type: 'ANNOUNCEMENT'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSuccess("Notification broadcasted successfully to all members!");
+      setTitle('');
+      setMessage('');
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error broadcasting notification");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ maxWidth: '650px' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <Bell size={20} style={{ color: 'var(--primary)' }} /> Broadcast Manual Notification
+        </h3>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          Send a custom announcement or notification to all society members. This will immediately show up in their resident portal.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div>
+          <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Notification Title *</label>
+          <input required type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Water Supply Interruption / Maintenance Alert" />
+        </div>
+        <div>
+          <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Description / Message *</label>
+          <textarea required rows={5} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Enter the detailed description of the notification..." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+        </div>
+
+        {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem' }}>{error}</div>}
+        {success && <div style={{ color: 'var(--success)', fontSize: '0.875rem', fontWeight: 500 }}>{success}</div>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+          <button type="submit" className="btn btn-primary" disabled={submitting} style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Send size={16} /> {submitting ? 'Broadcasting...' : 'Broadcast Notification'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 };
 
 const TenantAdminDashboard = () => {
@@ -3166,6 +3411,10 @@ const TenantAdminDashboard = () => {
           </div>
         );
       }
+      case 'events':
+        return <EventManagement token={token} />;
+      case 'notifications':
+        return <NotificationManagement token={token} />;
       default:
         return null;
     }
@@ -3184,6 +3433,8 @@ const TenantAdminDashboard = () => {
       { id: 'expenses', icon: Landmark, label: 'Expenses' },
       ...(summary.enableForums ? [{ id: 'helpdesk', icon: LifeBuoy, label: 'Helpdesk' }] : []),
       { id: 'vendors', icon: Users2, label: 'Vendors' },
+      { id: 'events', icon: Calendar, label: 'Society Events' },
+      { id: 'notifications', icon: Bell, label: 'Raise Notifications' },
       { id: 'settings', icon: Settings, label: 'Settings' },
       { id: 'staff', icon: UserCheck, label: 'Office Bearers' },
       { id: 'logs', icon: History, label: 'Audit Logs' },
