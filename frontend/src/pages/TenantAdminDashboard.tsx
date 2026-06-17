@@ -1613,7 +1613,17 @@ const TenantAdminDashboard = () => {
     const member = members.find(m => m.id === id);
     const isStaff = member && member.userId && staff.some(s => s.id === member.userId);
 
-    if (!window.confirm(`Are you sure you want to mark Flat ${flatNo} (${name}) as VACANT?\nThis will revoke their login access and pause future dues. You can add a new occupant to this flat later.`)) return;
+    const details = getCalculatedDuesDetails(member, duesCalcMode);
+    const dueAmount = details.amount;
+    const hasDues = dueAmount > 0;
+
+    let confirmMsg = `Are you sure you want to mark Flat ${flatNo} (${name}) as VACANT?\nThis will revoke their login access and pause future dues. You can add a new occupant to this flat later.`;
+    
+    if (hasDues) {
+      confirmMsg += `\n\n⚠️ WARNING: This member has pending dues of ₹${dueAmount.toLocaleString()}.\nOnce marked vacant, they will be hidden from the active members list, but their outstanding dues will be shown separately at the bottom of this page.`;
+    }
+
+    if (!window.confirm(confirmMsg)) return;
 
     let removeStaff = false;
     if (isStaff) {
@@ -2088,6 +2098,7 @@ const TenantAdminDashboard = () => {
         return <Helpdesk token={token} />;
       case 'members': {
         const filteredMembers = members.filter((m: any) => {
+          if (m.status === 'VACANT') return false;
           const query = memberSearchQuery.toLowerCase().trim();
           if (!query) return true;
           return (
@@ -2096,6 +2107,12 @@ const TenantAdminDashboard = () => {
             String(m.mobile || '').toLowerCase().includes(query) ||
             String(m.email || '').toLowerCase().includes(query)
           );
+        });
+
+        const vacantWithDues = members.filter((m: any) => {
+          if (m.status !== 'VACANT') return false;
+          const details = getCalculatedDuesDetails(m, duesCalcMode);
+          return details.amount > 0;
         });
 
         return (
@@ -2255,6 +2272,93 @@ const TenantAdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+
+            {vacantWithDues.length > 0 && (
+              <div style={{ marginTop: '3rem', borderTop: '1px dashed var(--border-color)', paddingTop: '2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <XCircle size={18} style={{ color: 'var(--error)' }} />
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>Vacated Members with Pending Dues</h3>
+                </div>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                  These members have vacated their flats but still have outstanding dues that need to be collected.
+                </p>
+                <div className="table-container">
+                  <table style={{ tableLayout: 'fixed', width: '100%' }}>
+                    <colgroup>
+                      <col style={{ width: '22%' }} />
+                      <col style={{ width: '10%' }} />
+                      <col style={{ width: '22%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '22%' }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Flat No</th>
+                        <th>Contact Info</th>
+                        <th>Dues</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vacantWithDues.map((m: any) => {
+                        const details = getCalculatedDuesDetails(m, duesCalcMode);
+                        const dueAmount = details.amount;
+                        return (
+                          <tr key={m.id}>
+                            <td>
+                              <strong>{m.name}</strong>
+                              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+                                {m.photoUrl && (
+                                  <span onClick={() => setSelectedDoc({url: m.photoUrl, type: 'Profile Photo'})} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 600, padding: '0.15rem 0.4rem', borderRadius: '0.25rem', backgroundColor: 'rgba(37,99,235,0.08)', color: 'var(--primary)', cursor: 'pointer', border: '1px solid rgba(37,99,235,0.2)' }} title="Click to view profile photo">
+                                    <Image size={10} /> Photo
+                                  </span>
+                                )}
+                                {m.idProofUrl && (
+                                  <span onClick={() => setSelectedDoc({url: m.idProofUrl, type: 'ID Proof'})} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 600, padding: '0.15rem 0.4rem', borderRadius: '0.25rem', backgroundColor: 'rgba(16,185,129,0.08)', color: 'var(--success)', cursor: 'pointer', border: '1px solid rgba(16,185,129,0.2)' }} title="Click to view ID proof">
+                                    <FileText size={10} /> ID Proof
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td><code style={{ backgroundColor: 'var(--bg-tertiary)', padding: '0.2rem 0.4rem', borderRadius: '0.25rem' }}>{m.flatNo}</code></td>
+                            <td style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', wordBreak: 'break-all' }}>
+                              <div style={{ marginBottom: '0.2rem' }}>
+                                {m.email || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>No email</span>}
+                              </div>
+                              {m.mobile}
+                            </td>
+                            <td>
+                              <span style={{ fontWeight: 600, color: 'var(--error)' }}>
+                                ₹{dueAmount.toLocaleString()}
+                              </span>
+                            </td>
+                            <td><span className="badge badge-error">{m.status}</span></td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.4rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                  onClick={() => { setSelectedMember(m); setShowModal('member-history'); }}
+                                  title="View Payment History"
+                                >
+                                  <Eye size={14} /> History
+                                </button>
+                                <button className="btn btn-secondary" style={{ padding: '0.4rem', borderRadius: '0.5rem' }} onClick={() => handleEditClick(m)} title="Edit Member">
+                                  <Edit size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         );
       }
