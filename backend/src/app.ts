@@ -53,16 +53,6 @@ app.get("/", (req, res) => {
   res.send("Society Management API is running...");
 });
 
-import { ensureTenantSchemas } from "./utils/prisma";
-app.get("/api/debug-schema", async (req, res) => {
-  try {
-    await ensureTenantSchemas();
-    res.json({ message: "Schema checked and successfully synchronized" });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message, stack: error.stack });
-  }
-});
-
 // ─── Monthly Dues Notification Scheduler ─────────────────────────────────────
 // Runs on the 1st of every month and sends dues reminders to all members
 // across all tenants who have outstanding dues and a linked portal account.
