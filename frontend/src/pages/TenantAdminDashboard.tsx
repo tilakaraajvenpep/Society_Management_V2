@@ -1198,16 +1198,31 @@ const getFinancialYear = (date: Date) => {
   }
 };
 
-const getFYOptions = () => {
+
+
+const getGroupedFYOptions = () => {
   const currentYear = new Date().getFullYear();
-  const list = [];
-  for (let i = -2; i <= 2; i++) {
-    const yr = currentYear + i;
+  const futureLimit = currentYear + 10;
+  const groups: { [key: string]: string[] } = {};
+
+  for (let yr = futureLimit; yr >= 1900; yr--) {
+    const decade = `${Math.floor(yr / 10) * 10}s`;
     const nextYrShort = (yr + 1) % 100;
     const nextYrStr = nextYrShort < 10 ? `0${nextYrShort}` : `${nextYrShort}`;
-    list.push(`${yr}-${nextYrStr}`);
+    const val = `${yr}-${nextYrStr}`;
+    
+    if (!groups[decade]) {
+      groups[decade] = [];
+    }
+    groups[decade].push(val);
   }
-  return list;
+
+  return Object.keys(groups)
+    .sort((a, b) => parseInt(b) - parseInt(a))
+    .map(decade => ({
+      label: decade,
+      options: groups[decade]
+    }));
 };
 
 const getTodayDateString = () => {
@@ -3282,8 +3297,12 @@ const TenantAdminDashboard = () => {
                         <div>
                           <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Registration Year *</label>
                           <select value={newMember.registrationYear} onChange={(e) => setNewMember({ ...newMember, registrationYear: e.target.value })}>
-                            {getFYOptions().map(fy => (
-                              <option key={fy} value={fy}>{fy}</option>
+                            {getGroupedFYOptions().map(group => (
+                              <optgroup key={group.label} label={group.label}>
+                                {group.options.map(fy => (
+                                  <option key={fy} value={fy}>{fy}</option>
+                                ))}
+                              </optgroup>
                             ))}
                           </select>
                         </div>
@@ -3715,8 +3734,12 @@ const TenantAdminDashboard = () => {
                           <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Registration Year *</label>
                           <select value={editingMember.registrationYear || ''} onChange={(e) => setEditingMember({ ...editingMember, registrationYear: e.target.value })}>
                             <option value="">-- Select Financial Year --</option>
-                            {getFYOptions().map(fy => (
-                              <option key={fy} value={fy}>{fy}</option>
+                            {getGroupedFYOptions().map(group => (
+                              <optgroup key={group.label} label={group.label}>
+                                {group.options.map(fy => (
+                                  <option key={fy} value={fy}>{fy}</option>
+                                ))}
+                              </optgroup>
                             ))}
                           </select>
                         </div>
