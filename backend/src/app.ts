@@ -84,10 +84,17 @@ app.get("/api/inspect-db", async (req, res) => {
   try {
     await client.connect();
     const result = await client.query(`
-      SELECT table_schema, table_name, column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'MaintenanceCost' OR table_name = 'Member'
-      ORDER BY table_schema, table_name, column_name
+      SELECT 
+          schemaname,
+          tablename,
+          indexname,
+          indexdef
+      FROM 
+          pg_indexes
+      WHERE 
+          tablename = 'MaintenanceCost' OR tablename = 'Member'
+      ORDER BY 
+          schemaname, tablename, indexname
     `);
     res.json(result.rows);
   } catch (error: any) {
