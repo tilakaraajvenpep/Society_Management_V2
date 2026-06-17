@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     rootDir: backend
-    buildCommand: npm install && npm run build && npx prisma db push && node prisma/seed.js
+    buildCommand: npm install && npm run build && npx prisma db push --accept-data-loss && node prisma/seed.js
     startCommand: npm start
     envVars:
       - key: PORT
