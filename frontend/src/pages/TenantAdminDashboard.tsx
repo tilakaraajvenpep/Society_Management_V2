@@ -27,20 +27,41 @@ const exportTableToCSV = (filename: string, headers: string[], rows: (string|num
 const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh }: { token: string | null, currentUserId?: string, designations: string[], staff: any[], onRefresh: () => void }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false });
+  const [form, setForm] = useState({ 
+    name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false,
+    residenceType: 'COMMON', bhk: 'COMMON', customBhk: '', useCommonMaintenance: true
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async () => {
     setError(''); setLoading(true);
     try {
+      const finalBhk = form.residenceType === 'COMMON'
+        ? 'COMMON'
+        : (form.bhk === 'other' ? form.customBhk.trim() : form.bhk);
+
+      if (form.alsoAddMember && form.residenceType !== 'COMMON' && !finalBhk) {
+        alert("Please enter BHK value");
+        setLoading(false);
+        return;
+      }
+
+      const payload = {
+        ...form,
+        bhk: finalBhk
+      };
+
       if (editingStaff) {
-        await axios.patch(`/staff/${editingStaff.id}`, form, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.patch(`/staff/${editingStaff.id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
       } else {
-        await axios.post('/staff', form, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.post('/staff', payload, { headers: { Authorization: `Bearer ${token}` } });
       }
       setShowForm(false); setEditingStaff(null);
-      setForm({ name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false });
+      setForm({ 
+        name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false,
+        residenceType: 'COMMON', bhk: 'COMMON', customBhk: '', useCommonMaintenance: true
+      });
       onRefresh();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error saving staff');
@@ -78,7 +99,14 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
           <h3 style={{ marginBottom: '0.25rem' }}>Office Bearers & Staff</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Manage treasurers, secretaries, and committee members who can log in to this portal.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditingStaff(null); setForm({ name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false }); setShowForm(true); }}>
+        <button className="btn btn-primary" onClick={() => { 
+          setEditingStaff(null); 
+          setForm({ 
+            name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false,
+            residenceType: 'COMMON', bhk: 'COMMON', customBhk: '', useCommonMaintenance: true
+          }); 
+          setShowForm(true); 
+        }}>
           <Plus size={18} /> Add Office Bearer
         </button>
       </div>
@@ -86,7 +114,7 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
       {showForm && (
         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid var(--border-color)' }}>
           <h4 style={{ marginBottom: '1rem' }}>{editingStaff ? 'Edit Office Bearer' : 'Add New Office Bearer'}</h4>
-          <div className="responsive-form-grid">
+          <div className="responsive-form-grid" style={{ gap: '1.25rem' }}>
             <div>
               <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Full Name *</label>
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Ramesh Kumar" />
@@ -126,6 +154,81 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
                 Also add this office bearer as a society member (displays in member list)
               </label>
             </div>
+
+            {form.alsoAddMember && (
+              <div style={{ gridColumn: 'span 2', backgroundColor: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h5 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: 'var(--primary)' }}>Associated Member Profile Details</h5>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Residence Type *</label>
+                    <select 
+                      value={form.residenceType} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setForm({ 
+                          ...form, 
+                          residenceType: val,
+                          bhk: val === 'COMMON' ? 'COMMON' : '1'
+                        });
+                      }}
+                      style={{ width: '100%', padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)' }}
+                    >
+                      <option value="COMMON">Common</option>
+                      <option value="FLAT">Flat</option>
+                      <option value="VILLA">Villa</option>
+                    </select>
+                  </div>
+
+                  {form.residenceType !== 'COMMON' ? (
+                    <div>
+                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>BHK Option *</label>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <select 
+                          value={form.bhk} 
+                          onChange={(e) => setForm({ ...form, bhk: e.target.value })}
+                          style={{ flex: 1, padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)' }}
+                        >
+                          <option value="1">1 BHK</option>
+                          <option value="2">2 BHK</option>
+                          <option value="3">3 BHK</option>
+                          <option value="4">4 BHK</option>
+                          <option value="other">Other (Manual)</option>
+                        </select>
+                        {form.bhk === 'other' && (
+                          <input 
+                            type="text" 
+                            required
+                            placeholder="Specify BHK" 
+                            value={form.customBhk} 
+                            onChange={(e) => setForm({ ...form, customBhk: e.target.value })}
+                            style={{ width: '120px', padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)' }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>BHK Option</label>
+                      <input type="text" disabled value="COMMON" style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed', padding: '0.625rem 0.875rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-muted)', width: '100%' }} />
+                    </div>
+                  )}
+
+                  <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <input 
+                      type="checkbox" 
+                      id="staffUseCommonMaintenance"
+                      checked={form.useCommonMaintenance}
+                      onChange={(e) => setForm({ ...form, useCommonMaintenance: e.target.checked })}
+                      style={{ width: '1rem', height: '1rem', margin: 0, cursor: 'pointer' }}
+                    />
+                    <label htmlFor="staffUseCommonMaintenance" style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                      Enable common maintenance (if checked, charges the common value instead of BHK value)
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
@@ -172,7 +275,24 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
                 <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{s.mobile || '—'}</td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Edit" onClick={() => { setEditingStaff(s); setForm({ name: s.name, email: s.email || '', mobile: s.mobile || '', designation: s.designation || 'Treasurer', password: '', flatNo: s.memberProfile?.flatNo || '', alsoAddMember: !!s.memberProfile }); setShowForm(true); }}>
+                    <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Edit" onClick={() => {
+                      const isStandardBhk = s.memberProfile ? ['COMMON', '1', '2', '3', '4'].includes(s.memberProfile.bhk || 'COMMON') : true;
+                      setEditingStaff(s);
+                      setForm({
+                        name: s.name,
+                        email: s.email || '',
+                        mobile: s.mobile || '',
+                        designation: s.designation || 'Treasurer',
+                        password: '',
+                        flatNo: s.memberProfile?.flatNo || '',
+                        alsoAddMember: !!s.memberProfile,
+                        residenceType: s.memberProfile?.residenceType || 'COMMON',
+                        bhk: s.memberProfile ? (isStandardBhk ? (s.memberProfile.bhk || 'COMMON') : 'other') : 'COMMON',
+                        customBhk: s.memberProfile ? (isStandardBhk ? '' : (s.memberProfile.bhk || '')) : '',
+                        useCommonMaintenance: s.memberProfile ? (s.memberProfile.useCommonMaintenance !== undefined ? s.memberProfile.useCommonMaintenance : true) : true
+                      });
+                      setShowForm(true);
+                    }}>
                       <Edit size={15} />
                     </button>
                     {s.id !== currentUserId && (
@@ -558,6 +678,9 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
   const [costAmount, setCostAmount] = useState('');
   const [configs, setConfigs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [residenceType, setResidenceType] = useState('COMMON'); // COMMON, FLAT, VILLA
+  const [bhk, setBhk] = useState('COMMON'); // COMMON, 1, 2, 3, 4, other
+  const [customBhk, setCustomBhk] = useState('');
 
   const fetchConfigs = async () => {
     try {
@@ -598,16 +721,30 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
       alert("Please enter a valid amount");
       return;
     }
+    const finalBhk = residenceType === 'COMMON' 
+      ? 'COMMON' 
+      : (bhk === 'other' ? customBhk.trim() : bhk);
+
+    if (residenceType !== 'COMMON' && !finalBhk) {
+      alert("Please specify BHK value");
+      return;
+    }
+
     setLoading(true);
     try {
       await axios.post('/maintenance-costs', {
         financialYear: selectedFY,
-        amount: parseFloat(costAmount)
+        amount: parseFloat(costAmount),
+        residenceType,
+        bhk: finalBhk
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCostAmount('');
       setSelectedFY('');
+      setResidenceType('COMMON');
+      setBhk('COMMON');
+      setCustomBhk('');
       fetchConfigs();
       alert("Maintenance cost configured successfully");
     } catch (err: any) {
@@ -639,6 +776,14 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
       setStartYear(base);
     }
     setCostAmount(config.amount.toString());
+    setResidenceType(config.residenceType);
+    if (['COMMON', '1', '2', '3', '4'].includes(config.bhk)) {
+      setBhk(config.bhk);
+      setCustomBhk('');
+    } else {
+      setBhk('other');
+      setCustomBhk(config.bhk);
+    }
   };
 
   return (
@@ -649,32 +794,105 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
       </p>
 
       <form onSubmit={handleSubmit} style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '1.5rem' }}>
-        <div className="responsive-form-grid" style={{ alignItems: 'end' }}>
-          <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Select Financial Year</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-              <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setStartYear(prev => prev - 5)}>
-                ◀ Prev 5
-              </button>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, flex: 1, textAlign: 'center', backgroundColor: 'var(--bg-secondary)', padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)' }}>
-                {rangeLabel}
-              </span>
-              <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setStartYear(prev => prev + 5)}>
-                Next 5 ▶
-              </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.25rem' }}>
+          <div className="responsive-form-grid" style={{ gap: '1.25rem' }}>
+            <div>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Select Financial Year</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setStartYear(prev => prev - 5)}>
+                  ◀ Prev
+                </button>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 500, flex: 1, textAlign: 'center', backgroundColor: 'var(--bg-secondary)', padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                  {rangeLabel}
+                </span>
+                <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setStartYear(prev => prev + 5)}>
+                  Next ▶
+                </button>
+              </div>
+              <select value={selectedFY} onChange={e => setSelectedFY(e.target.value)} style={{ width: '100%' }}>
+                <option value="">-- Choose Financial Year --</option>
+                {fyRangeList.map(fy => (
+                  <option key={fy} value={fy}>{fy}</option>
+                ))}
+              </select>
             </div>
-            <select value={selectedFY} onChange={e => setSelectedFY(e.target.value)} style={{ width: '100%' }}>
-              <option value="">-- Choose Financial Year --</option>
-              {fyRangeList.map(fy => (
-                <option key={fy} value={fy}>{fy}</option>
-              ))}
-            </select>
+
+            <div>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Residence Type</label>
+              <select 
+                value={residenceType} 
+                onChange={e => {
+                  const val = e.target.value;
+                  setResidenceType(val);
+                  if (val === 'COMMON') {
+                    setBhk('COMMON');
+                  } else {
+                    setBhk('1');
+                  }
+                }} 
+                style={{ width: '100%' }}
+              >
+                <option value="COMMON">Common Value</option>
+                <option value="FLAT">Flat</option>
+                <option value="VILLA">Villa</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Maintenance Cost (₹)</label>
+              <input type="number" required placeholder="Enter cost (e.g. 18000)" value={costAmount} onChange={e => setCostAmount(e.target.value)} style={{ width: '100%' }} />
+            </div>
           </div>
-          <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Maintenance Cost (₹)</label>
-            <input type="number" required placeholder="Enter cost (e.g. 18000)" value={costAmount} onChange={e => setCostAmount(e.target.value)} style={{ width: '100%' }} />
-          </div>
+
+          {residenceType !== 'COMMON' && (
+            <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem', display: 'block', color: 'var(--text-primary)' }}>
+                Select BHK for {residenceType === 'FLAT' ? 'Flat' : 'Villa'} *
+              </label>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {['1', '2', '3', '4', 'other'].map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setBhk(opt)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      borderRadius: '0.375rem',
+                      border: bhk === opt ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                      backgroundColor: bhk === opt ? 'rgba(99, 102, 241, 0.1)' : 'var(--bg-primary)',
+                      color: bhk === opt ? 'var(--primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {opt === 'other' ? 'Other / Manual' : `${opt} BHK`}
+                  </button>
+                ))}
+
+                {bhk === 'other' && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter BHK manually (e.g. 5, Duplex)"
+                    value={customBhk}
+                    onChange={e => setCustomBhk(e.target.value)}
+                    style={{
+                      maxWidth: '240px',
+                      padding: '0.45rem 0.75rem',
+                      fontSize: '0.8125rem',
+                      borderRadius: '0.375rem',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-primary)'
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="submit" className="btn btn-primary" disabled={loading}>
             Setup Cost
@@ -688,6 +906,8 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border-color)' }}>
               <th style={{ padding: '0.75rem' }}>FINANCIAL YEAR</th>
+              <th style={{ padding: '0.75rem' }}>RESIDENCE TYPE</th>
+              <th style={{ padding: '0.75rem' }}>BHK</th>
               <th style={{ padding: '0.75rem' }}>ANNUAL COST</th>
               <th style={{ padding: '0.75rem', textAlign: 'right' }}>ACTION</th>
             </tr>
@@ -696,6 +916,8 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
             {configs.map((c) => (
               <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                 <td style={{ padding: '0.75rem', fontWeight: 600 }}>{c.financialYear}</td>
+                <td style={{ padding: '0.75rem', textTransform: 'capitalize' }}>{c.residenceType.toLowerCase()}</td>
+                <td style={{ padding: '0.75rem' }}>{c.bhk}</td>
                 <td style={{ padding: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>₹{c.amount.toLocaleString()}</td>
                 <td style={{ padding: '0.75rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                   <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => handleEdit(c)}>
@@ -709,7 +931,7 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
             ))}
             {configs.length === 0 && (
               <tr>
-                <td colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
                   No configured maintenance costs yet.
                 </td>
               </tr>
@@ -1757,7 +1979,11 @@ const TenantAdminDashboard = () => {
     initialPaymentAmount: 0, initialPaymentMode: 'CASH', initialPaymentNotes: '',
     photoUrl: '', idProofUrl: '',
     registrationYear: getFinancialYear(new Date()),
-    initialPaymentDate: getTodayDateString()
+    initialPaymentDate: getTodayDateString(),
+    residenceType: 'COMMON',
+    bhk: 'COMMON',
+    customBhk: '',
+    useCommonMaintenance: true
   });
   const [editingMember, setEditingMember] = useState<any>(null);
   const [idProofType, setIdProofType] = useState<'PHOTO' | 'PDF'>('PHOTO');
@@ -1864,7 +2090,15 @@ const TenantAdminDashboard = () => {
     if (mode === 'DB') return defaultDetails;
 
     const regYear = member.registrationYear || getFinancialYear(member.createdAt ? new Date(member.createdAt) : new Date());
-    const config = maintenanceCosts.find((c: any) => c.financialYear === regYear);
+    const useCommon = member.useCommonMaintenance !== undefined ? member.useCommonMaintenance : true;
+    const config = maintenanceCosts.find((c: any) => {
+      if (c.financialYear !== regYear) return false;
+      if (useCommon) {
+        return c.residenceType === 'COMMON';
+      } else {
+        return c.residenceType === (member.residenceType || 'COMMON') && c.bhk === (member.bhk || 'COMMON');
+      }
+    });
     if (!config) return { ...defaultDetails, modeLabel: mode };
 
     const annualCost = config.amount;
@@ -2033,7 +2267,19 @@ const TenantAdminDashboard = () => {
   const handleSubmitMember = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('/members', newMember, {
+      const finalBhk = newMember.residenceType === 'COMMON' 
+        ? 'COMMON'
+        : (newMember.bhk === 'other' ? newMember.customBhk.trim() : newMember.bhk);
+
+      if (newMember.residenceType !== 'COMMON' && !finalBhk) {
+        alert("Please enter BHK value");
+        return;
+      }
+
+      await axios.post('/members', {
+        ...newMember,
+        bhk: finalBhk
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowModal(null);
@@ -2044,7 +2290,11 @@ const TenantAdminDashboard = () => {
         initialPaymentAmount: 0, initialPaymentMode: 'CASH', initialPaymentNotes: '',
         photoUrl: '', idProofUrl: '',
         registrationYear: getFinancialYear(new Date()),
-        initialPaymentDate: getTodayDateString()
+        initialPaymentDate: getTodayDateString(),
+        residenceType: 'COMMON',
+        bhk: 'COMMON',
+        customBhk: '',
+        useCommonMaintenance: true
       });
       fetchData();
       alert('Member added successfully');
@@ -2055,7 +2305,19 @@ const TenantAdminDashboard = () => {
   const handleUpdateMember = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.patch(`/members/${editingMember.id}`, editingMember, {
+      const finalBhk = editingMember.residenceType === 'COMMON'
+        ? 'COMMON'
+        : (editingMember.bhk === 'other' ? editingMember.customBhk.trim() : editingMember.bhk);
+
+      if (editingMember.residenceType !== 'COMMON' && !finalBhk) {
+        alert("Please enter BHK value");
+        return;
+      }
+
+      await axios.patch(`/members/${editingMember.id}`, {
+        ...editingMember,
+        bhk: finalBhk
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowModal(null);
@@ -2073,6 +2335,7 @@ const TenantAdminDashboard = () => {
       if (m.email && !m.mobile) initialLoginMethod = 'EMAIL';
       else if (!m.email && m.mobile) initialLoginMethod = 'MOBILE';
     }
+    const isStandardBhk = ['COMMON', '1', '2', '3', '4'].includes(m.bhk || 'COMMON');
     setEditingMember({ 
       ...m, 
       password: '', 
@@ -2082,7 +2345,11 @@ const TenantAdminDashboard = () => {
       photoUrl: m.photoUrl || '',
       idProofUrl: m.idProofUrl || '',
       registrationYear: m.registrationYear || getFinancialYear(m.createdAt ? new Date(m.createdAt) : new Date()),
-      _duesRaw: (m.outstandingDues || 0).toString()
+      _duesRaw: (m.outstandingDues || 0).toString(),
+      residenceType: m.residenceType || 'COMMON',
+      bhk: isStandardBhk ? (m.bhk || 'COMMON') : 'other',
+      customBhk: isStandardBhk ? '' : (m.bhk || ''),
+      useCommonMaintenance: m.useCommonMaintenance !== undefined ? m.useCommonMaintenance : true
     });
     setEditIdProofType(m.idProofUrl && m.idProofUrl.toLowerCase().endsWith('.pdf') ? 'PDF' : 'PHOTO');
     setShowModal('edit-member');
@@ -3867,6 +4134,63 @@ const TenantAdminDashboard = () => {
                           <input type="text" required value={newMember.flatNo} onChange={(e) => setNewMember({ ...newMember, flatNo: e.target.value })} placeholder="e.g. A-402" />
                         </div>
                         <div>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Residence Type *</label>
+                          <select 
+                            value={newMember.residenceType} 
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setNewMember({ 
+                                ...newMember, 
+                                residenceType: val,
+                                bhk: val === 'COMMON' ? 'COMMON' : '1'
+                              });
+                            }}
+                          >
+                            <option value="COMMON">Common Value</option>
+                            <option value="FLAT">Flat</option>
+                            <option value="VILLA">Villa</option>
+                          </select>
+                        </div>
+                        {newMember.residenceType !== 'COMMON' && (
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>BHK *</label>
+                            <select 
+                              value={newMember.bhk} 
+                              onChange={(e) => setNewMember({ ...newMember, bhk: e.target.value })}
+                            >
+                              <option value="1">1 BHK</option>
+                              <option value="2">2 BHK</option>
+                              <option value="3">3 BHK</option>
+                              <option value="4">4 BHK</option>
+                              <option value="other">Other / Custom</option>
+                            </select>
+                          </div>
+                        )}
+                        {newMember.residenceType !== 'COMMON' && newMember.bhk === 'other' && (
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Custom BHK *</label>
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="e.g. 5, Duplex" 
+                              value={newMember.customBhk} 
+                              onChange={(e) => setNewMember({ ...newMember, customBhk: e.target.value })} 
+                            />
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
+                          <input 
+                            type="checkbox" 
+                            id="newUseCommonMaintenance" 
+                            checked={newMember.useCommonMaintenance} 
+                            onChange={(e) => setNewMember({ ...newMember, useCommonMaintenance: e.target.checked })} 
+                            style={{ width: 'auto', margin: 0 }}
+                          />
+                          <label htmlFor="newUseCommonMaintenance" style={{ fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                            Enable Common Maintenance
+                          </label>
+                        </div>
+                        <div>
                           <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Default Payment Tenure *</label>
                           <select value={newMember.defaultTenure} onChange={(e) => setNewMember({ ...newMember, defaultTenure: e.target.value })}>
                             <option value="MONTHLY">Monthly</option>
@@ -4302,6 +4626,63 @@ const TenantAdminDashboard = () => {
                         <div>
                           <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Flat / Unit No *</label>
                           <input type="text" required value={editingMember.flatNo} onChange={(e) => setEditingMember({ ...editingMember, flatNo: e.target.value })} placeholder="e.g. A-402" />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Residence Type *</label>
+                          <select 
+                            value={editingMember.residenceType || 'COMMON'} 
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingMember({ 
+                                ...editingMember, 
+                                residenceType: val,
+                                bhk: val === 'COMMON' ? 'COMMON' : '1'
+                              });
+                            }}
+                          >
+                            <option value="COMMON">Common Value</option>
+                            <option value="FLAT">Flat</option>
+                            <option value="VILLA">Villa</option>
+                          </select>
+                        </div>
+                        {(editingMember.residenceType || 'COMMON') !== 'COMMON' && (
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>BHK *</label>
+                            <select 
+                              value={editingMember.bhk || '1'} 
+                              onChange={(e) => setEditingMember({ ...editingMember, bhk: e.target.value })}
+                            >
+                              <option value="1">1 BHK</option>
+                              <option value="2">2 BHK</option>
+                              <option value="3">3 BHK</option>
+                              <option value="4">4 BHK</option>
+                              <option value="other">Other / Custom</option>
+                            </select>
+                          </div>
+                        )}
+                        {(editingMember.residenceType || 'COMMON') !== 'COMMON' && editingMember.bhk === 'other' && (
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Custom BHK *</label>
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="e.g. 5, Duplex" 
+                              value={editingMember.customBhk || ''} 
+                              onChange={(e) => setEditingMember({ ...editingMember, customBhk: e.target.value })} 
+                            />
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
+                          <input 
+                            type="checkbox" 
+                            id="editUseCommonMaintenance" 
+                            checked={editingMember.useCommonMaintenance !== undefined ? editingMember.useCommonMaintenance : true} 
+                            onChange={(e) => setEditingMember({ ...editingMember, useCommonMaintenance: e.target.checked })} 
+                            style={{ width: 'auto', margin: 0 }}
+                          />
+                          <label htmlFor="editUseCommonMaintenance" style={{ fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                            Enable Common Maintenance
+                          </label>
                         </div>
                         <div>
                           <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Status *</label>

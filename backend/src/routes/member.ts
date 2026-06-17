@@ -233,19 +233,47 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         }
       }
 
+      const { residenceType, bhk, useCommonMaintenance } = req.body;
       const regYear = registrationYear?.trim() || getFinancialYear(new Date());
-      const maintenanceCost = await tx.maintenanceCost.findUnique({
+
+      // Resolve maintenance cost
+      let costResType = "COMMON";
+      let costBhk = "COMMON";
+      const actualUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : true;
+      if (!actualUseCommon) {
+        costResType = residenceType || "COMMON";
+        costBhk = bhk || "COMMON";
+      }
+
+      // Try specific
+      let mCost = await tx.maintenanceCost.findUnique({
         where: {
-          tenantId_financialYear: {
+          tenantId_financialYear_residenceType_bhk: {
             tenantId: req.user.tenantId,
-            financialYear: regYear
+            financialYear: regYear,
+            residenceType: costResType,
+            bhk: costBhk
           }
         }
       });
 
+      // Fallback
+      if (!mCost && (costResType !== "COMMON" || costBhk !== "COMMON")) {
+        mCost = await tx.maintenanceCost.findUnique({
+          where: {
+            tenantId_financialYear_residenceType_bhk: {
+              tenantId: req.user.tenantId,
+              financialYear: regYear,
+              residenceType: "COMMON",
+              bhk: "COMMON"
+            }
+          }
+        });
+      }
+
       let initialDues = outstandingDues ? parseFloat(outstandingDues.toString()) : 0;
-      if (maintenanceCost) {
-        initialDues += maintenanceCost.amount;
+      if (mCost) {
+        initialDues += mCost.amount;
       }
 
       const member = await tx.member.create({
@@ -263,6 +291,9 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           photoUrl,
           idProofUrl,
           registrationYear: regYear,
+          residenceType: residenceType || "COMMON",
+          bhk: bhk || "COMMON",
+          useCommonMaintenance: actualUseCommon,
         },
       });
 
@@ -455,24 +486,88 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       let finalOutstandingDues = outstandingDues !== undefined ? parseFloat(outstandingDues.toString()) : undefined;
 
-      if (registrationYear !== undefined && registrationYear !== currentMember.registrationYear) {
-        const oldFeeConfig = currentMember.registrationYear ? await tx.maintenanceCost.findUnique({
-          where: { tenantId_financialYear: { tenantId: req.user.tenantId, financialYear: currentMember.registrationYear } }
-        }) : null;
-        const oldFee = oldFeeConfig ? oldFeeConfig.amount : 0;
+      const { residenceType, bhk, useCommonMaintenance } = req.body;
 
-        const newFeeConfig = registrationYear ? await tx.maintenanceCost.findUnique({
-          where: { tenantId_financialYear: { tenantId: req.user.tenantId, financialYear: registrationYear } }
-        }) : null;
-        const newFee = newFeeConfig ? newFeeConfig.amount : 0;
+      // Resolve old fee
+      let oldCostResType = "COMMON";
+      let oldCostBhk = "COMMON";
+      if (currentMember.useCommonMaintenance === false) {
+        oldCostResType = currentMember.residenceType || "COMMON";
+        oldCostBhk = currentMember.bhk || "COMMON";
+      }
+      const oldRegYear = currentMember.registrationYear;
 
-        const duesAdjustment = newFee - oldFee;
-        if (duesAdjustment !== 0) {
-          if (finalOutstandingDues !== undefined) {
-            finalOutstandingDues += duesAdjustment;
-          } else {
-            finalOutstandingDues = currentMember.outstandingDues + duesAdjustment;
+      let oldFeeConfig = oldRegYear ? await tx.maintenanceCost.findUnique({
+        where: {
+          tenantId_financialYear_residenceType_bhk: {
+            tenantId: req.user.tenantId,
+            financialYear: oldRegYear,
+            residenceType: oldCostResType,
+            bhk: oldCostBhk
           }
+        }
+      }) : null;
+
+      // Fallback
+      if (!oldFeeConfig && oldRegYear && (oldCostResType !== "COMMON" || oldCostBhk !== "COMMON")) {
+        oldFeeConfig = await tx.maintenanceCost.findUnique({
+          where: {
+            tenantId_financialYear_residenceType_bhk: {
+              tenantId: req.user.tenantId,
+              financialYear: oldRegYear,
+              residenceType: "COMMON",
+              bhk: "COMMON"
+            }
+          }
+        });
+      }
+      const oldFee = oldFeeConfig ? oldFeeConfig.amount : 0;
+
+      // Resolve new fee
+      const nextRegYear = registrationYear !== undefined ? registrationYear : currentMember.registrationYear;
+      const nextUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : currentMember.useCommonMaintenance;
+      const nextResType = residenceType !== undefined ? residenceType : currentMember.residenceType;
+      const nextBhk = bhk !== undefined ? bhk : currentMember.bhk;
+
+      let newCostResType = "COMMON";
+      let newCostBhk = "COMMON";
+      if (nextUseCommon === false) {
+        newCostResType = nextResType || "COMMON";
+        newCostBhk = nextBhk || "COMMON";
+      }
+
+      let newFeeConfig = nextRegYear ? await tx.maintenanceCost.findUnique({
+        where: {
+          tenantId_financialYear_residenceType_bhk: {
+            tenantId: req.user.tenantId,
+            financialYear: nextRegYear,
+            residenceType: newCostResType,
+            bhk: newCostBhk
+          }
+        }
+      }) : null;
+
+      // Fallback
+      if (!newFeeConfig && nextRegYear && (newCostResType !== "COMMON" || newCostBhk !== "COMMON")) {
+        newFeeConfig = await tx.maintenanceCost.findUnique({
+          where: {
+            tenantId_financialYear_residenceType_bhk: {
+              tenantId: req.user.tenantId,
+              financialYear: nextRegYear,
+              residenceType: "COMMON",
+              bhk: "COMMON"
+            }
+          }
+        });
+      }
+      const newFee = newFeeConfig ? newFeeConfig.amount : 0;
+
+      const duesAdjustment = newFee - oldFee;
+      if (duesAdjustment !== 0) {
+        if (finalOutstandingDues !== undefined) {
+          finalOutstandingDues += duesAdjustment;
+        } else {
+          finalOutstandingDues = currentMember.outstandingDues + duesAdjustment;
         }
       }
 
@@ -492,6 +587,9 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           photoUrl: photoUrl !== undefined ? photoUrl : undefined,
           idProofUrl: idProofUrl !== undefined ? idProofUrl : undefined,
           registrationYear: registrationYear || undefined,
+          residenceType: residenceType !== undefined ? residenceType : undefined,
+          bhk: bhk !== undefined ? bhk : undefined,
+          useCommonMaintenance: useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : undefined,
         },
       });
 

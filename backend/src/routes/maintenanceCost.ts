@@ -21,7 +21,7 @@ router.get("/", authorize(["TENANT_ADMIN", "MEMBER"]), async (req: any, res) => 
 
 // POST setup or update annual maintenance cost (Upsert)
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { financialYear, amount } = req.body;
+  const { financialYear, amount, residenceType, bhk } = req.body;
   
   if (!financialYear || amount === undefined) {
     return res.status(400).json({ message: "Financial year and amount are required" });
@@ -32,14 +32,19 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
     return res.status(400).json({ message: "Amount must be a positive number" });
   }
 
+  const targetResType = residenceType || "COMMON";
+  const targetBhk = bhk || "COMMON";
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       // Find existing cost for difference calculation
       const existingCost = await tx.maintenanceCost.findUnique({
         where: {
-          tenantId_financialYear: {
+          tenantId_financialYear_residenceType_bhk: {
             tenantId: req.user.tenantId,
-            financialYear: financialYear.trim()
+            financialYear: financialYear.trim(),
+            residenceType: targetResType,
+            bhk: targetBhk
           }
         }
       });
@@ -49,9 +54,11 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       const cost = await tx.maintenanceCost.upsert({
         where: {
-          tenantId_financialYear: {
+          tenantId_financialYear_residenceType_bhk: {
             tenantId: req.user.tenantId,
-            financialYear: financialYear.trim()
+            financialYear: financialYear.trim(),
+            residenceType: targetResType,
+            bhk: targetBhk
           }
         },
         update: {
@@ -60,16 +67,44 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         create: {
           tenantId: req.user.tenantId,
           financialYear: financialYear.trim(),
-          amount: parsedAmount
+          amount: parsedAmount,
+          residenceType: targetResType,
+          bhk: targetBhk
         }
       });
 
       if (diff !== 0) {
+        let memberFilter: any = {
+          tenantId: req.user.tenantId,
+          registrationYear: financialYear.trim()
+        };
+
+        if (targetResType === "COMMON" && targetBhk === "COMMON") {
+          // If common is updated, we update members who either:
+          // 1. Have useCommonMaintenance = true
+          // 2. Or residenceType = "COMMON"
+          memberFilter = {
+            ...memberFilter,
+            OR: [
+              { useCommonMaintenance: true },
+              { residenceType: "COMMON" }
+            ]
+          };
+        } else {
+          // If specific flat/villa bhk is updated, we update members who:
+          // 1. Have useCommonMaintenance = false
+          // 2. And residenceType = targetResType
+          // 3. And bhk = targetBhk
+          memberFilter = {
+            ...memberFilter,
+            useCommonMaintenance: false,
+            residenceType: targetResType,
+            bhk: targetBhk
+          };
+        }
+
         await tx.member.updateMany({
-          where: {
-            tenantId: req.user.tenantId,
-            registrationYear: financialYear.trim()
-          },
+          where: memberFilter,
           data: {
             outstandingDues: {
               increment: diff
@@ -85,7 +120,7 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           actionType: "MAINTENANCE_COST_SETUP",
           performedBy: req.user.name,
           referenceId: cost.id,
-          details: `Configured annual maintenance cost for FY ${financialYear} as ₹${parsedAmount}. Adjusted dues for corresponding members by diff of ₹${diff}`
+          details: `Configured annual maintenance cost for FY ${financialYear} (${targetResType} - BHK ${targetBhk}) as ₹${parsedAmount}. Adjusted dues for corresponding members by diff of ₹${diff}`
         }
       });
 
@@ -117,12 +152,31 @@ router.delete("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         where: { id: req.params.id }
       });
 
-      // Decrease outstanding dues of all members registered in this financial year
+      // Decrease outstanding dues of corresponding members
+      let memberFilter: any = {
+        tenantId: req.user.tenantId,
+        registrationYear: cost.financialYear
+      };
+
+      if (cost.residenceType === "COMMON" && cost.bhk === "COMMON") {
+        memberFilter = {
+          ...memberFilter,
+          OR: [
+            { useCommonMaintenance: true },
+            { residenceType: "COMMON" }
+          ]
+        };
+      } else {
+        memberFilter = {
+          ...memberFilter,
+          useCommonMaintenance: false,
+          residenceType: cost.residenceType,
+          bhk: cost.bhk
+        };
+      }
+
       await tx.member.updateMany({
-        where: {
-          tenantId: req.user.tenantId,
-          registrationYear: cost.financialYear
-        },
+        where: memberFilter,
         data: {
           outstandingDues: {
             decrement: cost.amount
@@ -137,7 +191,7 @@ router.delete("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           actionType: "MAINTENANCE_COST_DELETED",
           performedBy: req.user.name,
           referenceId: cost.id,
-          details: `Deleted annual maintenance cost configuration for FY ${cost.financialYear}. Adjusted dues for corresponding members by -₹${cost.amount}`
+          details: `Deleted annual maintenance cost configuration for FY ${cost.financialYear} (${cost.residenceType} - BHK ${cost.bhk}). Adjusted dues for corresponding members by -₹${cost.amount}`
         }
       });
 

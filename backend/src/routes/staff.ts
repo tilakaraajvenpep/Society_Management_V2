@@ -102,15 +102,42 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       if (alsoAddMember) {
         const regYear = getFinancialYear(new Date());
-        const maintenanceCost = await tx.maintenanceCost.findUnique({
+        const { residenceType, bhk, useCommonMaintenance } = req.body;
+        let costResType = "COMMON";
+        let costBhk = "COMMON";
+        const actualUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : true;
+        if (!actualUseCommon) {
+          costResType = residenceType || "COMMON";
+          costBhk = bhk || "COMMON";
+        }
+
+        // Try specific
+        let mCost = await tx.maintenanceCost.findUnique({
           where: {
-            tenantId_financialYear: {
+            tenantId_financialYear_residenceType_bhk: {
               tenantId: req.user.tenantId,
-              financialYear: regYear
+              financialYear: regYear,
+              residenceType: costResType,
+              bhk: costBhk
             }
           }
         });
-        const initialDues = maintenanceCost ? maintenanceCost.amount : 0;
+
+        // Fallback
+        if (!mCost && (costResType !== "COMMON" || costBhk !== "COMMON")) {
+          mCost = await tx.maintenanceCost.findUnique({
+            where: {
+              tenantId_financialYear_residenceType_bhk: {
+                tenantId: req.user.tenantId,
+                financialYear: regYear,
+                residenceType: "COMMON",
+                bhk: "COMMON"
+              }
+            }
+          });
+        }
+
+        const initialDues = mCost ? mCost.amount : 0;
 
         await tx.member.create({
           data: {
@@ -124,6 +151,9 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
             userId: staff.id,
             defaultTenure: "MONTHLY",
             registrationYear: regYear,
+            residenceType: residenceType || "COMMON",
+            bhk: bhk || "COMMON",
+            useCommonMaintenance: actualUseCommon,
           }
         });
       }
@@ -204,6 +234,87 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       const existingMember = await tx.member.findUnique({ where: { userId: req.params.id } });
       if (existingMember) {
+        const { residenceType, bhk, useCommonMaintenance } = req.body;
+        
+        // Let's resolve the old fee for adjustment
+        let oldCostResType = "COMMON";
+        let oldCostBhk = "COMMON";
+        if (existingMember.useCommonMaintenance === false) {
+          oldCostResType = existingMember.residenceType || "COMMON";
+          oldCostBhk = existingMember.bhk || "COMMON";
+        }
+        const oldRegYear = existingMember.registrationYear;
+
+        let oldFeeConfig = oldRegYear ? await tx.maintenanceCost.findUnique({
+          where: {
+            tenantId_financialYear_residenceType_bhk: {
+              tenantId: req.user.tenantId,
+              financialYear: oldRegYear,
+              residenceType: oldCostResType,
+              bhk: oldCostBhk
+            }
+          }
+        }) : null;
+
+        // Fallback
+        if (!oldFeeConfig && oldRegYear && (oldCostResType !== "COMMON" || oldCostBhk !== "COMMON")) {
+          oldFeeConfig = await tx.maintenanceCost.findUnique({
+            where: {
+              tenantId_financialYear_residenceType_bhk: {
+                tenantId: req.user.tenantId,
+                financialYear: oldRegYear,
+                residenceType: "COMMON",
+                bhk: "COMMON"
+              }
+            }
+          });
+        }
+        const oldFee = oldFeeConfig ? oldFeeConfig.amount : 0;
+
+        // Resolve new fee
+        const nextUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : existingMember.useCommonMaintenance;
+        const nextResType = residenceType !== undefined ? residenceType : existingMember.residenceType;
+        const nextBhk = bhk !== undefined ? bhk : existingMember.bhk;
+
+        let newCostResType = "COMMON";
+        let newCostBhk = "COMMON";
+        if (nextUseCommon === false) {
+          newCostResType = nextResType || "COMMON";
+          newCostBhk = nextBhk || "COMMON";
+        }
+
+        let newFeeConfig = oldRegYear ? await tx.maintenanceCost.findUnique({
+          where: {
+            tenantId_financialYear_residenceType_bhk: {
+              tenantId: req.user.tenantId,
+              financialYear: oldRegYear,
+              residenceType: newCostResType,
+              bhk: newCostBhk
+            }
+          }
+        }) : null;
+
+        // Fallback
+        if (!newFeeConfig && oldRegYear && (newCostResType !== "COMMON" || newCostBhk !== "COMMON")) {
+          newFeeConfig = await tx.maintenanceCost.findUnique({
+            where: {
+              tenantId_financialYear_residenceType_bhk: {
+                tenantId: req.user.tenantId,
+                financialYear: oldRegYear,
+                residenceType: "COMMON",
+                bhk: "COMMON"
+              }
+            }
+          });
+        }
+        const newFee = newFeeConfig ? newFeeConfig.amount : 0;
+
+        const duesAdjustment = newFee - oldFee;
+        let finalOutstandingDues = existingMember.outstandingDues;
+        if (duesAdjustment !== 0) {
+          finalOutstandingDues += duesAdjustment;
+        }
+
         await tx.member.update({
           where: { id: existingMember.id },
           data: {
@@ -211,19 +322,50 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
             email: email ? email.toLowerCase().trim() : undefined,
             mobile: mobile ? mobile.trim() : undefined,
             flatNo: flatNo !== undefined ? (flatNo || "OB-TBD") : undefined,
+            residenceType: residenceType !== undefined ? residenceType : undefined,
+            bhk: bhk !== undefined ? bhk : undefined,
+            useCommonMaintenance: useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : undefined,
+            outstandingDues: finalOutstandingDues,
           }
         });
       } else if (alsoAddMember) {
         const regYear = getFinancialYear(new Date());
-        const maintenanceCost = await tx.maintenanceCost.findUnique({
+        const { residenceType, bhk, useCommonMaintenance } = req.body;
+        let costResType = "COMMON";
+        let costBhk = "COMMON";
+        const actualUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : true;
+        if (!actualUseCommon) {
+          costResType = residenceType || "COMMON";
+          costBhk = bhk || "COMMON";
+        }
+
+        // Try specific
+        let mCost = await tx.maintenanceCost.findUnique({
           where: {
-            tenantId_financialYear: {
+            tenantId_financialYear_residenceType_bhk: {
               tenantId: req.user.tenantId,
-              financialYear: regYear
+              financialYear: regYear,
+              residenceType: costResType,
+              bhk: costBhk
             }
           }
         });
-        const initialDues = maintenanceCost ? maintenanceCost.amount : 0;
+
+        // Fallback
+        if (!mCost && (costResType !== "COMMON" || costBhk !== "COMMON")) {
+          mCost = await tx.maintenanceCost.findUnique({
+            where: {
+              tenantId_financialYear_residenceType_bhk: {
+                tenantId: req.user.tenantId,
+                financialYear: regYear,
+                residenceType: "COMMON",
+                bhk: "COMMON"
+              }
+            }
+          });
+        }
+
+        const initialDues = mCost ? mCost.amount : 0;
         await tx.member.create({
           data: {
             name: name || staff.name,
@@ -236,6 +378,9 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
             userId: staff.id,
             defaultTenure: "MONTHLY",
             registrationYear: regYear,
+            residenceType: residenceType || "COMMON",
+            bhk: bhk || "COMMON",
+            useCommonMaintenance: actualUseCommon,
           }
         });
       }

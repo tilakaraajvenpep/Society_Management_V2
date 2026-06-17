@@ -83,6 +83,9 @@ model Member {
   photoUrl        String?
   idProofUrl      String?
   registrationYear String?
+  residenceType   String         @default("COMMON") // FLAT, VILLA, COMMON
+  bhk             String         @default("COMMON") // 1, 2, 3, 4, or custom string
+  useCommonMaintenance Boolean   @default(true)
   
   expensesPaid    Expense[]      @relation("PaidBy")
   tenant          Tenant         @relation(fields: [tenantId], references: [id])
@@ -313,12 +316,14 @@ model MaintenanceCost {
   tenantId      String
   financialYear String
   amount        Float
+  residenceType String   @default("COMMON") // FLAT, VILLA, COMMON
+  bhk             String   @default("COMMON") // 1, 2, 3, 4, or custom string
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
   tenant        Tenant   @relation(fields: [tenantId], references: [id])
 
-  @@unique([tenantId, financialYear])
+  @@unique([tenantId, financialYear, residenceType, bhk])
 }
 
 model Notification {
