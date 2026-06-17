@@ -148,6 +148,34 @@ router.get("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   const { name, email, mobile, flatNo, address, outstandingDues, password, enableLogin, loginMethod, defaultTenure, paidUntil, initialPaymentAmount, initialPaymentMode, initialPaymentNotes, photoUrl, idProofUrl, registrationYear, initialPaymentDate } = req.body;
   try {
+    // Constraint check for Email
+    if (email) {
+      const targetEmail = email.toLowerCase().trim();
+      const userExists = await prisma.user.findFirst({
+        where: { tenantId: req.user.tenantId, email: targetEmail }
+      });
+      const memberExists = await prisma.member.findFirst({
+        where: { tenantId: req.user.tenantId, email: targetEmail }
+      });
+      if (userExists || memberExists) {
+        return res.status(400).json({ message: "This email address is already registered in this society. Please use another email." });
+      }
+    }
+
+    // Constraint check for Mobile
+    if (mobile) {
+      const targetMobile = mobile.trim();
+      const userExists = await prisma.user.findFirst({
+        where: { tenantId: req.user.tenantId, mobile: targetMobile }
+      });
+      const memberExists = await prisma.member.findFirst({
+        where: { tenantId: req.user.tenantId, mobile: targetMobile }
+      });
+      if (userExists || memberExists) {
+        return res.status(400).json({ message: "This mobile number is already registered in this society. Please use another mobile number." });
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       let userId = undefined;
       
@@ -309,13 +337,27 @@ router.post("/bulk", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 });
 
 router.patch("/:id/vacant", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
+  const { removeStaff } = req.query;
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const member = await tx.member.findUnique({ where: { id: req.params.id, tenantId: req.user.tenantId } });
+      const member = await tx.member.findUnique({ 
+        where: { id: req.params.id, tenantId: req.user.tenantId },
+        include: { user: true }
+      });
       if (!member) throw new Error("Member not found");
       
       if (member.userId) {
-        await tx.user.delete({ where: { id: member.userId } });
+        const isStaff = member.user && member.user.role === "TENANT_ADMIN";
+        if (isStaff) {
+          if (removeStaff === "true") {
+            await tx.user.delete({ where: { id: member.userId } });
+          } else {
+            // Keep staff user, just unlink it from Member
+          }
+        } else {
+          // Regular member - always delete user
+          await tx.user.delete({ where: { id: member.userId } });
+        }
       }
       return await tx.member.update({
         where: { id: req.params.id },
@@ -331,6 +373,36 @@ router.patch("/:id/vacant", authorize(["TENANT_ADMIN"]), async (req: any, res) =
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   const { name, email, mobile, flatNo, address, outstandingDues, status, password, enableLogin, loginMethod, defaultTenure, paidUntil, photoUrl, idProofUrl, registrationYear } = req.body;
   try {
+    // Constraint check for Email
+    if (email) {
+      const targetEmail = email.toLowerCase().trim();
+      const userExists = await prisma.user.findFirst({
+        where: { tenantId: req.user.tenantId, email: targetEmail }
+      });
+      const memberExists = await prisma.member.findFirst({
+        where: { tenantId: req.user.tenantId, email: targetEmail, id: { not: req.params.id } }
+      });
+      const currentMember = await prisma.member.findUnique({ where: { id: req.params.id } });
+      if ((userExists && userExists.id !== currentMember?.userId) || memberExists) {
+        return res.status(400).json({ message: "This email address is already registered in this society. Please use another email." });
+      }
+    }
+
+    // Constraint check for Mobile
+    if (mobile) {
+      const targetMobile = mobile.trim();
+      const userExists = await prisma.user.findFirst({
+        where: { tenantId: req.user.tenantId, mobile: targetMobile }
+      });
+      const memberExists = await prisma.member.findFirst({
+        where: { tenantId: req.user.tenantId, mobile: targetMobile, id: { not: req.params.id } }
+      });
+      const currentMember = await prisma.member.findUnique({ where: { id: req.params.id } });
+      if ((userExists && userExists.id !== currentMember?.userId) || memberExists) {
+        return res.status(400).json({ message: "This mobile number is already registered in this society. Please use another mobile number." });
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const currentMember = await tx.member.findUnique({
         where: { id: req.params.id, tenantId: req.user.tenantId },

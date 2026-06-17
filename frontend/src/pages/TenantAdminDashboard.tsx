@@ -23,22 +23,12 @@ const exportTableToCSV = (filename: string, headers: string[], rows: (string|num
   a.click();
   window.URL.revokeObjectURL(url);
 };
-const StaffManagement = ({ token, currentUserId, designations }: { token: string | null, currentUserId?: string, designations: string[] }) => {
-  const [staff, setStaff] = useState<any[]>([]);
+const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh }: { token: string | null, currentUserId?: string, designations: string[], staff: any[], onRefresh: () => void }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const fetchStaff = async () => {
-    try {
-      const res = await axios.get('/staff', { headers: { Authorization: `Bearer ${token}` } });
-      setStaff(res.data);
-    } catch { }
-  };
-
-  useEffect(() => { fetchStaff(); }, []);
 
   const handleSubmit = async () => {
     setError(''); setLoading(true);
@@ -49,18 +39,32 @@ const StaffManagement = ({ token, currentUserId, designations }: { token: string
         await axios.post('/staff', form, { headers: { Authorization: `Bearer ${token}` } });
       }
       setShowForm(false); setEditingStaff(null);
-      setForm({ name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '' });
-      fetchStaff();
+      setForm({ name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false });
+      onRefresh();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error saving staff');
     } finally { setLoading(false); }
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Remove ${name} from office bearers?`)) return;
+    if (!confirm(`Are you sure you want to remove "${name}" from office bearers?`)) return;
+
+    const s = staff.find(x => x.id === id);
+    const hasMember = s && !!s.memberProfile;
+
+    let removeMember = false;
+    if (hasMember) {
+      removeMember = confirm(
+        `"${name}" is also registered as a member.\n\n` +
+        `Do you want to remove them from the Members list as well?\n` +
+        `• Click OK to remove from BOTH (Office Bearer & Member)\n` +
+        `• Click Cancel to remove ONLY as Office Bearer (keeps them as Member)`
+      );
+    }
+
     try {
-      await axios.delete(`/staff/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      fetchStaff();
+      await axios.delete(`/staff/${id}?removeMember=${removeMember}`, { headers: { Authorization: `Bearer ${token}` } });
+      onRefresh();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error removing staff');
     }
@@ -73,7 +77,7 @@ const StaffManagement = ({ token, currentUserId, designations }: { token: string
           <h3 style={{ marginBottom: '0.25rem' }}>Office Bearers & Staff</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Manage treasurers, secretaries, and committee members who can log in to this portal.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditingStaff(null); setForm({ name: '', email: '', mobile: '', designation: 'Treasurer', password: '' }); setShowForm(true); }}>
+        <button className="btn btn-primary" onClick={() => { setEditingStaff(null); setForm({ name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false }); setShowForm(true); }}>
           <Plus size={18} /> Add Office Bearer
         </button>
       </div>
@@ -103,6 +107,23 @@ const StaffManagement = ({ token, currentUserId, designations }: { token: string
             <div>
               <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{editingStaff ? 'New Password (leave blank to keep)' : 'Password *'}</label>
               <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min 6 characters" />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Flat Number (Optional)</label>
+              <input value={form.flatNo} onChange={e => setForm({ ...form, flatNo: e.target.value })} placeholder="e.g. A-402" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', gridColumn: 'span 2', marginTop: '0.5rem' }}>
+              <input 
+                type="checkbox" 
+                id="alsoAddMember"
+                checked={form.alsoAddMember} 
+                onChange={e => setForm({ ...form, alsoAddMember: e.target.checked })} 
+                disabled={!!editingStaff && !!editingStaff.memberProfile}
+                style={{ width: 'auto', margin: 0 }}
+              />
+              <label htmlFor="alsoAddMember" style={{ fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                Also add this office bearer as a society member (displays in member list)
+              </label>
             </div>
           </div>
           {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem' }}>{error}</div>}
@@ -139,13 +160,18 @@ const StaffManagement = ({ token, currentUserId, designations }: { token: string
                 <td>
                   <strong>{s.name}</strong>
                   {s.id === currentUserId && <span className="badge badge-success" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>You</span>}
+                  {s.memberProfile && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                      Flat: <code style={{ backgroundColor: 'var(--bg-tertiary)', padding: '0.1rem 0.25rem', borderRadius: '0.25rem' }}>{s.memberProfile.flatNo}</code>
+                    </div>
+                  )}
                 </td>
                 <td><span className="badge badge-warning">{s.designation || '—'}</span></td>
                 <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{s.email || '—'}</td>
                 <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{s.mobile || '—'}</td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Edit" onClick={() => { setEditingStaff(s); setForm({ name: s.name, email: s.email || '', mobile: s.mobile || '', designation: s.designation || 'Treasurer', password: '' }); setShowForm(true); }}>
+                    <button className="btn btn-secondary" style={{ padding: '0.4rem' }} title="Edit" onClick={() => { setEditingStaff(s); setForm({ name: s.name, email: s.email || '', mobile: s.mobile || '', designation: s.designation || 'Treasurer', password: '', flatNo: s.memberProfile?.flatNo || '', alsoAddMember: !!s.memberProfile }); setShowForm(true); }}>
                       <Edit size={15} />
                     </button>
                     {s.id !== currentUserId && (
@@ -1220,6 +1246,7 @@ const TenantAdminDashboard = () => {
   const [activeReportTab, setActiveReportTab] = useState<'pnl' | 'balanceSheet'>('pnl');
   const [reportFilters, setReportFilters] = useState({ month: '', year: new Date().getFullYear().toString(), startDate: '', endDate: '' });
   const [members, setMembers] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [payments, setPayments] = useState<any[]>([]);
   const [cashBalances, setCashBalances] = useState<any[]>([]);
@@ -1421,7 +1448,7 @@ const TenantAdminDashboard = () => {
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [membersRes, paymentsRes, cashRes, pendingRes, summaryRes, vendorsRes, logsRes, expensesRes, stRes, desRes, ecRes, upcomingRes, finRes, mcRes] = await Promise.all([
+      const [membersRes, paymentsRes, cashRes, pendingRes, summaryRes, vendorsRes, logsRes, expensesRes, stRes, desRes, ecRes, upcomingRes, finRes, mcRes, staffRes] = await Promise.all([
         axios.get('/members', { headers }),
         axios.get('/payments/history', { headers }),
         axios.get('/cash/in-hand', { headers }),
@@ -1436,8 +1463,10 @@ const TenantAdminDashboard = () => {
         axios.get('/payments/upcoming', { headers }),
         axios.get('/reports/financials', { headers }),
         axios.get('/maintenance-costs', { headers }),
+        axios.get('/staff', { headers }),
       ]);
       setMembers(membersRes.data);
+      setStaff(staffRes.data);
       setPayments(paymentsRes.data);
       setCashBalances(cashRes.data);
       setPendingTransfers(pendingRes.data);
@@ -1566,9 +1595,23 @@ const TenantAdminDashboard = () => {
   };
 
   const handleVacantMember = async (id: string, name: string, flatNo: string) => {
+    const member = members.find(m => m.id === id);
+    const isStaff = member && member.userId && staff.some(s => s.id === member.userId);
+
     if (!window.confirm(`Are you sure you want to mark Flat ${flatNo} (${name}) as VACANT?\nThis will revoke their login access and pause future dues. You can add a new occupant to this flat later.`)) return;
+
+    let removeStaff = false;
+    if (isStaff) {
+      removeStaff = window.confirm(
+        `"${name}" is also registered as an Office Bearer.\n\n` +
+        `Do you want to remove them from the Office Bearers list as well?\n` +
+        `• Click OK to remove from BOTH (Member & Office Bearer)\n` +
+        `• Click Cancel to remove ONLY as Member (keeps them as Office Bearer)`
+      );
+    }
+
     try {
-      await axios.patch(`/members/${id}/vacant`, {}, {
+      await axios.patch(`/members/${id}/vacant?removeStaff=${removeStaff}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchData();
@@ -2860,7 +2903,7 @@ const TenantAdminDashboard = () => {
           </div>
         );
       case 'staff':
-        return <StaffManagement token={token} currentUserId={user?.id} designations={designations} />;
+        return <StaffManagement token={token} currentUserId={user?.id} designations={designations} staff={staff} onRefresh={fetchData} />;
       case 'upcoming': {
         const totalCalculatedDues = upcomingMembers.reduce((sum: number, m: any) => {
           const details = getCalculatedDuesDetails(m, duesCalcMode);
