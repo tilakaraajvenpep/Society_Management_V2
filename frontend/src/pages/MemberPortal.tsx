@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp
 } from 'lucide-react';
 import axios from 'axios';
+import NotificationPanel from '../components/NotificationPanel';
 
 const MemberHelpdesk = ({ token }: { token: string | null }) => {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -925,9 +926,12 @@ const MemberPortal = () => {
           <Building size={20} style={{ color: 'var(--primary)' }} />
           <span style={{ fontWeight: 700 }}>{user?.tenantName}</span>
         </div>
-        <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}>
-          <Menu size={24} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <NotificationPanel token={token} />
+          <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}>
+            <Menu size={24} />
+          </button>
+        </div>
       </div>
 
       {/* Sidebar Backdrop */}
@@ -974,21 +978,24 @@ const MemberPortal = () => {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Resident Portal</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{user?.tenantName} • Flat {memberInfo?.flatNo}</p>
           </div>
-          <div 
-            onClick={() => setActiveTab('profile')} 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.4rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
-            className="desktop-only"
-          >
-            <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', border: '1.5px solid var(--primary)', backgroundColor: 'var(--bg-tertiary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              {memberInfo?.photoUrl ? (
-                <img src={memberInfo.photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <User size={16} style={{ color: 'var(--text-secondary)' }} />
-              )}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', paddingRight: '0.5rem' }}>
-              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{user?.name}</span>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Flat {memberInfo?.flatNo}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <NotificationPanel token={token} />
+            <div 
+              onClick={() => setActiveTab('profile')} 
+              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.4rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
+              className="desktop-only"
+            >
+              <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', border: '1.5px solid var(--primary)', backgroundColor: 'var(--bg-tertiary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                {memberInfo?.photoUrl ? (
+                  <img src={memberInfo.photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <User size={16} style={{ color: 'var(--text-secondary)' }} />
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', paddingRight: '0.5rem' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{user?.name}</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Flat {memberInfo?.flatNo}</span>
+              </div>
             </div>
           </div>
         </header>

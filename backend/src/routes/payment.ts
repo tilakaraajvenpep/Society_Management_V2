@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
+import { notifyMember } from "../utils/notification";
 
 const router = express.Router();
 
@@ -86,6 +87,14 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         referenceId: payment.id,
         details: `${payment.receiptNumber}: ₹${amount} collected from ${memberLabel} via ${payment.mode} (${payment.periodLabel})`,
       },
+    });
+
+    await notifyMember({
+      tenantId: req.user.tenantId,
+      memberId,
+      title: "Payment Received",
+      message: `We have received your payment of ₹${amount} (${payment.periodLabel || ''}). Receipt: ${payment.receiptNumber}.`,
+      type: "PAYMENT"
     });
 
     res.json(payment);
@@ -250,6 +259,16 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         referenceId: result.id,
         details: `Payment ${result.receiptNumber} ${status === "CANCELLED" ? 'cancelled' : 'updated'}. ${amount ? `New amount: ${amount}` : ''}`,
       }
+    });
+
+    await notifyMember({
+      tenantId: req.user.tenantId,
+      memberId: result.memberId,
+      title: status === "CANCELLED" ? "Payment Cancelled" : "Payment Updated",
+      message: status === "CANCELLED" 
+        ? `Your payment of ₹${result.amount} (Receipt: ${result.receiptNumber}) has been cancelled.`
+        : `Your payment record (Receipt: ${result.receiptNumber}) has been updated. New amount: ₹${result.amount}.`,
+      type: "PAYMENT"
     });
 
     res.json(result);

@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
+import { notifyTenantAdmins, notifyMember } from "../utils/notification";
 
 const router = express.Router();
 
@@ -34,6 +35,13 @@ router.post("/", authenticate, async (req: any, res) => {
         memberId: finalMemberId,
       },
       include: { member: true }
+    });
+
+    await notifyTenantAdmins({
+      tenantId,
+      title: "New Helpdesk Ticket",
+      message: `A new ticket "${subject}" has been raised by ${ticket.member.name}.`,
+      type: "TICKET"
     });
 
     res.status(201).json(ticket);
@@ -133,6 +141,14 @@ router.patch("/:id/status", authenticate, async (req: any, res) => {
       data: { status }
     });
 
+    await notifyMember({
+      tenantId: req.user.tenantId,
+      memberId: ticket.memberId,
+      title: "Ticket Status Updated",
+      message: `Your ticket "${ticket.subject}" status has been updated to "${status}".`,
+      type: "TICKET"
+    });
+
     res.json(updated);
   } catch (error) {
     res.status(500).json({ message: "Error updating status", error });
@@ -173,6 +189,24 @@ router.post("/:id/comments", authenticate, async (req: any, res) => {
         member: { select: { name: true } }
       }
     });
+
+    if (userId) {
+      await notifyMember({
+        tenantId: ticket.tenantId,
+        memberId: ticket.memberId,
+        title: "New Ticket Comment",
+        message: `An admin commented on your ticket "${ticket.subject}": "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+        type: "TICKET"
+      });
+    } else if (memberId) {
+      const commenter = await prisma.member.findUnique({ where: { id: memberId }, select: { name: true } });
+      await notifyTenantAdmins({
+        tenantId: ticket.tenantId,
+        title: "New Ticket Comment",
+        message: `${commenter?.name || "A member"} commented on ticket "${ticket.subject}": "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+        type: "TICKET"
+      });
+    }
 
     res.status(201).json(comment);
   } catch (error) {

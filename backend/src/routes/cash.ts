@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
+import { createNotification } from "../utils/notification";
 
 const router = express.Router();
 
@@ -83,6 +84,16 @@ router.post("/transfer", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       },
     });
 
+    if (type === "HANDOVER" && toAdminId) {
+      await createNotification({
+        tenantId: req.user.tenantId,
+        userId: toAdminId,
+        title: "Pending Cash Handover",
+        message: `Admin ${req.user.name} has initiated a cash handover of ₹${amount} to you. Please approve it.`,
+        type: "CASH"
+      });
+    }
+
     res.json(transaction);
   } catch (error) {
     res.status(500).json({ message: "Error transferring cash", error });
@@ -119,6 +130,14 @@ router.post("/approve/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) =
         where: { id: req.params.id },
         data: { status: "APPROVED" }
       });
+    });
+
+    await createNotification({
+      tenantId: req.user.tenantId,
+      userId: result.fromAdminId,
+      title: "Cash Handover Approved",
+      message: `Admin ${req.user.name} has approved your cash handover of ₹${result.amount}.`,
+      type: "CASH"
     });
 
     res.json(result);

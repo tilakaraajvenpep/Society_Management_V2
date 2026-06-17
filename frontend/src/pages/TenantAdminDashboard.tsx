@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import NotificationPanel from '../components/NotificationPanel';
 const exportTableToCSV = (filename: string, headers: string[], rows: (string|number)[][]) => {
   const escapeCSV = (str: string | number) => `"${String(str).replace(/"/g, '""')}"`;
   const csvContent = [
@@ -3241,6 +3242,7 @@ const TenantAdminDashboard = () => {
                 <Plus size={15} /> <span className="desktop-only">Record Payment</span>
               </button>
             )}
+            <NotificationPanel token={token} />
             <button onClick={logout} style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.4rem 0.7rem', cursor: 'pointer', color: 'var(--error)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
               <LogOut size={15} /> <span className="desktop-only">Logout</span>
             </button>

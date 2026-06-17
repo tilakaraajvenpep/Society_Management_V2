@@ -36,6 +36,7 @@ model Tenant {
   vendors            Vendor[]
   tickets            Ticket[]
   maintenanceCosts   MaintenanceCost[]
+  notifications      Notification[]
 }
 
 model User {
@@ -57,6 +58,7 @@ model User {
   collectedPayments Payment[]         @relation("CollectedBy")
   tenant            Tenant?           @relation(fields: [tenantId], references: [id])
   ticketComments    TicketComment[]
+  notifications     Notification[]
 
   @@unique([email, tenantId])
   @@unique([mobile, tenantId])
@@ -315,4 +317,19 @@ model MaintenanceCost {
   tenant        Tenant   @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, financialYear])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
