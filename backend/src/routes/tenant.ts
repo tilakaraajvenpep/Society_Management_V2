@@ -40,38 +40,73 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
   const { name, address, billingCycle, maintenanceAmount, adminEmail, adminName, adminPassword, slug, subscriptionAmount, lastRenewalDate, nextRenewalDate, enableForums } = req.body;
   try {
     const tenantSlug = slug || name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-    const dbName = `society_${tenantSlug}`;
+    const schemaName = `society_${tenantSlug}`;
 
-    // 1. Create the database in PostgreSQL
+    // 1. Create the schema in PostgreSQL
     const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
-    let pgConnectionString = masterConnectionString;
-    try {
-      const parsed = new URL(masterConnectionString);
-      parsed.pathname = "/postgres";
-      pgConnectionString = parsed.toString();
-    } catch (e) {
-      pgConnectionString = masterConnectionString.replace(/\/society_management$/, "/postgres");
-    }
-    const isClientLocalhost = pgConnectionString.includes("localhost") || pgConnectionString.includes("127.0.0.1");
+    const isClientLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
     const pgClient = new Client({
-      connectionString: pgConnectionString,
+      connectionString: masterConnectionString,
       ssl: isClientLocalhost ? false : { rejectUnauthorized: false }
     });
     await pgClient.connect();
-    const checkDb = await pgClient.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
-    if (checkDb.rowCount === 0) {
-      await pgClient.query(`CREATE DATABASE "${dbName}"`);
+
+    console.log(`Creating schema: ${schemaName}`);
+    await pgClient.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+
+    // 2. Clone tables from public schema to tenant schema
+    console.log(`Cloning tables from public to ${schemaName}...`);
+    const tablesRes = await pgClient.query(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name != '_prisma_migrations'`
+    );
+    
+    for (const row of tablesRes.rows) {
+      const tableName = row.table_name;
+      await pgClient.query(`CREATE TABLE IF NOT EXISTS "${schemaName}"."${tableName}" (LIKE "public"."${tableName}" INCLUDING ALL)`);
+    }
+
+    // 3. Clone foreign key constraints from public schema to tenant schema
+    console.log(`Cloning foreign key constraints from public to ${schemaName}...`);
+    const fkQuery = `
+      SELECT 
+          tc.table_name, 
+          tc.constraint_name, 
+          kcu.column_name, 
+          ccu.table_name AS foreign_table_name, 
+          ccu.column_name AS foreign_column_name,
+          rc.update_rule,
+          rc.delete_rule
+      FROM 
+          information_schema.table_constraints AS tc 
+          JOIN information_schema.key_column_usage AS kcu
+            ON tc.constraint_name = kcu.constraint_name
+            AND tc.table_schema = kcu.table_schema
+          JOIN information_schema.referential_constraints AS rc
+            ON tc.constraint_name = rc.constraint_name
+          JOIN information_schema.constraint_column_usage AS ccu
+            ON rc.unique_constraint_name = ccu.constraint_name
+            AND rc.unique_constraint_schema = ccu.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public';
+    `;
+    const fkRes = await pgClient.query(fkQuery);
+    for (const fk of fkRes.rows) {
+      const alterQuery = `
+        ALTER TABLE "${schemaName}"."${fk.table_name}"
+        ADD CONSTRAINT "${fk.constraint_name}"
+        FOREIGN KEY ("${fk.column_name}")
+        REFERENCES "${schemaName}"."${fk.foreign_table_name}" ("${fk.foreign_column_name}")
+        ON UPDATE ${fk.update_rule}
+        ON DELETE ${fk.delete_rule}
+      `;
+      try {
+        await pgClient.query(alterQuery);
+      } catch (err: any) {
+        if (!err.message.includes("already exists")) {
+          throw err;
+        }
+      }
     }
     await pgClient.end();
-
-    // 2. Initialize the schema using npx prisma db push on the new database
-    const tenantDbUrl = getTenantDbUrl(tenantSlug);
-    console.log(`Initializing schema for isolated database: ${dbName}`);
-    await execPromise(`npx prisma db push --url ${tenantDbUrl}`, {
-      env: {
-        ...process.env
-      }
-    });
 
     // 3. Register the tenant in the master registry database
     const tenant = await prisma.tenant.create({
@@ -238,30 +273,16 @@ router.delete("/:id", authenticate, authorize(["SUPER_ADMIN"]), async (req, res)
       return res.status(404).json({ message: "Tenant not found" });
     }
 
-    // 2. Drop the isolated tenant database
-    const dbName = `society_${tenant.slug}`;
+    // 2. Drop the isolated tenant schema
+    const schemaName = `society_${tenant.slug}`;
     const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
-    let pgConnectionString = masterConnectionString;
-    try {
-      const parsed = new URL(masterConnectionString);
-      parsed.pathname = "/postgres";
-      pgConnectionString = parsed.toString();
-    } catch (e) {
-      pgConnectionString = masterConnectionString.replace(/\/society_management$/, "/postgres");
-    }
-    const isClientLocalhost = pgConnectionString.includes("localhost") || pgConnectionString.includes("127.0.0.1");
+    const isClientLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
     const pgClient = new Client({
-      connectionString: pgConnectionString,
+      connectionString: masterConnectionString,
       ssl: isClientLocalhost ? false : { rejectUnauthorized: false }
     });
     await pgClient.connect();
-    // Terminate any active connections to release locks
-    await pgClient.query(`
-      SELECT pg_terminate_backend(pg_stat_activity.pid)
-      FROM pg_stat_activity
-      WHERE pg_stat_activity.datname = $1 AND pid <> pg_backend_pid()
-    `, [dbName]);
-    await pgClient.query(`DROP DATABASE IF EXISTS "${dbName}"`);
+    await pgClient.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
     await pgClient.end();
 
     // 3. Delete registry row in the master database

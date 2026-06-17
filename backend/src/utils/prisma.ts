@@ -24,10 +24,10 @@ export const getTenantDbUrl = (tenantSlug: string): string => {
   const masterUrl = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
   try {
     const parsed = new URL(masterUrl);
-    parsed.pathname = `/society_${tenantSlug}`;
+    parsed.searchParams.set("options", `-c search_path=society_${tenantSlug}`);
     return parsed.toString();
   } catch (e) {
-    return `postgresql://postgres:password@localhost:5432/society_${tenantSlug}`;
+    return `${masterUrl}?options=-c%20search_path%3Dsociety_${tenantSlug}`;
   }
 };
 
