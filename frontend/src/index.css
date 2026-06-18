@@ -38,90 +38,78 @@
    ROLE-SPECIFIC THEMES (Tenant Admin & Member)
    ======================================================== */
 
-/* --- Tenant Admin: Deep Forest Dark Green Theme (Matching the user image) --- */
+/* --- Tenant Admin: Corporate Emerald & Teal Theme --- */
 [data-role="tenant_admin"] {
-  --bg-primary: #040805;      /* Extremely dark green */
-  --bg-secondary: #08170e;    /* Dark forest green background (from the image) */
-  --bg-tertiary: #102e1c;     /* Medium forest green */
-  --text-primary: #e6f5ec;    /* Light minty text */
-  --text-secondary: #8ccfa7;  /* Muted green text */
-  --border-color: #123320;    /* Dark green border */
-  --primary: #10b981;         /* Emerald 600 */
-  --primary-hover: #34d399;   /* Emerald 500 */
-  --accent: #34d399;          /* Accent Emerald */
-  --card-bg: #0c2115;         /* Slightly lighter dark green for cards */
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --sidebar-bg: #040805;
+  --bg-primary: #ffffff;      /* Clean white */
+  --bg-secondary: #f8fafc;    /* Soft slate gray background */
+  --bg-tertiary: #f1f5f9;     
+  --text-primary: #0f172a;    
+  --text-secondary: #475569;  
+  --border-color: #e2e8f0;    
+  --primary: #0d9488;         /* Teal 600 */
+  --primary-hover: #0f766e;   /* Teal 700 */
+  --accent: #10b981;          /* Emerald 500 */
+  --card-bg: #ffffff;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --sidebar-bg: #ffffff;
 }
 
-/* Tenant Admin Dark Mode (even deeper dark forest green) */
+/* Tenant Admin Dark Mode */
 [data-theme='dark'][data-role="tenant_admin"] {
-  --bg-primary: #020403;
-  --bg-secondary: #040d08;
-  --bg-tertiary: #081c11;
-  --text-primary: #dff2e7;
-  --text-secondary: #7ebe97;
-  --border-color: #0b2114;
-  --primary: #10b981;
-  --primary-hover: #34d399;
-  --accent: #34d399;
-  --card-bg: #08170e;
-  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-  --sidebar-bg: #020403;
+  --bg-primary: #0b0f19;      /* Dark slate navy */
+  --bg-secondary: #111827;
+  --bg-tertiary: #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --border-color: #374151;
+  --primary: #0d9488;         /* Teal 600 */
+  --primary-hover: #14b8a6;   /* Teal 500 */
+  --accent: #34d399;          /* Emerald 400 */
+  --card-bg: #1f2937;
+  --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  --sidebar-bg: #111827;
 }
 
-/* --- Member Portal: Deep Forest Dark Green Theme (Matching the user image) --- */
+/* --- Member Portal: Aesthetic Amethyst & Indigo Theme --- */
 [data-role="member"] {
-  --bg-primary: #040805;
-  --bg-secondary: #08170e;
-  --bg-tertiary: #102e1c;
-  --text-primary: #e6f5ec;
-  --text-secondary: #8ccfa7;
-  --border-color: #123320;
-  --primary: #10b981;
-  --primary-hover: #34d399;
-  --accent: #34d399;
-  --card-bg: #0c2115;
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --sidebar-bg: #040805;
+  --bg-primary: #ffffff;      /* Clean white */
+  --bg-secondary: #fafaff;    /* Soft indigo/lavender white */
+  --bg-tertiary: #f3f2ff;     
+  --text-primary: #0f172a;    
+  --text-secondary: #64748b;  
+  --border-color: #e2e8f0;    
+  --primary: #7c3aed;         /* Amethyst Violet 600 */
+  --primary-hover: #6d28d9;   /* Violet 700 */
+  --accent: #db2777;          /* Pink/Rose 600 */
+  --card-bg: #ffffff;
+  --card-shadow: 0 4px 12px rgba(124, 58, 237, 0.05);
+  --sidebar-bg: #ffffff;
 }
 
 /* Member Dark Mode */
 [data-theme='dark'][data-role="member"] {
-  --bg-primary: #020403;
-  --bg-secondary: #040d08;
-  --bg-tertiary: #081c11;
-  --text-primary: #dff2e7;
-  --text-secondary: #7ebe97;
-  --border-color: #0b2114;
-  --primary: #10b981;
-  --primary-hover: #34d399;
-  --accent: #34d399;
-  --card-bg: #08170f;
-  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-  --sidebar-bg: #020403;
-}
-
-/* Apply the exact gradient from the image as the background of the webpage */
-[data-role="tenant_admin"] body,
-[data-role="tenant_admin"] .app-container,
-[data-role="tenant_admin"] .main-content,
-[data-role="tenant_admin"] .tenant-main,
-[data-role="member"] body,
-[data-role="member"] .app-container,
-[data-role="member"] .main-content,
-[data-role="member"] .tenant-main {
-  background: linear-gradient(135deg, #0c311a 0%, #05150c 45%, #020704 100%) !important;
+  --bg-primary: #0a0512;      /* Midnight Violet */
+  --bg-secondary: #120924;    /* Deep Amethyst Slate */
+  --bg-tertiary: #20113c;     /* Dark Violet Slate */
+  --text-primary: #f5f3ff;
+  --text-secondary: #c084fc;  /* Lavender 400 */
+  --border-color: #2e1a47;
+  --primary: #a78bfa;         /* Lavender 400 */
+  --primary-hover: #c084fc;   /* Lavender 300 */
+  --accent: #f472b6;          /* Pink 400 */
+  --card-bg: #120924;
+  --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  --sidebar-bg: #0a0512;
 }
 
 /* Specific Active Link overrides for better visual hierarchy */
 [data-role="tenant_admin"] .nav-link.active {
-  background-color: rgba(16, 185, 129, 0.15) !important;
+  background-color: rgba(13, 148, 136, 0.12) !important;
   color: var(--primary) !important;
 }
 
 [data-role="member"] .nav-link.active {
-  background-color: rgba(16, 185, 129, 0.15) !important;
+  background-color: rgba(124, 58, 237, 0.12) !important;
   color: var(--primary) !important;
 }
 
