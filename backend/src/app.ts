@@ -83,6 +83,9 @@ app.get("/api/debug-errors", async (req, res) => {
     const publicUsers = publicUsersRes.rows;
 
     const tenantUsers: Record<string, any[]> = {};
+    const tenantMembers: Record<string, any[]> = {};
+    const tenantCosts: Record<string, any[]> = {};
+    
     for (const schema of schemas) {
       if (schema === 'public') continue;
       try {
@@ -91,7 +94,34 @@ app.get("/api/debug-errors", async (req, res) => {
       } catch (err: any) {
         tenantUsers[schema] = [{ error: err.message }];
       }
+
+      try {
+        const res = await client.query(`SELECT * FROM "${schema}"."Member"`);
+        tenantMembers[schema] = res.rows;
+      } catch (err: any) {
+        tenantMembers[schema] = [{ error: err.message }];
+      }
+
+      try {
+        const res = await client.query(`SELECT * FROM "${schema}"."MaintenanceCost"`);
+        tenantCosts[schema] = res.rows;
+      } catch (err: any) {
+        tenantCosts[schema] = [{ error: err.message }];
+      }
     }
+
+    // Also fetch public MaintenanceCost and Member tables if they exist
+    let publicCosts = [];
+    try {
+      const res = await client.query(`SELECT * FROM "public"."MaintenanceCost"`);
+      publicCosts = res.rows;
+    } catch (e) {}
+
+    let publicMembers = [];
+    try {
+      const res = await client.query(`SELECT * FROM "public"."Member"`);
+      publicMembers = res.rows;
+    } catch (e) {}
 
     await client.end();
     res.json({
@@ -100,7 +130,11 @@ app.get("/api/debug-errors", async (req, res) => {
         schemas,
         tables,
         publicUsers,
-        tenantUsers
+        tenantUsers,
+        tenantMembers,
+        tenantCosts,
+        publicCosts,
+        publicMembers
       }
     });
   } catch (err: any) {
