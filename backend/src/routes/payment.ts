@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { memberId, amount, mode, notes, subscriptionId, paidMonths, periodLabel, coverageStartDate, coverageEndDate, paymentDate } = req.body;
+  const { memberId, amount, mode, notes, subscriptionId, paidMonths, periodLabel, coverageStartDate, coverageEndDate, paymentDate, category } = req.body;
   try {
     // Fetch member name and current paidUntil
     const currentMember = await prisma.member.findUnique({ where: { id: memberId }, select: { name: true, flatNo: true, paidUntil: true } });
@@ -39,6 +39,7 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           paymentDate: paymentDate ? new Date(paymentDate) : undefined,
           coverageStartDate: coverageStartDate ? new Date(coverageStartDate) : null,
           coverageEndDate: coverageEndDate ? new Date(coverageEndDate) : null,
+          category: category || "Maintenance",
         },
       });
 
@@ -138,7 +139,7 @@ router.get("/upcoming", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 });
 
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { status, amount, mode, notes, coverageStartDate, coverageEndDate, paymentDate } = req.body;
+  const { status, amount, mode, notes, coverageStartDate, coverageEndDate, paymentDate, category } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const current = await tx.payment.findUnique({
@@ -205,6 +206,7 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         amount: finalAmount,
         mode: finalMode as any,
         notes: notes !== undefined ? notes : current.notes,
+        category: category !== undefined ? category : current.category,
         lastEditedBy: req.user.name,
         lastEditedAt: new Date(),
       };

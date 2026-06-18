@@ -29,6 +29,8 @@ model Tenant {
   monthlyReminderInterval Int          @default(7) // interval in days
   enableOverdueReminder  Boolean       @default(false)
   overdueReminderInterval Int          @default(7) // interval in days
+  discountDate           DateTime?
+  discountAmount         Float         @default(0)
   
   auditLogs          AuditLog[]
   cashTransactions   CashTransaction[]
@@ -143,6 +145,7 @@ model Payment {
   periodLabel       String?
   coverageEndDate   DateTime?
   coverageStartDate DateTime?
+  category          String         @default("Maintenance")
   
   collectedBy       User           @relation("CollectedBy", fields: [collectedById], references: [id])
   member            Member         @relation(fields: [memberId], references: [id])

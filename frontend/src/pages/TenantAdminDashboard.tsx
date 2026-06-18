@@ -2159,6 +2159,10 @@ const TenantAdminDashboard = () => {
   const [enableOverdueReminder, setEnableOverdueReminder] = useState(false);
   const [overdueReminderIntervalInput, setOverdueReminderIntervalInput] = useState('7');
 
+  // Discount settings states
+  const [discountDateInput, setDiscountDateInput] = useState('');
+  const [discountAmountInput, setDiscountAmountInput] = useState('0');
+
   useEffect(() => {
     if (summary) {
       setMaintenanceAmountInput(summary.maintenanceAmount !== undefined && summary.maintenanceAmount !== null ? String(summary.maintenanceAmount) : '0');
@@ -2171,6 +2175,9 @@ const TenantAdminDashboard = () => {
       setMonthlyReminderIntervalInput(summary.monthlyReminderInterval !== undefined && summary.monthlyReminderInterval !== null ? String(summary.monthlyReminderInterval) : '7');
       setEnableOverdueReminder(!!summary.enableOverdueReminder);
       setOverdueReminderIntervalInput(summary.overdueReminderInterval !== undefined && summary.overdueReminderInterval !== null ? String(summary.overdueReminderInterval) : '7');
+
+      setDiscountDateInput(summary.discountDate ? summary.discountDate.split('T')[0] : '');
+      setDiscountAmountInput(summary.discountAmount !== undefined && summary.discountAmount !== null ? String(summary.discountAmount) : '0');
     }
   }, [summary]);
 
@@ -2244,7 +2251,7 @@ const TenantAdminDashboard = () => {
   );
 
 
-  const [newPayment, setNewPayment] = useState({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString() });
+  const [newPayment, setNewPayment] = useState({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString(), category: 'Maintenance' });
   const [editingPayment, setEditingPayment] = useState<any>(null);
   const [upcomingMembers, setUpcomingMembers] = useState([]);
   const [newTransfer, setNewTransfer] = useState({ toAdminId: '', amount: 0, type: 'HANDOVER', referenceNote: '' });
@@ -2434,11 +2441,29 @@ const TenantAdminDashboard = () => {
     }
   };
 
-  const getPricing = (months: number) => {
-    if (months === 3 && summary.quarterlyAmount) return summary.quarterlyAmount;
-    if (months === 6 && summary.halfYearlyAmount) return summary.halfYearlyAmount;
-    if (months === 12 && summary.annualAmount) return summary.annualAmount;
-    return (summary.maintenanceAmount || 0) * months;
+  const getPricing = (months: number, selectedCategory: string = 'Maintenance', payDate: string = getTodayDateString()) => {
+    let baseAmount = 0;
+    if (months === 3 && summary.quarterlyAmount) {
+      baseAmount = summary.quarterlyAmount;
+    } else if (months === 6 && summary.halfYearlyAmount) {
+      baseAmount = summary.halfYearlyAmount;
+    } else if (months === 12 && summary.annualAmount) {
+      baseAmount = summary.annualAmount;
+    } else {
+      baseAmount = (summary.maintenanceAmount || 0) * months;
+    }
+
+    if (selectedCategory === 'Maintenance' && summary.discountDate && summary.discountAmount && payDate) {
+      const discountDeadline = new Date(summary.discountDate);
+      const paymentDateVal = new Date(payDate);
+      discountDeadline.setHours(23, 59, 59, 999);
+      paymentDateVal.setHours(0, 0, 0, 0);
+
+      if (paymentDateVal <= discountDeadline) {
+        return Math.max(0, baseAmount - summary.discountAmount);
+      }
+    }
+    return baseAmount;
   };
 
   const handleApproveTransfer = async (id: string) => {
@@ -2460,7 +2485,7 @@ const TenantAdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowModal(null);
-      setNewPayment({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString() });
+      setNewPayment({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString(), category: 'Maintenance' });
       fetchData();
       showToast('Payment recorded successfully', 'success');
     } catch (err: any) {
@@ -4136,6 +4161,53 @@ const TenantAdminDashboard = () => {
                 </div>
               </div>
 
+              {/* Early Payment Discount Card */}
+              <div className="card">
+                <h3 style={{ marginBottom: '1.5rem' }}>Early Payment Discount (Optional)</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Discount Cut-off Date</label>
+                    <input 
+                      type="date" 
+                      value={discountDateInput} 
+                      onChange={e => setDiscountDateInput(e.target.value)} 
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>Payments on or before this date receive the discount.</span>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Discount Amount (₹)</label>
+                    <input 
+                      type="text" 
+                      value={discountAmountInput} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (/^\d*\.?\d*$/.test(val)) {
+                          setDiscountAmountInput(val);
+                        }
+                      }} 
+                      placeholder="e.g. 100" 
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>Deducted from the total maintenance amount.</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', marginTop: '1.5rem' }}>
+                  <button className="btn btn-primary" onClick={async () => {
+                    try {
+                      const discountAmt = discountAmountInput.trim() === '' ? 0 : parseFloat(discountAmountInput);
+                      await axios.patch('/tenants/settings', { 
+                        discountDate: discountDateInput || null,
+                        discountAmount: discountAmt
+                      }, { headers: { Authorization: `Bearer ${token}` } });
+                      
+                      await fetchData();
+                      showToast('Discount settings updated successfully', 'success');
+                    } catch (err: any) {
+                      showToast(err.response?.data?.message || 'Error updating discount settings', 'error');
+                    }
+                  }}>Save Discount Settings</button>
+                </div>
+              </div>
+
             </div>
             <FinancialYearCostSetup token={token} />
             <MastersManagement token={token} onRefresh={fetchData} />
@@ -5337,52 +5409,82 @@ const TenantAdminDashboard = () => {
             {showModal === 'payment' && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem' }}>Record Maintenance Payment</h2>
+                  <h2 style={{ fontSize: '1.25rem' }}>Record Payment</h2>
                   <button onClick={() => setShowModal(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
                 </div>
                 <form onSubmit={handleSubmitPayment}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <div>
-                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Select Member</label>
-                      <select required value={newPayment.memberId} onChange={(e) => {
-                        setNewPayment({ ...newPayment, memberId: e.target.value, amount: getPricing(newPayment.paidMonths) });
-                      }}>
-                        <option value="">-- Choose Member --</option>
-                        {members.map((m: any) => (
-                          <option key={m.id} value={m.id}>{m.flatNo} - {m.name} (Due: ₹{m.outstandingDues})</option>
-                        ))}
-                      </select>
-                    </div>
+                    
                     <div className="grid-2">
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Period</label>
-                        <select required value={newPayment.paidMonths} onChange={(e) => {
-                          const months = parseInt(e.target.value);
-                          const label = e.target.options[e.target.selectedIndex].text;
-                          let updatedEndDate = newPayment.coverageEndDate;
-                          
-                          if (newPayment.coverageStartDate) {
-                            const start = new Date(newPayment.coverageStartDate);
-                            const end = new Date(start.setMonth(start.getMonth() + months));
-                            // Subtract one day to end on the last day of the period
-                            end.setDate(end.getDate() - 1);
-                            updatedEndDate = end.toISOString().split('T')[0];
-                          }
-                          
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Select Member</label>
+                        <select required value={newPayment.memberId} onChange={(e) => {
                           setNewPayment({ 
                             ...newPayment, 
-                            paidMonths: months, 
-                            periodLabel: label, 
-                            amount: getPricing(months),
-                            coverageEndDate: updatedEndDate
+                            memberId: e.target.value, 
+                            amount: getPricing(newPayment.paidMonths, newPayment.category, newPayment.paymentDate) 
                           });
                         }}>
-                          <option value={1}>Monthly</option>
-                          <option value={3}>Quarterly</option>
-                          <option value={6}>Half-Yearly</option>
-                          <option value={12}>Annual</option>
+                          <option value="">-- Choose Member --</option>
+                          {members.map((m: any) => (
+                            <option key={m.id} value={m.id}>{m.flatNo} - {m.name} (Due: ₹{m.outstandingDues})</option>
+                          ))}
                         </select>
                       </div>
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Category</label>
+                        <select required value={newPayment.category} onChange={(e) => {
+                          const cat = e.target.value;
+                          const amt = getPricing(newPayment.paidMonths, cat, newPayment.paymentDate);
+                          setNewPayment({ 
+                            ...newPayment, 
+                            category: cat,
+                            amount: cat === 'Maintenance' ? amt : 0
+                          });
+                        }}>
+                          <option value="Maintenance">Maintenance</option>
+                          <option value="Event Fee">Event Fee</option>
+                          <option value="Corpus Fund">Corpus Fund</option>
+                          <option value="Water Dues">Water Dues</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid-2">
+                      {newPayment.category === 'Maintenance' ? (
+                        <div>
+                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Period</label>
+                          <select required value={newPayment.paidMonths} onChange={(e) => {
+                            const months = parseInt(e.target.value);
+                            const label = e.target.options[e.target.selectedIndex].text;
+                            let updatedEndDate = newPayment.coverageEndDate;
+                            
+                            if (newPayment.coverageStartDate) {
+                              const start = new Date(newPayment.coverageStartDate);
+                              const end = new Date(start.setMonth(start.getMonth() + months));
+                              end.setDate(end.getDate() - 1);
+                              updatedEndDate = end.toISOString().split('T')[0];
+                            }
+                            
+                            setNewPayment({ 
+                              ...newPayment, 
+                              paidMonths: months, 
+                              periodLabel: label, 
+                              amount: getPricing(months, newPayment.category, newPayment.paymentDate),
+                              coverageEndDate: updatedEndDate
+                            });
+                          }}>
+                            <option value={1}>Monthly</option>
+                            <option value={3}>Quarterly</option>
+                            <option value={6}>Half-Yearly</option>
+                            <option value={12}>Annual</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <div style={{ visibility: 'hidden', height: 0, overflow: 'hidden' }}>
+                        </div>
+                      )}
                       <div>
                         <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Mode</label>
                         <select value={newPayment.mode} onChange={(e) => setNewPayment({ ...newPayment, mode: e.target.value })}>
@@ -5393,9 +5495,15 @@ const TenantAdminDashboard = () => {
                         </select>
                       </div>
                     </div>
+
                     <div className="grid-2">
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Amount Received (₹) <span style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>(Base: ₹{summary.maintenanceAmount || 0})</span></label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>
+                          Amount Received (₹) 
+                          {newPayment.category === 'Maintenance' && (
+                            <span style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}> (Base: ₹{summary.maintenanceAmount || 0})</span>
+                          )}
+                        </label>
                         <input 
                           type="text" 
                           required 
@@ -5407,42 +5515,72 @@ const TenantAdminDashboard = () => {
                             }
                           }} 
                         />
+                        {newPayment.category === 'Maintenance' && summary.discountDate && summary.discountAmount && newPayment.paymentDate && (() => {
+                          const deadline = new Date(summary.discountDate);
+                          const pDate = new Date(newPayment.paymentDate);
+                          deadline.setHours(23, 59, 59, 999);
+                          pDate.setHours(0, 0, 0, 0);
+                          if (pDate <= deadline) {
+                            return (
+                              <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem', fontWeight: 500 }}>
+                                ✓ Early payment discount of ₹{summary.discountAmount} applied!
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       <div>
                         <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date</label>
-                        <input type="date" required value={newPayment.paymentDate} onChange={(e) => setNewPayment({ ...newPayment, paymentDate: e.target.value })} />
+                        <input 
+                          type="date" 
+                          required 
+                          value={newPayment.paymentDate} 
+                          onChange={(e) => {
+                            const newDate = e.target.value;
+                            setNewPayment({ 
+                              ...newPayment, 
+                              paymentDate: newDate,
+                              amount: newPayment.category === 'Maintenance' ? getPricing(newPayment.paidMonths, newPayment.category, newDate) : newPayment.amount
+                            });
+                          }} 
+                        />
                       </div>
                     </div>
+
                     <div>
                       <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Reference / Notes</label>
                       <input type="text" placeholder="e.g. Receipt No, Transaction ID" value={newPayment.notes} onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })} />
                     </div>
-                    <div className="grid-2" style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px dashed var(--border-color)' }}>
-                      <div style={{ gridColumn: 'span 2' }}>
-                        <h4 style={{ fontSize: '0.875rem', marginBottom: '0.2rem', color: 'var(--primary)' }}>Advanced: Custom Coverage Dates</h4>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Leave blank to auto-calculate based on current paid-until date.</p>
+
+                    {newPayment.category === 'Maintenance' && (
+                      <div className="grid-2" style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px dashed var(--border-color)' }}>
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <h4 style={{ fontSize: '0.875rem', marginBottom: '0.2rem', color: 'var(--primary)' }}>Advanced: Custom Coverage Dates</h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Leave blank to auto-calculate based on current paid-until date.</p>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage Start (Optional)</label>
+                          <input type="date" value={newPayment.coverageStartDate || ''} onChange={(e) => {
+                            const startDate = e.target.value;
+                            let updatedEndDate = newPayment.coverageEndDate;
+                            
+                            if (startDate) {
+                              const start = new Date(startDate);
+                              const end = new Date(start.setMonth(start.getMonth() + newPayment.paidMonths));
+                              end.setDate(end.getDate() - 1);
+                              updatedEndDate = end.toISOString().split('T')[0];
+                            }
+                            
+                            setNewPayment({ ...newPayment, coverageStartDate: startDate, coverageEndDate: updatedEndDate });
+                          }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage End (Optional)</label>
+                          <input type="date" value={newPayment.coverageEndDate || ''} onChange={(e) => setNewPayment({ ...newPayment, coverageEndDate: e.target.value })} />
+                        </div>
                       </div>
-                      <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage Start (Optional)</label>
-                        <input type="date" value={newPayment.coverageStartDate || ''} onChange={(e) => {
-                          const startDate = e.target.value;
-                          let updatedEndDate = newPayment.coverageEndDate;
-                          
-                          if (startDate) {
-                            const start = new Date(startDate);
-                            const end = new Date(start.setMonth(start.getMonth() + newPayment.paidMonths));
-                            end.setDate(end.getDate() - 1);
-                            updatedEndDate = end.toISOString().split('T')[0];
-                          }
-                          
-                          setNewPayment({ ...newPayment, coverageStartDate: startDate, coverageEndDate: updatedEndDate });
-                        }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage End (Optional)</label>
-                        <input type="date" value={newPayment.coverageEndDate || ''} onChange={(e) => setNewPayment({ ...newPayment, coverageEndDate: e.target.value })} />
-                      </div>
-                    </div>
+                    )}
                   </div>
                   <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                     <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>Cancel</button>

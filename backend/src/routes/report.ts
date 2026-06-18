@@ -31,7 +31,9 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           monthlyReminderCount: true,
           monthlyReminderInterval: true,
           enableOverdueReminder: true,
-          overdueReminderInterval: true
+          overdueReminderInterval: true,
+          discountDate: true,
+          discountAmount: true
         } as any 
       }),
     ]);
@@ -141,6 +143,8 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       monthlyReminderInterval: (tenantInfo as any)?.monthlyReminderInterval || 7,
       enableOverdueReminder: (tenantInfo as any)?.enableOverdueReminder || false,
       overdueReminderInterval: (tenantInfo as any)?.overdueReminderInterval || 7,
+      discountDate: (tenantInfo as any)?.discountDate || null,
+      discountAmount: (tenantInfo as any)?.discountAmount || 0,
       // Charts
       monthlyTrends: monthlyData,
       expenseByCategory: expenseByCategory.map((e: any) => ({ category: e.category, amount: e._sum.amount || 0 })),
