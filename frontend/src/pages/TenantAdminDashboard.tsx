@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users,
   ArrowDownLeft, Landmark, LogOut, Plus, Send,
   TrendingUp, Users2, Receipt, Building, Settings, History, Download, Upload, Edit, XCircle, Printer, Eye, UserCheck, Trash2, Calendar, BarChart2, Menu, X, Bell,
-  MessageSquare, LifeBuoy, Clock, FileText, Image, Search
+  MessageSquare, LifeBuoy, Clock, FileText, Image, Search, DollarSign, Percent, Wrench, Save
 } from 'lucide-react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -2129,6 +2129,7 @@ const TenantAdminDashboard = () => {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState('overview');
+  const [activeSettingsTab, setActiveSettingsTab] = useState('pricing');
   const [loading, setLoading] = useState(true);
   const [duesCalcMode, setDuesCalcMode] = useState<string>('DB');
   const [duesSortField, setDuesSortField] = useState<'flatNo' | 'name' | 'outstandingDues'>('flatNo');
@@ -3983,234 +3984,343 @@ const TenantAdminDashboard = () => {
         );
       case 'settings':
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
-              
-              {/* Pricing Master Card */}
-              <div className="card">
-                <h3 style={{ marginBottom: '1.5rem' }}>Society Settings (Pricing Master)</h3>
-                <div className="responsive-form-grid">
-                  <div>
-                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Base Monthly Amount (₹)</label>
-                    <input type="text" value={maintenanceAmountInput} onChange={e => setMaintenanceAmountInput(e.target.value)} placeholder="0" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Quarterly Amount (₹)</label>
-                    <input type="text" value={quarterlyAmountInput} onChange={e => setQuarterlyAmountInput(e.target.value)} placeholder="Optional discounted price" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Half-Yearly Amount (₹)</label>
-                    <input type="text" value={halfYearlyAmountInput} onChange={e => setHalfYearlyAmountInput(e.target.value)} placeholder="Optional discounted price" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Amount (₹)</label>
-                    <input type="text" value={annualAmountInput} onChange={e => setAnnualAmountInput(e.target.value)} placeholder="Optional discounted price" />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', marginTop: '1.5rem' }}>
-                  <button className="btn btn-primary" onClick={async () => {
-                    try {
-                      const cleanAmt = maintenanceAmountInput.trim();
-                      const cleanQ = quarterlyAmountInput.trim();
-                      const cleanH = halfYearlyAmountInput.trim();
-                      const cleanA = annualAmountInput.trim();
-
-                      await axios.patch('/tenants/settings', { 
-                        maintenanceAmount: cleanAmt === '' ? 0 : (parseFloat(cleanAmt) || 0),
-                        quarterlyAmount: cleanQ === '' ? null : (parseFloat(cleanQ) || null),
-                        halfYearlyAmount: cleanH === '' ? null : (parseFloat(cleanH) || null),
-                        annualAmount: cleanA === '' ? null : (parseFloat(cleanA) || null)
-                      }, { headers: { Authorization: `Bearer ${token}` } });
-                      
-                      await fetchData();
-                      showToast('Pricing settings updated successfully', 'success');
-                    } catch (err: any) {
-                      showToast(err.response?.data?.message || 'Error updating settings', 'error');
-                    }
-                  }}>Save Pricing Settings</button>
-                </div>
+          <div style={{ display: 'flex', gap: '2rem', minHeight: '70vh', alignItems: 'stretch' }} className="settings-hub-container">
+            {/* Sidebar Navigation */}
+            <div style={{
+              width: '260px',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '1rem',
+              padding: '1.25rem',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              height: 'fit-content',
+              position: 'sticky',
+              top: '2rem'
+            }}>
+              <div style={{ marginBottom: '1rem', padding: '0.5rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Settings Hub</h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', margin: 0 }}>Configure society preferences</p>
               </div>
 
-              {/* Notification & Reminder Settings Card */}
-              <div className="card">
-                <h3 style={{ marginBottom: '1.5rem' }}>Auto-Reminder Settings</h3>
-                
-                {/* Monthly reminder settings */}
-                <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                    <div>
-                      <label style={{ fontWeight: 600, fontSize: '0.95rem' }}>Monthly Maintenance Reminder</label>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                        Send a payment reminder notification to active members every month.
-                      </span>
-                    </div>
-                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={enableMonthlyReminder} 
-                        onChange={e => setEnableMonthlyReminder(e.target.checked)} 
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                      />
-                      <span className="slider round" style={{
-                        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: enableMonthlyReminder ? 'var(--primary-color)' : '#ccc',
-                        transition: '0.4s', borderRadius: '20px'
-                      }}>
-                        <span style={{
-                          position: 'absolute', content: '""', height: '14px', width: '14px', left: enableMonthlyReminder ? '22px' : '4px', bottom: '3px',
-                          backgroundColor: 'white', transition: '0.4s', borderRadius: '50%'
-                        }} />
-                      </span>
-                    </label>
-                  </div>
-                  
-                  {enableMonthlyReminder && (
-                    <div className="responsive-form-grid" style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div>
-                        <label style={{ fontSize: '0.825rem', fontWeight: 500, marginBottom: '0.35rem', display: 'block' }}>Frequency (Times)</label>
-                        <input 
-                          type="number" 
-                          min="1"
-                          max="10"
-                          value={monthlyReminderCountInput} 
-                          onChange={e => setMonthlyReminderCountInput(e.target.value)} 
-                        />
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Times to remind per month</span>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.825rem', fontWeight: 500, marginBottom: '0.35rem', display: 'block' }}>Interval (Days)</label>
-                        <input 
-                          type="number" 
-                          min="1"
-                          value={monthlyReminderIntervalInput} 
-                          onChange={e => setMonthlyReminderIntervalInput(e.target.value)} 
-                        />
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Days between reminders</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Overdue reminder settings */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                    <div>
-                      <label style={{ fontWeight: 600, fontSize: '0.95rem' }}>Overdue Dues Reminder</label>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                        Remind members with pending dues periodically. Stops automatically once paid.
-                      </span>
-                    </div>
-                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={enableOverdueReminder} 
-                        onChange={e => setEnableOverdueReminder(e.target.checked)} 
-                        style={{ opacity: 0, width: 0, height: 0 }}
-                      />
-                      <span className="slider round" style={{
-                        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: enableOverdueReminder ? 'var(--primary-color)' : '#ccc',
-                        transition: '0.4s', borderRadius: '20px'
-                      }}>
-                        <span style={{
-                          position: 'absolute', content: '""', height: '14px', width: '14px', left: enableOverdueReminder ? '22px' : '4px', bottom: '3px',
-                          backgroundColor: 'white', transition: '0.4s', borderRadius: '50%'
-                        }} />
-                      </span>
-                    </label>
-                  </div>
-                  
-                  {enableOverdueReminder && (
-                    <div style={{ marginTop: '1rem' }}>
-                      <label style={{ fontSize: '0.825rem', fontWeight: 500, marginBottom: '0.35rem', display: 'block' }}>Interval (Days)</label>
-                      <input 
-                        type="number" 
-                        min="1"
-                        style={{ maxWidth: '180px' }}
-                        value={overdueReminderIntervalInput} 
-                        onChange={e => setOverdueReminderIntervalInput(e.target.value)} 
-                      />
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
-                        Days between overdue reminders. Multiple months' outstanding will also send emails.
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', marginTop: '1.5rem' }}>
-                  <button className="btn btn-primary" onClick={async () => {
-                    try {
-                      const countVal = parseInt(monthlyReminderCountInput, 10) || 1;
-                      const intervalVal = parseInt(monthlyReminderIntervalInput, 10) || 7;
-                      const overdueVal = parseInt(overdueReminderIntervalInput, 10) || 7;
-
-                      await axios.patch('/tenants/settings', { 
-                        enableMonthlyReminder,
-                        monthlyReminderCount: countVal,
-                        monthlyReminderInterval: intervalVal,
-                        enableOverdueReminder,
-                        overdueReminderInterval: overdueVal
-                      }, { headers: { Authorization: `Bearer ${token}` } });
-                      
-                      await fetchData();
-                      showToast('Reminder settings updated successfully', 'success');
-                    } catch (err: any) {
-                      showToast(err.response?.data?.message || 'Error updating reminder settings', 'error');
-                    }
-                  }}>Save Reminder Settings</button>
-                </div>
-              </div>
-
-              {/* Early Payment Discount Card */}
-              <div className="card">
-                <h3 style={{ marginBottom: '1.5rem' }}>Early Payment Discount (Optional)</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Discount Cut-off Date</label>
-                    <input 
-                      type="date" 
-                      value={discountDateInput} 
-                      onChange={e => setDiscountDateInput(e.target.value)} 
-                    />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>Payments on or before this date receive the discount.</span>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Discount Amount (₹)</label>
-                    <input 
-                      type="text" 
-                      value={discountAmountInput} 
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (/^\d*\.?\d*$/.test(val)) {
-                          setDiscountAmountInput(val);
-                        }
-                      }} 
-                      placeholder="e.g. 100" 
-                    />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>Deducted from the total maintenance amount.</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', marginTop: '1.5rem' }}>
-                  <button className="btn btn-primary" onClick={async () => {
-                    try {
-                      const discountAmt = discountAmountInput.trim() === '' ? 0 : parseFloat(discountAmountInput);
-                      await axios.patch('/tenants/settings', { 
-                        discountDate: discountDateInput || null,
-                        discountAmount: discountAmt
-                      }, { headers: { Authorization: `Bearer ${token}` } });
-                      
-                      await fetchData();
-                      showToast('Discount settings updated successfully', 'success');
-                    } catch (err: any) {
-                      showToast(err.response?.data?.message || 'Error updating discount settings', 'error');
-                    }
-                  }}>Save Discount Settings</button>
-                </div>
-              </div>
-
+              {[
+                { id: 'pricing', label: 'Pricing & Fees', icon: <DollarSign size={16} /> },
+                { id: 'reminders', label: 'Auto-Reminders', icon: <Bell size={16} /> },
+                { id: 'discount', label: 'Early Bird Discount', icon: <Percent size={16} /> },
+                { id: 'financial-year', label: 'Financial Year Setup', icon: <Calendar size={16} /> },
+                { id: 'masters', label: 'System Masters', icon: <Wrench size={16} /> }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveSettingsTab(t.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.875rem 1rem',
+                    borderRadius: '0.75rem',
+                    border: 'none',
+                    background: activeSettingsTab === t.id ? 'var(--primary-color)' : 'transparent',
+                    color: activeSettingsTab === t.id ? '#ffffff' : 'var(--text-secondary)',
+                    fontWeight: activeSettingsTab === t.id ? 600 : 500,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    textAlign: 'left',
+                    width: '100%'
+                  }}
+                  className="settings-tab-btn"
+                >
+                  {t.icon}
+                  <span>{t.label}</span>
+                </button>
+              ))}
             </div>
-            <FinancialYearCostSetup token={token} />
-            <MastersManagement token={token} onRefresh={fetchData} />
+
+            {/* Content Area */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {activeSettingsTab === 'pricing' && (
+                <div className="card" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '0.5rem', color: 'var(--primary-color)' }}>
+                      <DollarSign size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Society Settings (Pricing Master)</h3>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Define the base rates and pre-calculated discounts for payment plans.</p>
+                    </div>
+                  </div>
+
+                  <div className="responsive-form-grid" style={{ gap: '1.5rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Base Monthly Amount (₹)</label>
+                      <input type="text" value={maintenanceAmountInput} onChange={e => setMaintenanceAmountInput(e.target.value)} placeholder="0" style={{ padding: '0.75rem', borderRadius: '0.5rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Quarterly Amount (₹)</label>
+                      <input type="text" value={quarterlyAmountInput} onChange={e => setQuarterlyAmountInput(e.target.value)} placeholder="Optional discounted price" style={{ padding: '0.75rem', borderRadius: '0.5rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Half-Yearly Amount (₹)</label>
+                      <input type="text" value={halfYearlyAmountInput} onChange={e => setHalfYearlyAmountInput(e.target.value)} placeholder="Optional discounted price" style={{ padding: '0.75rem', borderRadius: '0.5rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Annual Amount (₹)</label>
+                      <input type="text" value={annualAmountInput} onChange={e => setAnnualAmountInput(e.target.value)} placeholder="Optional discounted price" style={{ padding: '0.75rem', borderRadius: '0.5rem' }} />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)', marginTop: '2rem' }}>
+                    <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={async () => {
+                      try {
+                        const cleanAmt = maintenanceAmountInput.trim();
+                        const cleanQ = quarterlyAmountInput.trim();
+                        const cleanH = halfYearlyAmountInput.trim();
+                        const cleanA = annualAmountInput.trim();
+
+                        await axios.patch('/tenants/settings', { 
+                          maintenanceAmount: cleanAmt === '' ? 0 : (parseFloat(cleanAmt) || 0),
+                          quarterlyAmount: cleanQ === '' ? null : (parseFloat(cleanQ) || null),
+                          halfYearlyAmount: cleanH === '' ? null : (parseFloat(cleanH) || null),
+                          annualAmount: cleanA === '' ? null : (parseFloat(cleanA) || null)
+                        }, { headers: { Authorization: `Bearer ${token}` } });
+                        
+                        await fetchData();
+                        showToast('Pricing settings updated successfully', 'success');
+                      } catch (err: any) {
+                        showToast(err.response?.data?.message || 'Error updating settings', 'error');
+                      }
+                    }}>
+                      <Save size={16} /> Save Pricing Settings
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSettingsTab === 'reminders' && (
+                <div className="card" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '0.5rem', color: 'var(--primary-color)' }}>
+                      <Bell size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Auto-Reminder Settings</h3>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Automate reminder emails and alerts for pending dues.</p>
+                    </div>
+                  </div>
+
+                  {/* Monthly reminder settings */}
+                  <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                      <div style={{ marginRight: '1.5rem' }}>
+                        <label style={{ fontWeight: 600, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          Monthly Maintenance Reminder
+                        </label>
+                        <span style={{ display: 'block', fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: '1.4' }}>
+                          Trigger payment reminder notifications for active members automatically at specified intervals during the month.
+                        </span>
+                      </div>
+                      <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', flexShrink: 0 }}>
+                        <input 
+                          type="checkbox" 
+                          checked={enableMonthlyReminder} 
+                          onChange={e => setEnableMonthlyReminder(e.target.checked)} 
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span className="slider round" style={{
+                          position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                          backgroundColor: enableMonthlyReminder ? 'var(--primary-color)' : '#ccc',
+                          transition: '0.4s', borderRadius: '24px'
+                        }}>
+                          <span style={{
+                            position: 'absolute', content: '""', height: '18px', width: '18px', left: enableMonthlyReminder ? '24px' : '4px', bottom: '3px',
+                            backgroundColor: 'white', transition: '0.4s', borderRadius: '50%'
+                          }} />
+                        </span>
+                      </label>
+                    </div>
+                    
+                    {enableMonthlyReminder && (
+                      <div className="responsive-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', animation: 'slideDown 0.25s ease-out' }}>
+                        <div>
+                          <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Frequency (Times)</label>
+                          <input 
+                            type="number" 
+                            min="1"
+                            max="10"
+                            value={monthlyReminderCountInput} 
+                            onChange={e => setMonthlyReminderCountInput(e.target.value)} 
+                            style={{ padding: '0.75rem', borderRadius: '0.5rem' }}
+                          />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>Max times to notify in the billing month.</span>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Interval (Days)</label>
+                          <input 
+                            type="number" 
+                            min="1"
+                            value={monthlyReminderIntervalInput} 
+                            onChange={e => setMonthlyReminderIntervalInput(e.target.value)} 
+                            style={{ padding: '0.75rem', borderRadius: '0.5rem' }}
+                          />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>Days between reminders.</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Overdue reminder settings */}
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                      <div style={{ marginRight: '1.5rem' }}>
+                        <label style={{ fontWeight: 600, fontSize: '1rem' }}>Overdue Dues Reminder</label>
+                        <span style={{ display: 'block', fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: '1.4' }}>
+                          If a member has unpaid outstanding dues, automatically send notifications periodically until dues are cleared.
+                        </span>
+                      </div>
+                      <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', flexShrink: 0 }}>
+                        <input 
+                          type="checkbox" 
+                          checked={enableOverdueReminder} 
+                          onChange={e => setEnableOverdueReminder(e.target.checked)} 
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span className="slider round" style={{
+                          position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                          backgroundColor: enableOverdueReminder ? 'var(--primary-color)' : '#ccc',
+                          transition: '0.4s', borderRadius: '24px'
+                        }}>
+                          <span style={{
+                            position: 'absolute', content: '""', height: '18px', width: '18px', left: enableOverdueReminder ? '24px' : '4px', bottom: '3px',
+                            backgroundColor: 'white', transition: '0.4s', borderRadius: '50%'
+                          }} />
+                        </span>
+                      </label>
+                    </div>
+                    
+                    {enableOverdueReminder && (
+                      <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', animation: 'slideDown 0.25s ease-out' }}>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Interval (Days)</label>
+                        <input 
+                          type="number" 
+                          min="1"
+                          style={{ maxWidth: '200px', padding: '0.75rem', borderRadius: '0.5rem' }}
+                          value={overdueReminderIntervalInput} 
+                          onChange={e => setOverdueReminderIntervalInput(e.target.value)} 
+                        />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
+                          Days between reminders. For consecutive unpaid months, monthly email summary alerts are sent.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)', marginTop: '2rem' }}>
+                    <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={async () => {
+                      try {
+                        const countVal = parseInt(monthlyReminderCountInput, 10) || 1;
+                        const intervalVal = parseInt(monthlyReminderIntervalInput, 10) || 7;
+                        const overdueVal = parseInt(overdueReminderIntervalInput, 10) || 7;
+
+                        await axios.patch('/tenants/settings', { 
+                          enableMonthlyReminder,
+                          monthlyReminderCount: countVal,
+                          monthlyReminderInterval: intervalVal,
+                          enableOverdueReminder,
+                          overdueReminderInterval: overdueVal
+                        }, { headers: { Authorization: `Bearer ${token}` } });
+                        
+                        await fetchData();
+                        showToast('Reminder settings updated successfully', 'success');
+                      } catch (err: any) {
+                        showToast(err.response?.data?.message || 'Error updating reminder settings', 'error');
+                      }
+                    }}>
+                      <Save size={16} /> Save Reminder Settings
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSettingsTab === 'discount' && (
+                <div className="card" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '0.5rem', color: 'var(--primary-color)' }}>
+                      <Percent size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Early Payment Discount (Optional)</h3>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Provide a discount to members paying before a selected cut-off date.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Discount Cut-off Date</label>
+                      <input 
+                        type="date" 
+                        value={discountDateInput} 
+                        onChange={e => setDiscountDateInput(e.target.value)} 
+                        style={{ padding: '0.75rem', borderRadius: '0.5rem' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
+                        Payments under the 'Maintenance' category received on or before this date automatically get the discount applied.
+                      </span>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Discount Amount (₹)</label>
+                      <input 
+                        type="text" 
+                        value={discountAmountInput} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (/^\d*\.?\d*$/.test(val)) {
+                            setDiscountAmountInput(val);
+                          }
+                        }} 
+                        placeholder="e.g. 100" 
+                        style={{ padding: '0.75rem', borderRadius: '0.5rem' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
+                        Flat amount deducted from the final calculated payment total.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)', marginTop: '2rem' }}>
+                    <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={async () => {
+                      try {
+                        const discountAmt = discountAmountInput.trim() === '' ? 0 : parseFloat(discountAmountInput);
+                        await axios.patch('/tenants/settings', { 
+                          discountDate: discountDateInput || null,
+                          discountAmount: discountAmt
+                        }, { headers: { Authorization: `Bearer ${token}` } });
+                        
+                        await fetchData();
+                        showToast('Discount settings updated successfully', 'success');
+                      } catch (err: any) {
+                        showToast(err.response?.data?.message || 'Error updating discount settings', 'error');
+                      }
+                    }}>
+                      <Save size={16} /> Save Discount Settings
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSettingsTab === 'financial-year' && (
+                <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                  <FinancialYearCostSetup token={token} />
+                </div>
+              )}
+
+              {activeSettingsTab === 'masters' && (
+                <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                  <MastersManagement token={token} onRefresh={fetchData} />
+                </div>
+              )}
+            </div>
           </div>
         );
       case 'staff':
