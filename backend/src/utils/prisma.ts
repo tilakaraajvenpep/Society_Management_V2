@@ -303,8 +303,16 @@ export async function ensureTenantSchemas() {
         }
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error ensuring tenant schemas are up to date:", error);
+    if ((global as any).lastErrors) {
+      (global as any).lastErrors.push({
+        timestamp: new Date().toISOString(),
+        action: "ensureTenantSchemas",
+        error: error.message,
+        stack: error.stack
+      });
+    }
   } finally {
     await pgClient.end();
   }
