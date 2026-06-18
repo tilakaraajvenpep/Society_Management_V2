@@ -94,8 +94,14 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
     if (!password || password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
-    if (!email && !mobile) {
-      return res.status(400).json({ message: "Email or mobile number is required" });
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Full Name is required" });
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    if (!mobile || !mobile.trim()) {
+      return res.status(400).json({ message: "Mobile number is required" });
     }
 
     // Constraint check for Email
@@ -208,6 +214,15 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 // PATCH update staff details or reset password
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   const { name, email, mobile, designation, password, flatNo, alsoAddMember } = req.body;
+  if (name !== undefined && !name.trim()) {
+    return res.status(400).json({ message: "Full Name is required" });
+  }
+  if (email !== undefined && !email.trim()) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+  if (mobile !== undefined && !mobile.trim()) {
+    return res.status(400).json({ message: "Mobile number is required" });
+  }
   try {
     const updateData: any = {};
     if (name) updateData.name = name;

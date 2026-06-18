@@ -40,12 +40,22 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
 
   const handleSubmit = async () => {
     setError('');
-    if (form.mobile) {
-      const cleanMobile = form.mobile.trim();
-      if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
-        showToast("Mobile number must be exactly 10 digits", 'error');
-        return;
-      }
+    if (!form.name.trim()) {
+      showToast("Full Name is required", 'error');
+      return;
+    }
+    if (!form.email.trim()) {
+      showToast("Email is required", 'error');
+      return;
+    }
+    if (!form.mobile.trim()) {
+      showToast("Mobile number is required", 'error');
+      return;
+    }
+    const cleanMobile = form.mobile.trim();
+    if (!/^\d{10}$/.test(cleanMobile)) {
+      showToast("Mobile number must be exactly 10 digits", 'error');
+      return;
     }
     setLoading(true);
     try {
@@ -148,12 +158,12 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Email</label>
-              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" />
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Email *</label>
+              <input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Mobile</label>
-              <input value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} placeholder="9876543210" />
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Mobile *</label>
+              <input type="text" required value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} placeholder="9876543210" />
             </div>
             <div>
               <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{editingStaff ? 'New Password (leave blank to keep)' : 'Password *'}</label>
