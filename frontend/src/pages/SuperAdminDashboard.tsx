@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Building, Users, Settings, LogOut, Plus, Trash2, Search, Filter, CreditCard, Menu, X, AlertCircle, Activity } from 'lucide-react';
 import axios from 'axios';
+import { useToast } from '../components/Toast';
 
 const getTenantUrl = (slug: string) => {
   const { protocol, host } = window.location;
@@ -11,6 +12,7 @@ const getTenantUrl = (slug: string) => {
 
 const SuperAdminDashboard = () => {
   const { logout, token } = useAuth();
+  const { showToast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [tenants, setTenants] = useState([]);
   const [stats, setStats] = useState({ activeSocieties: 0, inactiveSocieties: 0, totalAdmins: 0, platformRevenue: 0, totalProcessed: 0, totalResidents: 0, systemStatus: 'Online' });
@@ -90,10 +92,10 @@ const SuperAdminDashboard = () => {
       setEditingTenantId(null);
       fetchTenants();
       fetchStats();
-      alert(editingTenantId ? 'Society updated successfully!' : 'Society registered successfully!');
+      showToast(editingTenantId ? 'Society updated successfully!' : 'Society registered successfully!', 'success');
     } catch (err) {
       console.error('Error submitting tenant', err);
-      alert('Error saving society details.');
+      showToast('Error saving society details.', 'error');
     }
   };
 
@@ -103,10 +105,10 @@ const SuperAdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchTenants();
-      alert('Status updated successfully!');
+      showToast('Status updated successfully!', 'success');
     } catch (err) {
       console.error('Error toggling status', err);
-      alert('Failed to update status.');
+      showToast('Failed to update status.', 'error');
     }
   };
 
@@ -118,10 +120,10 @@ const SuperAdminDashboard = () => {
       });
       fetchTenants();
       fetchStats();
-      alert('Society deleted successfully.');
+      showToast('Society deleted successfully.', 'success');
     } catch (err) {
       console.error('Error deleting tenant', err);
-      alert('Failed to delete society.');
+      showToast('Failed to delete society.', 'error');
     }
   };
 

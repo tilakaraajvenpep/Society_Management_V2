@@ -10,6 +10,7 @@ import {
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import NotificationPanel from '../components/NotificationPanel';
+import { useToast } from '../components/Toast';
 const exportTableToCSV = (filename: string, headers: string[], rows: (string|number)[][]) => {
   const escapeCSV = (str: string | number) => `"${String(str).replace(/"/g, '""')}"`;
   const csvContent = [
@@ -26,6 +27,7 @@ const exportTableToCSV = (filename: string, headers: string[], rows: (string|num
 };
 const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh }: { token: string | null, currentUserId?: string, designations: string[], staff: any[], onRefresh: () => void }) => {
   const [showForm, setShowForm] = useState(false);
+  const { showToast } = useToast();
   const [editingStaff, setEditingStaff] = useState<any>(null);
   const [form, setForm] = useState({ 
     name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false,
@@ -42,7 +44,7 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
         : (form.bhk === 'other' ? form.customBhk.trim() : form.bhk);
 
       if (form.alsoAddMember && form.residenceType !== 'COMMON' && !finalBhk) {
-        alert("Please enter BHK value");
+        showToast("Please enter BHK value", 'error');
         setLoading(false);
         return;
       }
@@ -88,7 +90,7 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
       await axios.delete(`/staff/${id}?removeMember=${removeMember}`, { headers: { Authorization: `Bearer ${token}` } });
       onRefresh();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error removing staff');
+      showToast(err.response?.data?.message || 'Error removing staff', 'error');
     }
   };
 
@@ -317,6 +319,7 @@ const SERVICE_TYPES_DEFAULT = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning'
 
 const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: string | null, vendors: any[], onRefresh: () => void, serviceTypes: string[] }) => {
   const [vendorForm, setVendorForm] = useState({ name: '', serviceType: serviceTypes[0] || 'Plumbing', contact: '', email: '', address: '', notes: '' });
+  const { showToast } = useToast();
   const [editingVendor, setEditingVendor] = useState<any>(null);
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [vendorError, setVendorError] = useState('');
@@ -342,7 +345,7 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
     try {
       await axios.delete(`/vendors/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       onRefresh();
-    } catch (err: any) { alert(err.response?.data?.message || 'Error deleting vendor'); }
+    } catch (err: any) { showToast(err.response?.data?.message || 'Error deleting vendor', 'error'); }
   };
 
   const exportVendors = () => {
@@ -456,6 +459,7 @@ const ExpenseManagement = ({
 }) => {
   const blankForm = { title: '', category: expenseCategories[0] || 'Maintenance', amount: 0, date: new Date().toISOString().split('T')[0], vendorId: '', notes: '', isRecurring: false, paidByMemberId: '', reimbursementType: 'OFFSET_DUES', paymentMode: 'CASH' };
   const [showModal, setShowModal] = useState(false);
+  const { showToast } = useToast();
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const [form, setForm] = useState(blankForm);
   const [error, setError] = useState('');
@@ -493,7 +497,7 @@ const ExpenseManagement = ({
     try {
       await axios.delete(`/expenses/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       onRefresh();
-    } catch { alert('Error deleting expense'); }
+    } catch { showToast('Error deleting expense', 'error'); }
   };
 
   const totalAmt = expenses.reduce((s, e) => s + e.amount, 0);
@@ -674,6 +678,7 @@ const MASTER_CATEGORIES = [
 
 const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
   const [startYear, setStartYear] = useState(2026);
+  const { showToast } = useToast();
   const [selectedFY, setSelectedFY] = useState('');
   const [costAmount, setCostAmount] = useState('');
   const [configs, setConfigs] = useState<any[]>([]);
@@ -738,13 +743,13 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFY) { alert('Please select a financial year'); return; }
+    if (!selectedFY) { showToast('Please select a financial year', 'error'); return; }
     
     setLoading(true);
     try {
       if (residenceType === 'COMMON') {
         if (!costAmount || parseFloat(costAmount) <= 0) {
-          alert('Please enter a valid amount');
+          showToast('Please enter a valid amount', 'error');
           setLoading(false);
           return;
         }
@@ -772,7 +777,7 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
         }
 
         if (configsToSave.length === 0) {
-          alert('Please specify fee amount for at least one BHK type');
+          showToast('Please specify fee amount for at least one BHK type', 'error');
           setLoading(false);
           return;
         }
@@ -791,9 +796,9 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
       setResidenceType('COMMON');
 
       fetchConfigs();
-      alert('Maintenance cost(s) configured successfully');
+      showToast('Maintenance cost(s) configured successfully', 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error saving configuration');
+      showToast(err.response?.data?.message || 'Error saving configuration', 'error');
     } finally {
       setLoading(false);
     }
@@ -803,8 +808,8 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
     if (!confirm('Are you sure you want to delete this configuration?')) return;
     try {
       await axios.delete(`/maintenance-costs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      fetchConfigs(); alert('Configuration deleted successfully');
-    } catch (err: any) { alert(err.response?.data?.message || 'Error deleting configuration'); }
+      fetchConfigs(); showToast('Configuration deleted successfully', 'success');
+    } catch (err: any) { showToast(err.response?.data?.message || 'Error deleting configuration', 'error'); }
   };
 
   const handleEdit = (config: any) => {
@@ -1143,6 +1148,7 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
 
 const Helpdesk = ({ token }: { token: string | null }) => {
   const [tickets, setTickets] = useState<any[]>([]);
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [comment, setComment] = useState('');
@@ -1177,7 +1183,7 @@ const Helpdesk = ({ token }: { token: string | null }) => {
       }
       fetchTickets();
     } catch (err) {
-      alert("Error updating status");
+      showToast("Error updating status", 'error');
     }
   };
 
@@ -1190,7 +1196,7 @@ const Helpdesk = ({ token }: { token: string | null }) => {
       setSelectedTicket(null);
       fetchTickets();
     } catch (err) {
-      alert("Error deleting ticket");
+      showToast("Error deleting ticket", 'error');
     }
   };
 
@@ -1207,7 +1213,7 @@ const Helpdesk = ({ token }: { token: string | null }) => {
       });
       setComment('');
     } catch (err) {
-      alert("Error adding comment");
+      showToast("Error adding comment", 'error');
     }
   };
 
@@ -1218,7 +1224,7 @@ const Helpdesk = ({ token }: { token: string | null }) => {
       });
       setSelectedTicket(res.data);
     } catch (err) {
-      alert("Error loading ticket details");
+      showToast("Error loading ticket details", 'error');
     }
   };
 
@@ -1423,6 +1429,7 @@ const Helpdesk = ({ token }: { token: string | null }) => {
 
 const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, user: any, updateUser: (userData: any, newToken?: string) => void }) => {
   const [name, setName] = useState(user?.name || '');
+  const { showToast } = useToast();
   const [email, setEmail] = useState(user?.email || '');
   const [mobile, setMobile] = useState(user?.mobile || '');
   const [password, setPassword] = useState('');
@@ -1432,7 +1439,7 @@ const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, u
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password && password !== confirmPassword) {
-      alert("Passwords do not match");
+      showToast("Passwords do not match", 'error');
       return;
     }
     try {
@@ -1447,12 +1454,12 @@ const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, u
       });
       
       updateUser(res.data.user, res.data.token);
-      alert("Profile and password updated successfully!");
+      showToast("Profile and password updated successfully!", 'success');
       setPassword('');
       setConfirmPassword('');
     } catch (err: any) {
       console.error(err);
-      alert(err.response?.data?.message || "Failed to update profile");
+      showToast(err.response?.data?.message || "Failed to update profile", 'error');
     } finally {
       setLoading(false);
     }
@@ -1566,6 +1573,7 @@ const formatLocalDate = (dateInput: any) => {
 
 const EventManagement = ({ token }: { token: string | null }) => {
   const [events, setEvents] = useState<any[]>([]);
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
@@ -1604,12 +1612,12 @@ const EventManagement = ({ token }: { token: string | null }) => {
         await axios.put(`/events/${editingEvent.id}`, form, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        alert("Event updated successfully!");
+        showToast("Event updated successfully!", 'success');
       } else {
         await axios.post('/events', form, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        alert("Event created and members notified successfully!");
+        showToast("Event created and members notified successfully!", 'success');
       }
       setShowForm(false);
       setEditingEvent(null);
@@ -1642,10 +1650,10 @@ const EventManagement = ({ token }: { token: string | null }) => {
       await axios.delete(`/events/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert("Event deleted successfully!");
+      showToast("Event deleted successfully!", 'success');
       fetchEvents();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Error deleting event");
+      showToast(err.response?.data?.message || "Error deleting event", 'error');
     }
   };
 
@@ -2032,6 +2040,7 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
 
 const TenantAdminDashboard = () => {
   const { logout, token, user, updateUser } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [duesCalcMode, setDuesCalcMode] = useState<string>('DB');
@@ -2097,10 +2106,10 @@ const TenantAdminDashboard = () => {
           [type === 'photo' ? 'photoUrl' : 'idProofUrl']: url 
         }));
       }
-      alert(`${type === 'photo' ? 'Photo' : 'ID Proof'} uploaded successfully!`);
+      showToast(`${type === 'photo' ? 'Photo' : 'ID Proof'} uploaded successfully!`, 'success');
     } catch (err) {
       console.error('Upload error', err);
-      alert('Error uploading file.');
+      showToast('Error uploading file.', 'error');
     } finally {
       setUploading(false);
     }
@@ -2304,9 +2313,9 @@ const TenantAdminDashboard = () => {
       setShowModal(null);
       setNewTransfer({ toAdminId: '', amount: 0, type: 'HANDOVER', referenceNote: '' });
       fetchData();
-      alert('Transfer initiated successfully');
+      showToast('Transfer initiated successfully', 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error initiating transfer');
+      showToast(err.response?.data?.message || 'Error initiating transfer', 'error');
     }
   };
 
@@ -2323,9 +2332,9 @@ const TenantAdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchData();
-      alert('Transfer approved and balance updated');
+      showToast('Transfer approved and balance updated', 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error approving transfer');
+      showToast(err.response?.data?.message || 'Error approving transfer', 'error');
     }
   };
 
@@ -2338,9 +2347,9 @@ const TenantAdminDashboard = () => {
       setShowModal(null);
       setNewPayment({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString() });
       fetchData();
-      alert('Payment recorded successfully');
+      showToast('Payment recorded successfully', 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error recording payment');
+      showToast(err.response?.data?.message || 'Error recording payment', 'error');
     }
   };
 
@@ -2352,7 +2361,7 @@ const TenantAdminDashboard = () => {
         : (newMember.bhk === 'other' ? newMember.customBhk.trim() : newMember.bhk);
 
       if (newMember.residenceType !== 'COMMON' && !finalBhk) {
-        alert("Please enter BHK value");
+        showToast("Please enter BHK value", 'error');
         return;
       }
 
@@ -2377,9 +2386,9 @@ const TenantAdminDashboard = () => {
         useCommonMaintenance: true
       });
       fetchData();
-      alert('Member added successfully');
+      showToast('Member added successfully', 'success');
     } catch (err) {
-      alert('Error adding member');
+      showToast('Error adding member', 'error');
     }
   };
   const handleUpdateMember = async (e: React.FormEvent) => {
@@ -2390,7 +2399,7 @@ const TenantAdminDashboard = () => {
         : (editingMember.bhk === 'other' ? editingMember.customBhk.trim() : editingMember.bhk);
 
       if (editingMember.residenceType !== 'COMMON' && !finalBhk) {
-        alert("Please enter BHK value");
+        showToast("Please enter BHK value", 'error');
         return;
       }
 
@@ -2403,9 +2412,9 @@ const TenantAdminDashboard = () => {
       setShowModal(null);
       setEditingMember(null);
       fetchData();
-      alert('Member updated successfully');
+      showToast('Member updated successfully', 'success');
     } catch (err) {
-      alert('Error updating member');
+      showToast('Error updating member', 'error');
     }
   };
 
@@ -2466,9 +2475,9 @@ const TenantAdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchData();
-      alert('Flat marked as vacant successfully.');
+      showToast('Flat marked as vacant successfully.', 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error marking vacant');
+      showToast(err.response?.data?.message || 'Error marking vacant', 'error');
     }
   };
 
@@ -2483,9 +2492,9 @@ const TenantAdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchData();
-      alert('Payment cancelled successfully');
+      showToast('Payment cancelled successfully', 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error cancelling payment');
+      showToast(err.response?.data?.message || 'Error cancelling payment', 'error');
     }
   };
 
@@ -2521,9 +2530,9 @@ const TenantAdminDashboard = () => {
       setShowModal(null);
       setEditingPayment(null);
       fetchData();
-      alert('Payment updated successfully');
+      showToast('Payment updated successfully', 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error updating payment');
+      showToast(err.response?.data?.message || 'Error updating payment', 'error');
     }
   };
 
@@ -2551,9 +2560,9 @@ const TenantAdminDashboard = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         fetchData();
-        alert('Bulk import successful');
+        showToast('Bulk import successful', 'success');
       } catch (err) {
-        alert('Error during bulk import. Check CSV format.');
+        showToast('Error during bulk import. Check CSV format.', 'error');
       }
     };
     reader.readAsText(file);
@@ -2586,7 +2595,7 @@ const TenantAdminDashboard = () => {
     });
 
     if (membersWithDues.length === 0) {
-      alert("No members with outstanding dues to download.");
+      showToast("No members with outstanding dues to download.", 'error');
       return;
     }
 
@@ -3839,7 +3848,7 @@ const TenantAdminDashboard = () => {
                     annualAmount: parseFloat(aAmt) || null
                   }, { headers: { Authorization: `Bearer ${token}` } });
                   
-                  alert('Settings updated successfully');
+                  showToast('Settings updated successfully', 'success');
                 }}>Save Pricing Settings</button>
               </div>
             </div>

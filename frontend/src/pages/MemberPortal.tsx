@@ -8,8 +8,10 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import NotificationPanel from '../components/NotificationPanel';
+import { useToast } from '../components/Toast';
 
 const MemberHelpdesk = ({ token }: { token: string | null }) => {
+  const { showToast } = useToast();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -61,7 +63,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
       fetchTickets();
     } catch (err) {
       console.error(err);
-      alert("Error raising ticket");
+      showToast("Error raising ticket", 'error');
     } finally {
       setUploadingImage(false);
     }
@@ -80,7 +82,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
       });
       setComment('');
     } catch (err) {
-      alert("Error adding comment");
+      showToast("Error adding comment", 'error');
     }
   };
 
@@ -91,7 +93,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
       });
       setSelectedTicket(res.data);
     } catch (err) {
-      alert("Error loading ticket details");
+      showToast("Error loading ticket details", 'error');
     }
   };
 
@@ -435,6 +437,7 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
 
 const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: any, setMemberInfo: any, token: string | null }) => {
   const { updateUser } = useAuth();
+  const { showToast } = useToast();
   const [name, setName] = useState(memberInfo?.name || '');
   const [email, setEmail] = useState(memberInfo?.email || '');
   const [mobile, setMobile] = useState(memberInfo?.mobile || '');
@@ -469,10 +472,10 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
         }
       });
       setPhotoUrl(res.data.photoUrl);
-      alert('Profile photo uploaded successfully! Please click "Save Changes" to save it.');
+      showToast('Profile photo uploaded successfully! Click "Save Changes" to save it.', 'success');
     } catch (err) {
       console.error('Photo upload error', err);
-      alert('Error uploading photo.');
+      showToast('Error uploading photo.', 'error');
     } finally {
       setUploading(false);
     }
@@ -481,7 +484,7 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password && password !== confirmPassword) {
-      alert("Passwords do not match.");
+      showToast("Passwords do not match.", 'error');
       return;
     }
 
@@ -511,10 +514,10 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
 
       setPassword('');
       setConfirmPassword('');
-      alert("Profile updated successfully!");
+      showToast("Profile updated successfully!", 'success');
     } catch (err: any) {
       console.error(err);
-      alert(err.response?.data?.message || "Error updating profile.");
+      showToast(err.response?.data?.message || "Error updating profile.", 'error');
     } finally {
       setSaving(false);
     }

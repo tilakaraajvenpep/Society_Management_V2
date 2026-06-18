@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { TenantProvider } from './context/TenantContext';
+import { ToastProvider } from './components/Toast';
 import LoginPage from './pages/LoginPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import TenantAdminDashboard from './pages/TenantAdminDashboard';
@@ -38,40 +39,42 @@ function App() {
     <TenantProvider>
       <AuthProvider>
         <ThemeProvider>
-          <Router>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/:tenantSlug" element={<LoginPage />} />
-            <Route 
-              path="/super-admin" 
-              element={
-                <ProtectedRoute roles={['SUPER_ADMIN']}>
-                  <SuperAdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/tenant-admin" 
-              element={
-                <ProtectedRoute roles={['TENANT_ADMIN']}>
-                  <TenantAdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/member" 
-              element={
-                <ProtectedRoute roles={['MEMBER']}>
-                  <MemberPortal />
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="/" element={<RootRedirect />} />
-          </Routes>
-          <ThemeToggle />
-        </Router>
-      </ThemeProvider>
-    </AuthProvider>
+          <ToastProvider>
+            <Router>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/:tenantSlug" element={<LoginPage />} />
+              <Route 
+                path="/super-admin" 
+                element={
+                  <ProtectedRoute roles={['SUPER_ADMIN']}>
+                    <SuperAdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/tenant-admin" 
+                element={
+                  <ProtectedRoute roles={['TENANT_ADMIN']}>
+                    <TenantAdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/member" 
+                element={
+                  <ProtectedRoute roles={['MEMBER']}>
+                    <MemberPortal />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="/" element={<RootRedirect />} />
+            </Routes>
+            <ThemeToggle />
+          </Router>
+          </ToastProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </TenantProvider>
   );
 }
