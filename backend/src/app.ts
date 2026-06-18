@@ -51,8 +51,49 @@ app.use("/api/events", eventRoutes);
 
 (global as any).lastErrors = (global as any).lastErrors || [];
 
-app.get("/api/debug-errors", (req, res) => {
-  res.json((global as any).lastErrors);
+app.get("/api/debug-errors", async (req, res) => {
+  try {
+    const pg = require('pg');
+    const connStr = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+    const isLocal = connStr.includes("localhost") || connStr.includes("127.0.0.1");
+    const client = new pg.Client({
+      connectionString: connStr,
+      ssl: isLocal ? false : { rejectUnauthorized: false }
+    });
+    await client.connect();
+
+    const schemasRes = await client.query(`
+      SELECT schema_name 
+      FROM information_schema.schemata 
+      WHERE schema_name LIKE 'society_%' OR schema_name = 'public'
+    `);
+    const schemas = schemasRes.rows.map((r: any) => r.schema_name);
+
+    const tables: Record<string, string[]> = {};
+    for (const schema of schemas) {
+      const tablesRes = await client.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = $1
+      `, [schema]);
+      tables[schema] = tablesRes.rows.map((r: any) => r.table_name);
+    }
+
+    await client.end();
+    res.json({
+      lastErrors: (global as any).lastErrors || [],
+      database: {
+        schemas,
+        tables
+      }
+    });
+  } catch (err: any) {
+    res.json({
+      lastErrors: (global as any).lastErrors || [],
+      error: err.message,
+      stack: err.stack
+    });
+  }
 });
 
 app.get("/", (req, res) => {
