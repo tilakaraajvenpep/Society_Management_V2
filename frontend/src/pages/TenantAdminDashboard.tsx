@@ -2146,6 +2146,21 @@ const TenantAdminDashboard = () => {
   const [vendors, setVendors] = useState<any[]>([]);
   const [maintenanceCosts, setMaintenanceCosts] = useState<any[]>([]);
 
+  // Pricing settings local inputs state
+  const [maintenanceAmountInput, setMaintenanceAmountInput] = useState('');
+  const [quarterlyAmountInput, setQuarterlyAmountInput] = useState('');
+  const [halfYearlyAmountInput, setHalfYearlyAmountInput] = useState('');
+  const [annualAmountInput, setAnnualAmountInput] = useState('');
+
+  useEffect(() => {
+    if (summary) {
+      setMaintenanceAmountInput(summary.maintenanceAmount !== undefined && summary.maintenanceAmount !== null ? String(summary.maintenanceAmount) : '0');
+      setQuarterlyAmountInput(summary.quarterlyAmount !== undefined && summary.quarterlyAmount !== null ? String(summary.quarterlyAmount) : '');
+      setHalfYearlyAmountInput(summary.halfYearlyAmount !== undefined && summary.halfYearlyAmount !== null ? String(summary.halfYearlyAmount) : '');
+      setAnnualAmountInput(summary.annualAmount !== undefined && summary.annualAmount !== null ? String(summary.annualAmount) : '');
+    }
+  }, [summary]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState<string | null>(null);
   const [newMember, setNewMember] = useState({ 
@@ -3936,36 +3951,41 @@ const TenantAdminDashboard = () => {
               <div className="responsive-form-grid">
                 <div>
                   <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Base Monthly Amount (₹)</label>
-                  <input type="number" defaultValue={summary.maintenanceAmount || 0} id="maintenanceAmount" />
+                  <input type="text" value={maintenanceAmountInput} onChange={e => setMaintenanceAmountInput(e.target.value)} placeholder="0" />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Quarterly Amount (₹)</label>
-                  <input type="number" defaultValue={summary.quarterlyAmount || ''} id="quarterlyAmount" placeholder="Optional discounted price" />
+                  <input type="text" value={quarterlyAmountInput} onChange={e => setQuarterlyAmountInput(e.target.value)} placeholder="Optional discounted price" />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Half-Yearly Amount (₹)</label>
-                  <input type="number" defaultValue={summary.halfYearlyAmount || ''} id="halfYearlyAmount" placeholder="Optional discounted price" />
+                  <input type="text" value={halfYearlyAmountInput} onChange={e => setHalfYearlyAmountInput(e.target.value)} placeholder="Optional discounted price" />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Amount (₹)</label>
-                  <input type="number" defaultValue={summary.annualAmount || ''} id="annualAmount" placeholder="Optional discounted price" />
+                  <input type="text" value={annualAmountInput} onChange={e => setAnnualAmountInput(e.target.value)} placeholder="Optional discounted price" />
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                 <button className="btn btn-primary" onClick={async () => {
-                  const amt = (document.getElementById('maintenanceAmount') as HTMLInputElement).value;
-                  const qAmt = (document.getElementById('quarterlyAmount') as HTMLInputElement).value;
-                  const hAmt = (document.getElementById('halfYearlyAmount') as HTMLInputElement).value;
-                  const aAmt = (document.getElementById('annualAmount') as HTMLInputElement).value;
-                  
-                  await axios.patch('/tenants/settings', { 
-                    maintenanceAmount: parseFloat(amt) || 0,
-                    quarterlyAmount: parseFloat(qAmt) || null,
-                    halfYearlyAmount: parseFloat(hAmt) || null,
-                    annualAmount: parseFloat(aAmt) || null
-                  }, { headers: { Authorization: `Bearer ${token}` } });
-                  
-                  showToast('Settings updated successfully', 'success');
+                  try {
+                    const cleanAmt = maintenanceAmountInput.trim();
+                    const cleanQ = quarterlyAmountInput.trim();
+                    const cleanH = halfYearlyAmountInput.trim();
+                    const cleanA = annualAmountInput.trim();
+
+                    await axios.patch('/tenants/settings', { 
+                      maintenanceAmount: cleanAmt === '' ? 0 : (parseFloat(cleanAmt) || 0),
+                      quarterlyAmount: cleanQ === '' ? null : (parseFloat(cleanQ) || null),
+                      halfYearlyAmount: cleanH === '' ? null : (parseFloat(cleanH) || null),
+                      annualAmount: cleanA === '' ? null : (parseFloat(cleanA) || null)
+                    }, { headers: { Authorization: `Bearer ${token}` } });
+                    
+                    await fetchData();
+                    showToast('Settings updated successfully', 'success');
+                  } catch (err: any) {
+                    showToast(err.response?.data?.message || 'Error updating settings', 'error');
+                  }
                 }}>Save Pricing Settings</button>
               </div>
             </div>
