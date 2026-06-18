@@ -201,6 +201,19 @@ router.post("/bulk", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   } catch (error: any) {
     const msg = error.message || "";
     console.error("Error setting up bulk maintenance costs:", error);
+    if ((global as any).lastErrors) {
+      (global as any).lastErrors.push({
+        timestamp: new Date().toISOString(),
+        action: "POST /api/maintenance-costs/bulk",
+        error: msg,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack,
+        body: req.body,
+        user: req.user
+      });
+      if ((global as any).lastErrors.length > 20) (global as any).lastErrors.shift();
+    }
     res.status(500).json({ message: "Error setting up bulk maintenance costs", error: msg });
   }
 });

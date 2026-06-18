@@ -73,7 +73,9 @@ async function ensurePublicTables() {
     await client.query(`
       DO $$ BEGIN
         DROP INDEX IF EXISTS "MaintenanceCost_tenantId_financialYear_key";
+        DROP INDEX IF EXISTS "MaintenanceCost_tenantId_financialYear_idx";
         ALTER TABLE "MaintenanceCost" DROP CONSTRAINT IF EXISTS "MaintenanceCost_tenantId_financialYear_key";
+        ALTER TABLE "MaintenanceCost" DROP CONSTRAINT IF EXISTS "MaintenanceCost_tenantId_financialYear_idx";
       EXCEPTION WHEN others THEN NULL;
       END $$
     `);
@@ -125,7 +127,9 @@ async function ensurePublicTables() {
       await client.query(`
         DO $$ BEGIN
           DROP INDEX IF EXISTS "${schemaName}"."MaintenanceCost_tenantId_financialYear_key";
+          DROP INDEX IF EXISTS "${schemaName}"."MaintenanceCost_tenantId_financialYear_idx";
           ALTER TABLE "${schemaName}"."MaintenanceCost" DROP CONSTRAINT IF EXISTS "MaintenanceCost_tenantId_financialYear_key";
+          ALTER TABLE "${schemaName}"."MaintenanceCost" DROP CONSTRAINT IF EXISTS "MaintenanceCost_tenantId_financialYear_idx";
         EXCEPTION WHEN others THEN NULL;
         END $$
       `);
