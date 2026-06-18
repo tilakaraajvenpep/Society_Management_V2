@@ -49,14 +49,6 @@ const recalculateDuesForAllMembers = async (tx: any, tenantId: string) => {
         c.bhk === costBhk
       );
 
-      if (!cost && (costResType !== "COMMON" || costBhk !== "COMMON")) {
-        cost = costs.find((c: any) =>
-          c.financialYear === fy &&
-          c.residenceType === "COMMON" &&
-          c.bhk === "COMMON"
-        );
-      }
-
       if (cost) {
         totalApplicable += cost.amount;
       }

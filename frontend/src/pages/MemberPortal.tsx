@@ -664,14 +664,6 @@ const getApplicableCostsForMember = (costs: any[], member: any) => {
       c.bhk === costBhk
     );
 
-    if (!cost && (costResType !== 'COMMON' || costBhk !== 'COMMON')) {
-      cost = costs.find(c =>
-        c.financialYear === fy &&
-        c.residenceType === 'COMMON' &&
-        c.bhk === 'COMMON'
-      );
-    }
-
     if (cost) {
       applicable.push(cost);
     }
