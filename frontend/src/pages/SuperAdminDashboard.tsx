@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Building, Users, Settings, LogOut, Plus, Trash2, Search, Filter, CreditCard, Menu, X, AlertCircle, Activity } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../components/Toast';
+import { useConfirm } from '../components/ConfirmModal';
 
 const getTenantUrl = (slug: string) => {
   const { protocol, host } = window.location;
@@ -13,6 +14,7 @@ const getTenantUrl = (slug: string) => {
 const SuperAdminDashboard = () => {
   const { logout, token } = useAuth();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [tenants, setTenants] = useState([]);
   const [stats, setStats] = useState({ activeSocieties: 0, inactiveSocieties: 0, totalAdmins: 0, platformRevenue: 0, totalProcessed: 0, totalResidents: 0, systemStatus: 'Online' });
@@ -113,7 +115,13 @@ const SuperAdminDashboard = () => {
   };
 
   const handleDeleteTenant = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this society? This action is irreversible.')) return;
+    if (!await confirm({
+      title: 'Delete Society',
+      message: 'Are you sure you want to delete this society? This action is irreversible.',
+      danger: true,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel'
+    })) return;
     try {
       await axios.delete(`/tenants/${id}`, {
         headers: { Authorization: `Bearer ${token}` }

@@ -11,6 +11,7 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import NotificationPanel from '../components/NotificationPanel';
 import { useToast } from '../components/Toast';
+import { useConfirm } from '../components/ConfirmModal';
 const exportTableToCSV = (filename: string, headers: string[], rows: (string|number)[][]) => {
   const escapeCSV = (str: string | number) => `"${String(str).replace(/"/g, '""')}"`;
   const csvContent = [
@@ -28,6 +29,7 @@ const exportTableToCSV = (filename: string, headers: string[], rows: (string|num
 const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh }: { token: string | null, currentUserId?: string, designations: string[], staff: any[], onRefresh: () => void }) => {
   const [showForm, setShowForm] = useState(false);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [editingStaff, setEditingStaff] = useState<any>(null);
   const [form, setForm] = useState({ 
     name: '', email: '', mobile: '', designation: designations[0] || 'Treasurer', password: '', flatNo: '', alsoAddMember: false,
@@ -71,19 +73,29 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove "${name}" from office bearers?`)) return;
+    if (!await confirm({
+      title: 'Remove Office Bearer',
+      message: `Are you sure you want to remove "${name}" from office bearers?`,
+      danger: true,
+      confirmLabel: 'Remove',
+      cancelLabel: 'Cancel'
+    })) return;
 
     const s = staff.find(x => x.id === id);
     const hasMember = s && !!s.memberProfile;
 
     let removeMember = false;
     if (hasMember) {
-      removeMember = confirm(
-        `"${name}" is also registered as a member.\n\n` +
-        `Do you want to remove them from the Members list as well?\n` +
-        `• Click OK to remove from BOTH (Office Bearer & Member)\n` +
-        `• Click Cancel to remove ONLY as Office Bearer (keeps them as Member)`
-      );
+      removeMember = await confirm({
+        title: 'Remove Linked Member Profile',
+        message: `"${name}" is also registered as a member.\n\n` +
+          `Do you want to remove them from the Members list as well?\n` +
+          `• Click OK to remove from BOTH (Office Bearer & Member)\n` +
+          `• Click Cancel to remove ONLY as Office Bearer (keeps them as Member)`,
+        confirmLabel: 'Remove from BOTH',
+        cancelLabel: 'Remove ONLY as Office Bearer',
+        danger: true
+      });
     }
 
     try {
@@ -320,6 +332,7 @@ const SERVICE_TYPES_DEFAULT = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning'
 const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: string | null, vendors: any[], onRefresh: () => void, serviceTypes: string[] }) => {
   const [vendorForm, setVendorForm] = useState({ name: '', serviceType: serviceTypes[0] || 'Plumbing', contact: '', email: '', address: '', notes: '' });
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [editingVendor, setEditingVendor] = useState<any>(null);
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [vendorError, setVendorError] = useState('');
@@ -341,7 +354,13 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete vendor "${name}"? This may affect linked expenses.`)) return;
+    if (!await confirm({
+      title: 'Delete Vendor',
+      message: `Delete vendor "${name}"? This may affect linked expenses.`,
+      danger: true,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel'
+    })) return;
     try {
       await axios.delete(`/vendors/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       onRefresh();
@@ -460,6 +479,7 @@ const ExpenseManagement = ({
   const blankForm = { title: '', category: expenseCategories[0] || 'Maintenance', amount: 0, date: new Date().toISOString().split('T')[0], vendorId: '', notes: '', isRecurring: false, paidByMemberId: '', reimbursementType: 'OFFSET_DUES', paymentMode: 'CASH' };
   const [showModal, setShowModal] = useState(false);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const [form, setForm] = useState(blankForm);
   const [error, setError] = useState('');
@@ -493,7 +513,13 @@ const ExpenseManagement = ({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this expense?')) return;
+    if (!await confirm({
+      title: 'Delete Expense',
+      message: 'Delete this expense?',
+      danger: true,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel'
+    })) return;
     try {
       await axios.delete(`/expenses/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       onRefresh();
@@ -679,6 +705,7 @@ const MASTER_CATEGORIES = [
 const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
   const [startYear, setStartYear] = useState(2026);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [selectedFY, setSelectedFY] = useState('');
   const [costAmount, setCostAmount] = useState('');
   const [configs, setConfigs] = useState<any[]>([]);
@@ -805,7 +832,13 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this configuration?')) return;
+    if (!await confirm({
+      title: 'Delete Pricing Configuration',
+      message: 'Are you sure you want to delete this configuration?',
+      danger: true,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel'
+    })) return;
     try {
       await axios.delete(`/maintenance-costs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       fetchConfigs(); showToast('Configuration deleted successfully', 'success');
@@ -1027,6 +1060,7 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 };;
 
 const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefresh: () => void }) => {
+  const { confirm } = useConfirm();
   const [activeCategory, setActiveCategory] = useState('SERVICE_TYPE');
   const [items, setItems] = useState<any[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -1065,7 +1099,13 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
   };
 
   const handleDelete = async (id: string, value: string) => {
-    if (!confirm(`Remove "${value}" from the list?`)) return;
+    if (!await confirm({
+      title: 'Remove Master Item',
+      message: `Remove "${value}" from the list?`,
+      danger: true,
+      confirmLabel: 'Remove',
+      cancelLabel: 'Cancel'
+    })) return;
     try {
       await axios.delete(`/master-data/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       fetchItems(activeCategory); onRefresh();
@@ -1149,6 +1189,7 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
 const Helpdesk = ({ token }: { token: string | null }) => {
   const [tickets, setTickets] = useState<any[]>([]);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [comment, setComment] = useState('');
@@ -1188,7 +1229,13 @@ const Helpdesk = ({ token }: { token: string | null }) => {
   };
 
   const handleDeleteTicket = async (ticketId: string) => {
-    if (!confirm("Are you sure you want to permanently delete this ticket and all its discussions?")) return;
+    if (!await confirm({
+      title: 'Delete Helpdesk Ticket',
+      message: 'Are you sure you want to permanently delete this ticket and all its discussions?',
+      danger: true,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel'
+    })) return;
     try {
       await axios.delete(`/tickets/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1574,6 +1621,7 @@ const formatLocalDate = (dateInput: any) => {
 const EventManagement = ({ token }: { token: string | null }) => {
   const [events, setEvents] = useState<any[]>([]);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
@@ -1645,7 +1693,13 @@ const EventManagement = ({ token }: { token: string | null }) => {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete the event "${title}"?`)) return;
+    if (!await confirm({
+      title: 'Delete Event',
+      message: `Are you sure you want to delete the event "${title}"?`,
+      danger: true,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel'
+    })) return;
     try {
       await axios.delete(`/events/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -2041,6 +2095,7 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
 const TenantAdminDashboard = () => {
   const { logout, token, user, updateUser } = useAuth();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [duesCalcMode, setDuesCalcMode] = useState<string>('DB');
@@ -2458,16 +2513,26 @@ const TenantAdminDashboard = () => {
       confirmMsg += `\n\n⚠️ WARNING: This member has pending dues of ₹${dueAmount.toLocaleString()}.\nOnce marked vacant, they will be hidden from the active members list, but their outstanding dues will be shown separately at the bottom of this page.`;
     }
 
-    if (!window.confirm(confirmMsg)) return;
+    if (!await confirm({
+      title: 'Mark Flat as Vacant',
+      message: confirmMsg,
+      danger: true,
+      confirmLabel: 'Mark Vacant',
+      cancelLabel: 'Cancel'
+    })) return;
 
     let removeStaff = false;
     if (isStaff) {
-      removeStaff = window.confirm(
-        `"${name}" is also registered as an Office Bearer.\n\n` +
-        `Do you want to remove them from the Office Bearers list as well?\n` +
-        `• Click OK to remove from BOTH (Member & Office Bearer)\n` +
-        `• Click Cancel to remove ONLY as Member (keeps them as Office Bearer)`
-      );
+      removeStaff = await confirm({
+        title: 'Remove Linked Office Bearer',
+        message: `"${name}" is also registered as an Office Bearer.\n\n` +
+          `Do you want to remove them from the Office Bearers list as well?\n` +
+          `• Click OK to remove from BOTH (Member & Office Bearer)\n` +
+          `• Click Cancel to remove ONLY as Member (keeps them as Office Bearer)`,
+        confirmLabel: 'Remove from BOTH',
+        cancelLabel: 'Remove ONLY as Member',
+        danger: true
+      });
     }
 
     try {
@@ -2486,7 +2551,13 @@ const TenantAdminDashboard = () => {
   const [selectedMember, setSelectedMember] = useState<any>(null);
 
   const handleCancelPayment = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this payment? This will revert the cash balance and member dues.')) return;
+    if (!await confirm({
+      title: 'Cancel Payment',
+      message: 'Are you sure you want to cancel this payment? This will revert the cash balance and member dues.',
+      danger: true,
+      confirmLabel: 'Cancel Payment',
+      cancelLabel: 'Keep Payment'
+    })) return;
     try {
       await axios.patch(`/payments/${id}`, { status: 'CANCELLED' }, {
         headers: { Authorization: `Bearer ${token}` }
