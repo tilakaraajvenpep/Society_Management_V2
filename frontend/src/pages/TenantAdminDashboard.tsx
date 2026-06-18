@@ -854,7 +854,14 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
           {residenceType === 'COMMON' && (
             <div>
               <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Fee (Rs.)</label>
-              <input type="number" required placeholder="e.g. 18000" value={costAmount} onChange={e => setCostAmount(e.target.value)} style={{ width: '100%' }} />
+              <input
+                type="text"
+                required
+                placeholder="e.g. 18000"
+                value={costAmount}
+                onChange={e => setCostAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                style={{ width: '100%' }}
+              />
             </div>
           )}
         </div>
@@ -875,10 +882,10 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
                     {b} BHK Fee (Rs.)
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     placeholder={`Fee for ${b} BHK`}
                     value={bhkFees[b] || ''}
-                    onChange={e => setBhkFees({ ...bhkFees, [b]: e.target.value })}
+                    onChange={e => setBhkFees({ ...bhkFees, [b]: e.target.value.replace(/[^0-9]/g, '') })}
                     style={{ width: '100%' }}
                   />
                 </div>
@@ -915,12 +922,12 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
                         required
                       />
                       <input
-                        type="number"
+                        type="text"
                         placeholder="Fee Amount (Rs.)"
                         value={item.amount}
                         onChange={e => {
                           const updated = [...customBhkFees];
-                          updated[idx].amount = e.target.value;
+                          updated[idx].amount = e.target.value.replace(/[^0-9]/g, '');
                           setCustomBhkFees(updated);
                         }}
                         style={{ flex: 2 }}
