@@ -631,6 +631,54 @@ const getStartYear = (fy: string) => {
   return match ? parseInt(match[1]) : 0;
 };
 
+const areFinancialYearsEqual = (fy1: string, fy2: string) => {
+  if (!fy1 || !fy2) return false;
+  return getStartYear(fy1) === getStartYear(fy2);
+};
+
+const getApplicableCostsForMember = (costs: any[], member: any) => {
+  if (!member) return [];
+  const regFY = member.registrationYear || (member.createdAt ? getFinancialYear(member.createdAt) : '');
+  const regStartYear = getStartYear(regFY);
+  if (!regStartYear) return [];
+
+  const uniqueYears = Array.from(new Set(costs.map(c => c.financialYear)))
+    .filter(fy => getStartYear(fy) >= regStartYear);
+
+  const useCommon = member.useCommonMaintenance;
+  const resType = member.residenceType || 'COMMON';
+  const bhk = member.bhk || 'COMMON';
+
+  const applicable: any[] = [];
+  for (const fy of uniqueYears) {
+    let costResType = 'COMMON';
+    let costBhk = 'COMMON';
+    if (!useCommon) {
+      costResType = resType;
+      costBhk = bhk;
+    }
+
+    let cost = costs.find(c =>
+      c.financialYear === fy &&
+      c.residenceType === costResType &&
+      c.bhk === costBhk
+    );
+
+    if (!cost && (costResType !== 'COMMON' || costBhk !== 'COMMON')) {
+      cost = costs.find(c =>
+        c.financialYear === fy &&
+        c.residenceType === 'COMMON' &&
+        c.bhk === 'COMMON'
+      );
+    }
+
+    if (cost) {
+      applicable.push(cost);
+    }
+  }
+  return applicable;
+};
+
 const getMonthsForFinancialYear = (fy: string) => {
   const startYr = getStartYear(fy);
   const endYr = startYr + 1;
@@ -773,15 +821,12 @@ const MemberPortal = () => {
     switch (activeTab) {
       case 'overview': {
         const regFY = memberInfo?.registrationYear || (memberInfo?.createdAt ? getFinancialYear(memberInfo.createdAt) : '');
-        const matchedCost = maintenanceCosts.find((c: any) => c.financialYear === regFY);
+        const applicableCosts = getApplicableCostsForMember(maintenanceCosts, memberInfo);
+        const matchedCost = applicableCosts.find((c: any) => areFinancialYearsEqual(c.financialYear, regFY));
         const annualCostLabel = matchedCost ? `₹${matchedCost.amount.toLocaleString()}` : 'Not Configured';
         const subtext = regFY ? `For FY ${regFY} (Registration Year)` : 'No registration year';
 
-        const regStartYear = getStartYear(regFY);
-        const memberHistoryCosts = maintenanceCosts.filter((c: any) => {
-          const costStartYear = getStartYear(c.financialYear);
-          return costStartYear >= regStartYear;
-        });
+        const memberHistoryCosts = applicableCosts;
 
         const dueMonthsList: string[] = [];
         memberHistoryCosts.forEach((c: any) => {
@@ -907,12 +952,8 @@ const MemberPortal = () => {
         );
       }
       case 'dues-history': {
-        const regFY = memberInfo?.registrationYear || (memberInfo?.createdAt ? getFinancialYear(memberInfo.createdAt) : '');
-        const regStartYear = getStartYear(regFY);
-        const memberHistoryCosts = maintenanceCosts.filter((c: any) => {
-          const costStartYear = getStartYear(c.financialYear);
-          return costStartYear >= regStartYear;
-        });
+        const applicableCosts = getApplicableCostsForMember(maintenanceCosts, memberInfo);
+        const memberHistoryCosts = applicableCosts;
 
         return (
           <div className="card">
@@ -934,7 +975,7 @@ const MemberPortal = () => {
                     const isPaid = memberInfo?.payments?.some((p: any) => 
                       p.status !== 'CANCELLED' && 
                       p.periodLabel !== 'Initial Onboarding Fee' && 
-                      getFinancialYear(p.paymentDate) === c.financialYear
+                      areFinancialYearsEqual(getFinancialYear(p.paymentDate), c.financialYear)
                     );
                     const isExpanded = !!expandedYears[c.id];
                     const months = getMonthsForFinancialYear(c.financialYear);
