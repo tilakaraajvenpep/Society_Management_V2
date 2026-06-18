@@ -115,6 +115,9 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
     // Constraint check for Mobile
     if (mobile) {
       const targetMobile = mobile.trim();
+      if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
+        return res.status(400).json({ message: "Mobile number must be exactly 10 digits" });
+      }
       const userExists = await prisma.user.findFirst({
         where: { tenantId: req.user.tenantId, mobile: targetMobile }
       });
@@ -233,6 +236,9 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
     // Constraint check for Mobile
     if (mobile) {
       const targetMobile = mobile.trim();
+      if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
+        return res.status(400).json({ message: "Mobile number must be exactly 10 digits" });
+      }
       const userExists = await prisma.user.findFirst({
         where: { tenantId: req.user.tenantId, mobile: targetMobile, id: { not: req.params.id } }
       });

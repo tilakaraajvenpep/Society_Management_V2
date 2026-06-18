@@ -39,7 +39,15 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
   const [error, setError] = useState('');
 
   const handleSubmit = async () => {
-    setError(''); setLoading(true);
+    setError('');
+    if (form.mobile) {
+      const cleanMobile = form.mobile.trim();
+      if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
+        showToast("Mobile number must be exactly 10 digits", 'error');
+        return;
+      }
+    }
+    setLoading(true);
     try {
       const finalBhk = form.residenceType === 'COMMON'
         ? 'COMMON'
@@ -342,6 +350,13 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
   const handleSave = async () => {
     setVendorError('');
     if (!vendorForm.name.trim()) { setVendorError('Vendor name is required'); return; }
+    if (vendorForm.contact) {
+      const cleanContact = vendorForm.contact.trim();
+      if (cleanContact !== "" && !/^\d{10}$/.test(cleanContact)) {
+        setVendorError('Contact/Mobile number must be exactly 10 digits');
+        return;
+      }
+    }
     try {
       const headers = { Authorization: `Bearer ${token}` };
       if (editingVendor) {
@@ -1489,6 +1504,13 @@ const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, u
       showToast("Passwords do not match", 'error');
       return;
     }
+    if (mobile) {
+      const cleanMobile = mobile.trim();
+      if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
+        showToast("Mobile number must be exactly 10 digits", 'error');
+        return;
+      }
+    }
     try {
       setLoading(true);
       const res = await axios.patch('/auth/profile', {
@@ -2410,6 +2432,13 @@ const TenantAdminDashboard = () => {
 
   const handleSubmitMember = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newMember.mobile) {
+      const cleanMobile = newMember.mobile.trim();
+      if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
+        showToast("Mobile number must be exactly 10 digits", 'error');
+        return;
+      }
+    }
     try {
       const finalBhk = newMember.residenceType === 'COMMON' 
         ? 'COMMON'
@@ -2448,6 +2477,13 @@ const TenantAdminDashboard = () => {
   };
   const handleUpdateMember = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (editingMember.mobile) {
+      const cleanMobile = editingMember.mobile.trim();
+      if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
+        showToast("Mobile number must be exactly 10 digits", 'error');
+        return;
+      }
+    }
     try {
       const finalBhk = editingMember.residenceType === 'COMMON'
         ? 'COMMON'

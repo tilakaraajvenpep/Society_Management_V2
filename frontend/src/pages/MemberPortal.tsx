@@ -487,6 +487,13 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
       showToast("Passwords do not match.", 'error');
       return;
     }
+    if (mobile) {
+      const cleanMobile = mobile.trim();
+      if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
+        showToast("Mobile number must be exactly 10 digits.", 'error');
+        return;
+      }
+    }
 
     setSaving(true);
     try {

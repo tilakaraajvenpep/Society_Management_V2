@@ -16,9 +16,15 @@ router.get("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   const { name, serviceType, contact, email, address, notes } = req.body;
+  if (contact) {
+    const targetContact = contact.trim();
+    if (targetContact !== "" && !/^\d{10}$/.test(targetContact)) {
+      return res.status(400).json({ message: "Contact/Mobile number must be exactly 10 digits" });
+    }
+  }
   try {
     const vendor = await prisma.vendor.create({
-      data: { name, serviceType, contact, email, address, notes, tenantId: req.user.tenantId },
+      data: { name, serviceType, contact: contact ? contact.trim() : null, email, address, notes, tenantId: req.user.tenantId },
     });
     res.json(vendor);
   } catch (error: any) {
@@ -28,13 +34,19 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   const { name, serviceType, contact, email, address, notes } = req.body;
+  if (contact) {
+    const targetContact = contact.trim();
+    if (targetContact !== "" && !/^\d{10}$/.test(targetContact)) {
+      return res.status(400).json({ message: "Contact/Mobile number must be exactly 10 digits" });
+    }
+  }
   try {
     const vendor = await prisma.vendor.update({
       where: { id: req.params.id, tenantId: req.user.tenantId },
       data: {
         ...(name !== undefined && { name }),
         ...(serviceType !== undefined && { serviceType }),
-        ...(contact !== undefined && { contact }),
+        ...(contact !== undefined && { contact: contact ? contact.trim() : null }),
         ...(email !== undefined && { email }),
         ...(address !== undefined && { address }),
         ...(notes !== undefined && { notes }),

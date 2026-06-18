@@ -123,10 +123,14 @@ router.patch("/profile", authorize(["MEMBER"]), async (req: any, res) => {
         userUpdateData.email = targetEmail;
       }
       if (mobile) {
+        const targetMobile = mobile.trim();
+        if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
+          throw new Error("Mobile number must be exactly 10 digits");
+        }
         // Check if mobile is unique per tenant
         const existingUser = await tx.user.findFirst({
           where: {
-            mobile,
+            mobile: targetMobile,
             tenantId: req.user.tenantId,
             id: { not: req.user.id }
           }
@@ -134,7 +138,7 @@ router.patch("/profile", authorize(["MEMBER"]), async (req: any, res) => {
         if (existingUser) {
           throw new Error("Mobile number is already registered for another member in this society.");
         }
-        userUpdateData.mobile = mobile;
+        userUpdateData.mobile = targetMobile;
       }
       if (password) {
         userUpdateData.password = await bcrypt.hash(password, 10);
@@ -156,7 +160,7 @@ router.patch("/profile", authorize(["MEMBER"]), async (req: any, res) => {
         memberUpdateData.email = email ? email.toLowerCase().trim() : null;
       }
       if (mobile) {
-        memberUpdateData.mobile = mobile;
+        memberUpdateData.mobile = mobile.trim();
       }
       if (photoUrl !== undefined) {
         memberUpdateData.photoUrl = photoUrl;
@@ -206,6 +210,9 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
     // Constraint check for Mobile
     if (mobile) {
       const targetMobile = mobile.trim();
+      if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
+        return res.status(400).json({ message: "Mobile number must be exactly 10 digits" });
+      }
       const userExists = await prisma.user.findFirst({
         where: { tenantId: req.user.tenantId, mobile: targetMobile }
       });
@@ -441,6 +448,9 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
     // Constraint check for Mobile
     if (mobile) {
       const targetMobile = mobile.trim();
+      if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
+        return res.status(400).json({ message: "Mobile number must be exactly 10 digits" });
+      }
       const userExists = await prisma.user.findFirst({
         where: { tenantId: req.user.tenantId, mobile: targetMobile }
       });

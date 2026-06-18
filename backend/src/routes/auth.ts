@@ -140,11 +140,17 @@ router.post("/login", async (req, res) => {
 
 router.patch("/profile", authenticate, async (req: any, res) => {
   const { name, email, mobile, password } = req.body;
+  if (mobile) {
+    const targetMobile = mobile.trim();
+    if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
+      return res.status(400).json({ message: "Mobile number must be exactly 10 digits" });
+    }
+  }
   try {
     const updateData: any = {};
     if (name) updateData.name = name;
     if (email !== undefined) updateData.email = email || null;
-    if (mobile !== undefined) updateData.mobile = mobile || null;
+    if (mobile !== undefined) updateData.mobile = mobile ? mobile.trim() : null;
     
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
