@@ -860,7 +860,7 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 
   return (
     <div className="card" style={{ maxWidth: '860px' }}>
-      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.4rem' }}>Financial Year â€” Annual Fee Setup</h3>
+      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.4rem' }}>Financial Year - Annual Fee Setup</h3>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
         Set different annual fees per BHK type for Flat and Villa. Each combination (Residence Type + BHK) can have its own fee.
       </p>
@@ -1040,13 +1040,13 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
                 )}
                 {flats.length > 0 && (
                   <div>
-                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Flat â€” by BHK</p>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Flat - by BHK</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{flats.map((c: any) => <Chip key={c.id} c={c} accent="#6366f1" />)}</div>
                   </div>
                 )}
                 {villas.length > 0 && (
                   <div>
-                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Villa â€” by BHK</p>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Villa - by BHK</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{villas.map((c: any) => <Chip key={c.id} c={c} accent="#f59e0b" />)}</div>
                   </div>
                 )}
