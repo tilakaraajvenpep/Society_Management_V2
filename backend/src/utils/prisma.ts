@@ -67,13 +67,58 @@ export async function ensureTenantSchemas() {
     await pgClient.connect();
     
     // Get all schemas matching 'society_%'
-    const schemasRes = await pgClient.query(`
-      SELECT schema_name 
-      FROM information_schema.schemata 
-      WHERE schema_name LIKE 'society_%'
-    `);
-    
-    const schemas = schemasRes.rows.map(r => r.schema_name);
+    // Fetch all active/existing tenants from public."Tenant"
+    let tenantSlugs: string[] = [];
+    try {
+      const tenantsRes = await pgClient.query(`
+        SELECT slug FROM "public"."Tenant"
+      `);
+      tenantSlugs = tenantsRes.rows.map(r => r.slug);
+    } catch (err: any) {
+      console.log("[ensureTenantSchemas] Tenant table query failed, probably empty or not migrated yet:", err.message);
+    }
+
+    // Filter out any empty slugs and map to schemaNames
+    const schemas = tenantSlugs.filter(Boolean).map(slug => `society_${slug}`);
+
+    // First pass: Ensure all schemas exist and have enums cloned
+    for (const schemaName of schemas) {
+      await pgClient.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+      
+      const publicEnumsRes = await pgClient.query(`
+        SELECT t.typname 
+        FROM pg_type t 
+        JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace 
+        WHERE n.nspname = 'public' AND t.typtype = 'e'
+      `);
+      const publicEnums = publicEnumsRes.rows.map(r => r.typname);
+
+      for (const enumName of publicEnums) {
+        const enumExists = await pgClient.query(`
+          SELECT 1 FROM pg_type t 
+          JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace 
+          WHERE n.nspname = $1 AND t.typname = $2
+        `, [schemaName, enumName]);
+        
+        if (enumExists.rowCount === 0) {
+          const enumValuesRes = await pgClient.query(`
+            SELECT enumlabel 
+            FROM pg_enum e 
+            JOIN pg_type t ON e.enumtypid = t.oid 
+            JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace 
+            WHERE n.nspname = 'public' AND t.typname = $1
+            ORDER BY enumsortorder
+          `, [enumName]);
+          const valuesStr = enumValuesRes.rows.map(v => `'${v.enumlabel}'`).join(', ');
+          console.log(`[ensureTenantSchemas] Creating enum type ${enumName} in schema ${schemaName}...`);
+          try {
+            await pgClient.query(`CREATE TYPE "${schemaName}"."${enumName}" AS ENUM (${valuesStr})`);
+          } catch (enumErr: any) {
+            console.log(`[ensureTenantSchemas] Enum type ${enumName} creation skipped:`, enumErr.message);
+          }
+        }
+      }
+    }
     
     // Get all tables in public schema
     const tablesRes = await pgClient.query(`
