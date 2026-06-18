@@ -146,6 +146,26 @@ app.get("/api/debug-errors", async (req, res) => {
   }
 });
 
+app.get("/api/debug-query", async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ error: "Missing query parameter 'q'" });
+    const pg = require('pg');
+    const connStr = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+    const isLocal = connStr.includes("localhost") || connStr.includes("127.0.0.1");
+    const client = new pg.Client({
+      connectionString: connStr,
+      ssl: isLocal ? false : { rejectUnauthorized: false }
+    });
+    await client.connect();
+    const queryRes = await client.query(q as string);
+    await client.end();
+    res.json(queryRes.rows);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/", (req, res) => {
   res.send("Society Management API is running...");
 });
