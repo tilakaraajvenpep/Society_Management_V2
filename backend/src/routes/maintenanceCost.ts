@@ -1,10 +1,60 @@
 import express from "express";
 import prisma from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
+import pg from "pg";
 
 const router = express.Router();
 
 router.use(authenticate);
+
+// Helper: create MaintenanceCost table in public schema if it doesn't exist
+async function ensureMaintenanceCostTable() {
+  const connStr = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+  const isLocal = connStr.includes("localhost") || connStr.includes("127.0.0.1");
+  const client = new pg.Client({
+    connectionString: connStr,
+    ssl: isLocal ? false : { rejectUnauthorized: false }
+  });
+  try {
+    await client.connect();
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "MaintenanceCost" (
+        "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+        "tenantId" TEXT NOT NULL,
+        "financialYear" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "residenceType" TEXT NOT NULL DEFAULT 'COMMON',
+        "bhk" TEXT NOT NULL DEFAULT 'COMMON',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "MaintenanceCost_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "MaintenanceCost_tenantId_financialYear_residenceType_bhk_key"
+      ON "MaintenanceCost"("tenantId", "financialYear", "residenceType", "bhk")
+    `);
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'MaintenanceCost_tenantId_fkey'
+        ) THEN
+          ALTER TABLE "MaintenanceCost"
+          ADD CONSTRAINT "MaintenanceCost_tenantId_fkey"
+          FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id")
+          ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+      EXCEPTION WHEN others THEN NULL;
+      END $$
+    `);
+    console.log("[MaintenanceCost] Table ensured in public schema.");
+  } catch (err: any) {
+    console.error("[MaintenanceCost] Failed to ensure table:", err.message);
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
 
 // GET all configured maintenance costs for the tenant
 router.get("/", authorize(["TENANT_ADMIN", "MEMBER"]), async (req: any, res) => {
@@ -15,7 +65,19 @@ router.get("/", authorize(["TENANT_ADMIN", "MEMBER"]), async (req: any, res) => 
     });
     res.json(costs);
   } catch (error: any) {
-    res.status(500).json({ message: "Error fetching maintenance costs", error: error.message });
+    const msg = error.message || "";
+    // Table doesn't exist - auto-create it and return empty
+    if (
+      msg.includes("does not exist") ||
+      msg.includes("relation") ||
+      msg.includes("MaintenanceCost") ||
+      error.code === "P2021" ||
+      error.code === "P1001"
+    ) {
+      await ensureMaintenanceCostTable().catch(() => {});
+      return res.json([]);
+    }
+    res.status(500).json({ message: "Error fetching maintenance costs", error: msg });
   }
 });
 
@@ -37,7 +99,6 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // Find existing cost for difference calculation
       const existingCost = await tx.maintenanceCost.findUnique({
         where: {
           tenantId_financialYear_residenceType_bhk: {
@@ -61,9 +122,7 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
             bhk: targetBhk
           }
         },
-        update: {
-          amount: parsedAmount
-        },
+        update: { amount: parsedAmount },
         create: {
           tenantId: req.user.tenantId,
           financialYear: financialYear.trim(),
@@ -80,9 +139,6 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         };
 
         if (targetResType === "COMMON" && targetBhk === "COMMON") {
-          // If common is updated, we update members who either:
-          // 1. Have useCommonMaintenance = true
-          // 2. Or residenceType = "COMMON"
           memberFilter = {
             ...memberFilter,
             OR: [
@@ -91,10 +147,6 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
             ]
           };
         } else {
-          // If specific flat/villa bhk is updated, we update members who:
-          // 1. Have useCommonMaintenance = false
-          // 2. And residenceType = targetResType
-          // 3. And bhk = targetBhk
           memberFilter = {
             ...memberFilter,
             useCommonMaintenance: false,
@@ -105,22 +157,17 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
         await tx.member.updateMany({
           where: memberFilter,
-          data: {
-            outstandingDues: {
-              increment: diff
-            }
-          }
+          data: { outstandingDues: { increment: diff } }
         });
       }
 
-      // Create audit log
       await tx.auditLog.create({
         data: {
           tenantId: req.user.tenantId,
           actionType: "MAINTENANCE_COST_SETUP",
           performedBy: req.user.name,
           referenceId: cost.id,
-          details: `Configured annual maintenance cost for FY ${financialYear} (${targetResType} - BHK ${targetBhk}) as ₹${parsedAmount}. Adjusted dues for corresponding members by diff of ₹${diff}`
+          details: `Configured annual maintenance cost for FY ${financialYear} (${targetResType} - BHK ${targetBhk}) as Rs.${parsedAmount}. Adjusted dues for corresponding members by diff of Rs.${diff}`
         }
       });
 
@@ -129,7 +176,12 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ message: "Error setting up maintenance cost", error: error.message });
+    const msg = error.message || "";
+    if (msg.includes("does not exist") || msg.includes("relation") || error.code === "P2021") {
+      await ensureMaintenanceCostTable().catch(() => {});
+      return res.status(503).json({ message: "Table was just created. Please try again in a moment." });
+    }
+    res.status(500).json({ message: "Error setting up maintenance cost", error: msg });
   }
 });
 
@@ -138,21 +190,13 @@ router.delete("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const cost = await tx.maintenanceCost.findUnique({
-        where: {
-          id: req.params.id,
-          tenantId: req.user.tenantId
-        }
+        where: { id: req.params.id, tenantId: req.user.tenantId }
       });
 
-      if (!cost) {
-        throw new Error("Maintenance cost configuration not found");
-      }
+      if (!cost) throw new Error("Maintenance cost configuration not found");
 
-      await tx.maintenanceCost.delete({
-        where: { id: req.params.id }
-      });
+      await tx.maintenanceCost.delete({ where: { id: req.params.id } });
 
-      // Decrease outstanding dues of corresponding members
       let memberFilter: any = {
         tenantId: req.user.tenantId,
         registrationYear: cost.financialYear
@@ -161,10 +205,7 @@ router.delete("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       if (cost.residenceType === "COMMON" && cost.bhk === "COMMON") {
         memberFilter = {
           ...memberFilter,
-          OR: [
-            { useCommonMaintenance: true },
-            { residenceType: "COMMON" }
-          ]
+          OR: [{ useCommonMaintenance: true }, { residenceType: "COMMON" }]
         };
       } else {
         memberFilter = {
@@ -177,21 +218,16 @@ router.delete("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       await tx.member.updateMany({
         where: memberFilter,
-        data: {
-          outstandingDues: {
-            decrement: cost.amount
-          }
-        }
+        data: { outstandingDues: { decrement: cost.amount } }
       });
 
-      // Create audit log
       await tx.auditLog.create({
         data: {
           tenantId: req.user.tenantId,
           actionType: "MAINTENANCE_COST_DELETED",
           performedBy: req.user.name,
           referenceId: cost.id,
-          details: `Deleted annual maintenance cost configuration for FY ${cost.financialYear} (${cost.residenceType} - BHK ${cost.bhk}). Adjusted dues for corresponding members by -₹${cost.amount}`
+          details: `Deleted annual maintenance cost configuration for FY ${cost.financialYear} (${cost.residenceType} - BHK ${cost.bhk}). Adjusted dues for corresponding members by -Rs.${cost.amount}`
         }
       });
 
