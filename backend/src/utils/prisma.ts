@@ -303,6 +303,34 @@ export async function ensureTenantSchemas() {
         }
       }
     }
+
+    // Pass 3: Sync tenant users from public.User to tenant schema's User table
+    for (const slug of tenantSlugs) {
+      if (!slug) continue;
+      const schemaName = `society_${slug}`;
+      const tenantRes = await pgClient.query(`SELECT id FROM "public"."Tenant" WHERE slug = $1`, [slug]);
+      const tenantId = tenantRes.rows[0]?.id;
+      if (!tenantId) continue;
+
+      console.log(`[ensureTenantSchemas] Syncing users for tenant ${slug} (${tenantId}) to schema ${schemaName}...`);
+      try {
+        await pgClient.query(`
+          INSERT INTO "${schemaName}"."User" (id, "tenantId", email, password, name, role, "createdAt", "updatedAt", mobile, designation)
+          SELECT id, "tenantId", email, password, name, role, "createdAt", "updatedAt", mobile, designation
+          FROM "public"."User"
+          WHERE "tenantId" = $1
+          ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email,
+            password = EXCLUDED.password,
+            name = EXCLUDED.name,
+            role = EXCLUDED.role,
+            mobile = EXCLUDED.mobile,
+            designation = EXCLUDED.designation
+        `, [tenantId]);
+      } catch (userErr: any) {
+        console.error(`[ensureTenantSchemas] Failed to sync users for tenant ${slug}:`, userErr.message);
+      }
+    }
   } catch (error: any) {
     console.error("Error ensuring tenant schemas are up to date:", error);
     if ((global as any).lastErrors) {
