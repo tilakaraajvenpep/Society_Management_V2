@@ -50,6 +50,48 @@ async function ensurePublicTables() {
       END $$
     `);
 
+    // Ensure MaintenanceCost table has residenceType and bhk columns
+    const costColFixes = [
+      { col: "residenceType", def: "TEXT NOT NULL DEFAULT 'COMMON'" },
+      { col: "bhk", def: "TEXT NOT NULL DEFAULT 'COMMON'" }
+    ];
+    for (const { col, def } of costColFixes) {
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'MaintenanceCost' AND column_name = '${col}'
+          ) THEN
+            ALTER TABLE "MaintenanceCost" ADD COLUMN "${col}" ${def};
+          END IF;
+        EXCEPTION WHEN others THEN NULL;
+        END $$
+      `);
+    }
+
+    // Drop old index/constraint if it exists on just tenantId and financialYear
+    await client.query(`
+      DO $$ BEGIN
+        DROP INDEX IF EXISTS "MaintenanceCost_tenantId_financialYear_key";
+        ALTER TABLE "MaintenanceCost" DROP CONSTRAINT IF EXISTS "MaintenanceCost_tenantId_financialYear_key";
+      EXCEPTION WHEN others THEN NULL;
+      END $$
+    `);
+
+    // Ensure new unique constraint exists
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'MaintenanceCost_tenantId_financialYear_residenceType_bhk_key'
+        ) THEN
+          ALTER TABLE "MaintenanceCost"
+          ADD CONSTRAINT "MaintenanceCost_tenantId_financialYear_residenceType_bhk_key"
+          UNIQUE ("tenantId", "financialYear", "residenceType", "bhk");
+        END IF;
+      EXCEPTION WHEN others THEN NULL;
+      END $$
+    `);
+
     // Ensure Member table has bhk / residenceType / useCommonMaintenance / registrationYear columns
     const memberColFixes = [
       { col: "residenceType", def: "TEXT NOT NULL DEFAULT 'COMMON'" },
