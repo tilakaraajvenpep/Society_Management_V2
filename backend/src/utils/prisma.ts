@@ -138,14 +138,21 @@ export async function ensureTenantSchemas() {
         WHERE table_schema = $1
       `, [schemaName]);
       const existingTables = new Set(existingTablesRes.rows.map(r => r.table_name));
+      const newlyClonedTables = new Set<string>();
       
+      // Pass 1: Create all missing tables first
       for (const tableName of publicTables) {
         if (!existingTables.has(tableName)) {
           console.log(`Table ${tableName} is missing in schema ${schemaName}. Cloning...`);
-          // 1. Create table
           await pgClient.query(`CREATE TABLE IF NOT EXISTS "${schemaName}"."${tableName}" (LIKE "public"."${tableName}" INCLUDING ALL)`);
-          
-          // 2. Remap column enum types to target schema's enum types
+          newlyClonedTables.add(tableName);
+        }
+      }
+
+      // Pass 2: Remap enums and clone foreign key constraints for newly cloned tables
+      for (const tableName of publicTables) {
+        if (newlyClonedTables.has(tableName)) {
+          // Remap column enum types to target schema's enum types
           const colsRes = await pgClient.query(`
             SELECT 
                 column_name, 
@@ -179,7 +186,7 @@ export async function ensureTenantSchemas() {
             }
           }
           
-          // 3. Clone foreign key constraints for this table from public schema
+          // Clone foreign key constraints
           const fkQuery = `
             SELECT 
                 tc.constraint_name, 
