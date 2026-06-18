@@ -79,12 +79,28 @@ app.get("/api/debug-errors", async (req, res) => {
       tables[schema] = tablesRes.rows.map((r: any) => r.table_name);
     }
 
+    const publicUsersRes = await client.query(`SELECT id, email, name, role, "tenantId" FROM "public"."User"`);
+    const publicUsers = publicUsersRes.rows;
+
+    const tenantUsers: Record<string, any[]> = {};
+    for (const schema of schemas) {
+      if (schema === 'public') continue;
+      try {
+        const res = await client.query(`SELECT id, email, name, role, "tenantId" FROM "${schema}"."User"`);
+        tenantUsers[schema] = res.rows;
+      } catch (err: any) {
+        tenantUsers[schema] = [{ error: err.message }];
+      }
+    }
+
     await client.end();
     res.json({
       lastErrors: (global as any).lastErrors || [],
       database: {
         schemas,
-        tables
+        tables,
+        publicUsers,
+        tenantUsers
       }
     });
   } catch (err: any) {
