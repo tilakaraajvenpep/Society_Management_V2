@@ -113,6 +113,39 @@ async function ensurePublicTables() {
       `);
     }
 
+    // Drop the old index/constraint in all tenant schemas
+    const schemasRes = await client.query(`
+      SELECT schema_name 
+      FROM information_schema.schemata 
+      WHERE schema_name LIKE 'society_%'
+    `);
+     for (const row of schemasRes.rows) {
+      const schemaName = row.schema_name;
+      // Drop old
+      await client.query(`
+        DO $$ BEGIN
+          DROP INDEX IF EXISTS "${schemaName}"."MaintenanceCost_tenantId_financialYear_key";
+          ALTER TABLE "${schemaName}"."MaintenanceCost" DROP CONSTRAINT IF EXISTS "MaintenanceCost_tenantId_financialYear_key";
+        EXCEPTION WHEN others THEN NULL;
+        END $$
+      `);
+      // Ensure new constraint
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint 
+            WHERE conname = 'MaintenanceCost_tenantId_financialYear_residenceType_bhk_key'
+              AND conrelid = '"${schemaName}"."MaintenanceCost"'::regclass
+          ) THEN
+            ALTER TABLE "${schemaName}"."MaintenanceCost"
+            ADD CONSTRAINT "MaintenanceCost_tenantId_financialYear_residenceType_bhk_key"
+            UNIQUE ("tenantId", "financialYear", "residenceType", "bhk");
+          END IF;
+        EXCEPTION WHEN others THEN NULL;
+        END $$
+      `);
+    }
+
     console.log("[Startup] Public schema tables ensured.");
   } catch (err: any) {
     console.error("[Startup] ensurePublicTables error:", err.message);
