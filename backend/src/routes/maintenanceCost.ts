@@ -67,6 +67,18 @@ router.get("/", authorize(["TENANT_ADMIN", "MEMBER"]), async (req: any, res) => 
   } catch (error: any) {
     const msg = error.message || "";
     console.error("Error fetching maintenance costs:", error);
+    if ((global as any).lastErrors) {
+      (global as any).lastErrors.push({
+        timestamp: new Date().toISOString(),
+        action: "GET /api/maintenance-costs",
+        error: msg,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack,
+        user: req.user
+      });
+      if ((global as any).lastErrors.length > 20) (global as any).lastErrors.shift();
+    }
     // Table doesn't exist - auto-create it and return empty
     if (
       msg.includes("does not exist") ||
@@ -185,6 +197,19 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   } catch (error: any) {
     const msg = error.message || "";
     console.error("Error setting up maintenance cost:", error);
+    if ((global as any).lastErrors) {
+      (global as any).lastErrors.push({
+        timestamp: new Date().toISOString(),
+        action: "POST /api/maintenance-costs",
+        error: msg,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack,
+        body: req.body,
+        user: req.user
+      });
+      if ((global as any).lastErrors.length > 20) (global as any).lastErrors.shift();
+    }
     if (msg.includes("does not exist") || msg.includes("relation") || error.code === "P2021") {
       await ensureMaintenanceCostTable().catch(() => {});
       return res.status(503).json({ 

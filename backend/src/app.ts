@@ -49,6 +49,12 @@ app.use("/api/maintenance-costs", maintenanceCostRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/events", eventRoutes);
 
+(global as any).lastErrors = (global as any).lastErrors || [];
+
+app.get("/api/debug-errors", (req, res) => {
+  res.json((global as any).lastErrors);
+});
+
 app.get("/", (req, res) => {
   res.send("Society Management API is running...");
 });
