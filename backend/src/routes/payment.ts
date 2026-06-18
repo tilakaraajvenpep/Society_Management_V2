@@ -279,4 +279,193 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   }
 });
 
+router.post("/razorpay/order", async (req: any, res) => {
+  const { amount } = req.body;
+  try {
+    const Razorpay = require("razorpay");
+    const instance = new Razorpay({
+      key_id: "rzp_test_xDp4iQDpmrSjsL",
+      key_secret: "mDLxFCfBNzBwpR33RliORFIN",
+    });
+
+    const options = {
+      amount: Math.round(parseFloat(amount.toString()) * 100), // paise
+      currency: "INR",
+      receipt: `rcpt_${Date.now()}`,
+    };
+
+    const order = await instance.orders.create(options);
+    res.json({
+      id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key_id: "rzp_test_xDp4iQDpmrSjsL",
+    });
+  } catch (error: any) {
+    console.error("Error creating Razorpay order:", error);
+    res.status(500).json({ message: "Error creating Razorpay order", error: error.message });
+  }
+});
+
+router.post("/razorpay/verify", async (req: any, res) => {
+  const {
+    razorpay_payment_id,
+    razorpay_order_id,
+    razorpay_signature,
+    amount,
+    periodLabel,
+    paidMonths,
+    coverageStartDate,
+    coverageEndDate,
+    memberId
+  } = req.body;
+
+  try {
+    const crypto = require("crypto");
+    const text = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", "mDLxFCfBNzBwpR33RliORFIN")
+      .update(text)
+      .digest("hex");
+
+    const isValid = expectedSignature === razorpay_signature;
+
+    if (!isValid) {
+      return res.status(400).json({ message: "Invalid payment signature" });
+    }
+
+    // Process payment in a transaction
+    const currentMember = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: { name: true, flatNo: true, paidUntil: true, tenantId: true }
+    });
+
+    if (!currentMember) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    const payment = await prisma.$transaction(async (tx) => {
+      const count = await tx.payment.count({ where: { tenantId: currentMember.tenantId } });
+      const receiptNumber = `REC-${(count + 1).toString().padStart(4, '0')}`;
+
+      // Find Treasurer or Tenant Admin to act as collector reference
+      const collector = await tx.user.findFirst({
+        where: {
+          tenantId: currentMember.tenantId,
+          designation: "Treasurer"
+        }
+      }) || await tx.user.findFirst({
+        where: {
+          tenantId: currentMember.tenantId,
+          role: "TENANT_ADMIN"
+        }
+      });
+
+      if (!collector) {
+        throw new Error("No society administrator found to associate payment with.");
+      }
+
+      const monthsToAdd = parseInt(paidMonths) || 1;
+
+      const p = await tx.payment.create({
+        data: {
+          memberId,
+          amount: parseFloat(amount.toString()),
+          mode: "UPI", // UPI mode is compatible with Enum
+          notes: `Paid online via Razorpay. Payment ID: ${razorpay_payment_id}`,
+          tenantId: currentMember.tenantId,
+          collectedById: collector.id,
+          receiptNumber,
+          handoverStatus: "TRANSFERRED_TO_BANK",
+          paidMonths: monthsToAdd,
+          periodLabel: periodLabel || "Online Maintenance Payment",
+          paymentDate: new Date(),
+          coverageStartDate: coverageStartDate ? new Date(coverageStartDate) : null,
+          coverageEndDate: coverageEndDate ? new Date(coverageEndDate) : null,
+          category: "Maintenance",
+        },
+      });
+
+      // Calculate new paidUntil date
+      let newPaidUntil = currentMember.paidUntil ? new Date(currentMember.paidUntil) : new Date();
+      if (!currentMember.paidUntil) {
+        newPaidUntil.setDate(1);
+        newPaidUntil.setHours(0, 0, 0, 0);
+      }
+
+      if (coverageEndDate) {
+        const proposed = new Date(coverageEndDate);
+        if (proposed > newPaidUntil) {
+          newPaidUntil = proposed;
+        }
+      } else {
+        newPaidUntil.setMonth(newPaidUntil.getMonth() + monthsToAdd);
+      }
+
+      // Decrease member's outstandingDues and update paidUntil
+      await tx.member.update({
+        where: { id: memberId },
+        data: {
+          outstandingDues: { decrement: parseFloat(amount.toString()) },
+          paidUntil: newPaidUntil
+        }
+      });
+
+      return p;
+    });
+
+    // Create Audit Log
+    const memberLabel = `${currentMember.name} (Flat ${currentMember.flatNo})`;
+    await prisma.auditLog.create({
+      data: {
+        tenantId: currentMember.tenantId,
+        actionType: "PAYMENT_CREATED",
+        performedBy: currentMember.name,
+        referenceId: payment.id,
+        details: `${payment.receiptNumber}: ₹${amount} paid online by ${memberLabel} via Razorpay (${payment.periodLabel})`,
+      },
+    });
+
+    // Notify member
+    await notifyMember({
+      tenantId: currentMember.tenantId,
+      memberId,
+      title: "Online Payment Successful",
+      message: `Your online payment of ₹${amount} (${payment.periodLabel}) has been processed successfully. Receipt: ${payment.receiptNumber}.`,
+      type: "PAYMENT"
+    });
+
+    // Notify Treasurers and Tenant Admins
+    const treasurers = await prisma.user.findMany({
+      where: {
+        tenantId: currentMember.tenantId,
+        OR: [
+          { designation: "Treasurer" },
+          { role: "TENANT_ADMIN" }
+        ]
+      },
+      select: { id: true }
+    });
+
+    const notificationsData = treasurers.map((t) => ({
+      tenantId: currentMember.tenantId,
+      userId: t.id,
+      title: "Online Payment Received",
+      message: `Member ${currentMember.name} (Flat ${currentMember.flatNo}) paid ₹${amount} online via Razorpay for ${periodLabel}.`,
+      type: "PAYMENT"
+    }));
+
+    if (notificationsData.length > 0) {
+      await prisma.notification.createMany({
+        data: notificationsData
+      });
+    }
+
+    res.json(payment);
+  } catch (error: any) {
+    console.error("Error verifying payment:", error);
+    res.status(500).json({ message: "Error verifying payment", error: error.message });
+  }
+});
+
 export default router;

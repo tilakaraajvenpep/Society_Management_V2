@@ -779,8 +779,19 @@ const MemberEvents = ({ token }: { token: string | null }) => {
   );
 };
 
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const MemberPortal = () => {
   const { logout, token, user } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [memberInfo, setMemberInfo] = useState<any>(null);
@@ -788,8 +799,169 @@ const MemberPortal = () => {
   const [loading, setLoading] = useState(true);
   const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
 
+  // Online payment state variables
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentFrequency, setPaymentFrequency] = useState<'monthly' | 'quarterly' | 'half_yearly' | 'annual' | 'custom'>('monthly');
+  const [customMonths, setCustomMonths] = useState(1);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   const toggleYear = (yearId: string) => {
     setExpandedYears(prev => ({ ...prev, [yearId]: !prev[yearId] }));
+  };
+
+  const getCalculatedAmount = () => {
+    if (!memberInfo) return { base: 0, final: 0, discount: 0, monthsCount: 1 };
+    
+    // Find current monthly cost
+    const regFY = memberInfo.registrationYear || (memberInfo.createdAt ? getFinancialYear(memberInfo.createdAt) : '');
+    const applicableCosts = getApplicableCostsForMember(maintenanceCosts, memberInfo);
+    const matchedCost = applicableCosts.find((c: any) => areFinancialYearsEqual(c.financialYear, regFY));
+    const monthlyCost = matchedCost ? Math.round(matchedCost.amount / 12) : Math.round(memberInfo.tenant?.maintenanceAmount || 0);
+
+    let baseAmount = 0;
+    let monthsCount = 1;
+
+    switch (paymentFrequency) {
+      case 'monthly':
+        baseAmount = monthlyCost;
+        monthsCount = 1;
+        break;
+      case 'quarterly':
+        baseAmount = memberInfo.tenant?.quarterlyAmount || (monthlyCost * 3);
+        monthsCount = 3;
+        break;
+      case 'half_yearly':
+        baseAmount = memberInfo.tenant?.halfYearlyAmount || (monthlyCost * 6);
+        monthsCount = 6;
+        break;
+      case 'annual':
+        baseAmount = memberInfo.tenant?.annualAmount || (monthlyCost * 12);
+        monthsCount = 12;
+        break;
+      case 'custom':
+        baseAmount = monthlyCost * customMonths;
+        monthsCount = customMonths;
+        break;
+    }
+
+    // Check early bird discount
+    let discount = 0;
+    if (memberInfo.tenant?.discountDate && memberInfo.tenant?.discountAmount) {
+      const deadline = new Date(memberInfo.tenant.discountDate);
+      deadline.setHours(23, 59, 59, 999);
+      if (new Date() <= deadline) {
+        discount = memberInfo.tenant.discountAmount;
+      }
+    }
+
+    const finalAmount = Math.max(0, baseAmount - discount);
+    return { base: baseAmount, final: finalAmount, discount, monthsCount };
+  };
+
+  const handleOnlinePayment = async () => {
+    const { final, monthsCount } = getCalculatedAmount();
+    if (final <= 0) {
+      showToast("Payment amount must be greater than 0", "error");
+      return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+      // 1. Create Order in backend
+      const orderRes = await axios.post('/payments/razorpay/order', { amount: final }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // 2. Load Razorpay checkout script
+      const rzpLoaded = await loadRazorpay();
+      if (!rzpLoaded) {
+        showToast("Razorpay gateway failed to load. Please check your internet connection.", "error");
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      // Calculate coverage date range
+      let start = memberInfo.paidUntil ? new Date(memberInfo.paidUntil) : new Date();
+      if (!memberInfo.paidUntil) {
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+      } else {
+        start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+      }
+      
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + monthsCount);
+      end.setDate(0); // Set to last day of previous month
+
+      const periodLabel = paymentFrequency === 'monthly' ? 'Monthly'
+        : paymentFrequency === 'quarterly' ? 'Quarterly'
+        : paymentFrequency === 'half_yearly' ? 'Half-Yearly'
+        : paymentFrequency === 'annual' ? 'Annual'
+        : `Custom (${monthsCount} Months)`;
+
+      const options = {
+        key: orderRes.data.key_id,
+        amount: orderRes.data.amount,
+        currency: orderRes.data.currency,
+        name: user?.tenantName || "Society Management",
+        description: `Maintenance - ${periodLabel}`,
+        order_id: orderRes.data.id,
+        handler: async (response: any) => {
+          try {
+            showToast("Verifying payment transaction...", "info");
+            await axios.post('/payments/razorpay/verify', {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: final,
+              periodLabel,
+              paidMonths: monthsCount,
+              coverageStartDate: start.toISOString(),
+              coverageEndDate: end.toISOString(),
+              memberId: memberInfo.id
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            showToast("Online Payment Successful!", "success");
+            
+            // Refresh member profile data
+            const profileRes = await axios.get('/members/profile', {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            setMemberInfo(profileRes.data);
+            setShowPaymentModal(false);
+          } catch (err: any) {
+            console.error(err);
+            showToast(err.response?.data?.message || "Payment verification failed", "error");
+          } finally {
+            setIsProcessingPayment(false);
+          }
+        },
+        prefill: {
+          name: memberInfo.name,
+          email: memberInfo.email || "",
+          contact: memberInfo.mobile || ""
+        },
+        theme: {
+          color: "#7c3aed"
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessingPayment(false);
+          }
+        }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.open();
+
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.response?.data?.message || "Error initiating online payment", "error");
+      setIsProcessingPayment(false);
+    }
   };
 
   useEffect(() => {
@@ -869,7 +1041,16 @@ const MemberPortal = () => {
                   ₹{Math.max(0, memberInfo?.outstandingDues || 0).toLocaleString()}
                 </div>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  {(memberInfo?.outstandingDues || 0) > 0 ? 'Please pay at the society office.' : 'No outstanding dues!'}
+                  {(memberInfo?.outstandingDues || 0) > 0 ? (
+                    <span>
+                      Please pay at the society office or{" "}
+                      <span onClick={() => setShowPaymentModal(true)} style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
+                        pay online now
+                      </span>.
+                    </span>
+                  ) : (
+                    'No outstanding dues!'
+                  )}
                 </p>
               </div>
 
@@ -944,9 +1125,9 @@ const MemberPortal = () => {
                   <Calendar size={24} />
                   <span>View Society Events</span>
                 </button>
-                <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center', opacity: 0.5, cursor: 'not-allowed' }}>
+                <button className="btn btn-primary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setShowPaymentModal(true)}>
                   <CreditCard size={24} />
-                  <span>Pay Maintenance (Coming Soon)</span>
+                  <span>Pay Maintenance Online</span>
                 </button>
               </div>
             </div>
@@ -1158,6 +1339,165 @@ const MemberPortal = () => {
 
         {renderContent()}
       </div>
+
+      {showPaymentModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div className="card" style={{
+            width: '100%',
+            maxWidth: '500px',
+            backgroundColor: 'var(--bg-primary)',
+            color: 'var(--text-primary)',
+            borderRadius: '1rem',
+            boxShadow: 'var(--card-shadow)',
+            border: '1px solid var(--border-color)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem',
+            padding: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CreditCard size={20} style={{ color: 'var(--primary)' }} /> Pay Maintenance Online
+              </h3>
+              <button className="btn btn-secondary" style={{ padding: '0.35rem', borderRadius: '50%' }} onClick={() => setShowPaymentModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Select Payment Plan</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  className={`btn ${paymentFrequency === 'monthly' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: '0.85rem', padding: '0.75rem' }}
+                  onClick={() => setPaymentFrequency('monthly')}
+                >
+                  Monthly (1M)
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${paymentFrequency === 'quarterly' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: '0.85rem', padding: '0.75rem' }}
+                  onClick={() => setPaymentFrequency('quarterly')}
+                >
+                  Quarterly (3M)
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${paymentFrequency === 'half_yearly' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: '0.85rem', padding: '0.75rem' }}
+                  onClick={() => setPaymentFrequency('half_yearly')}
+                >
+                  Half-Yearly (6M)
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${paymentFrequency === 'annual' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: '0.85rem', padding: '0.75rem' }}
+                  onClick={() => setPaymentFrequency('annual')}
+                >
+                  Annual (12M)
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className={`btn ${paymentFrequency === 'custom' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ width: '100%', fontSize: '0.85rem', padding: '0.75rem', marginBottom: '1rem' }}
+                onClick={() => setPaymentFrequency('custom')}
+              >
+                Custom Months Plan
+              </button>
+
+              {paymentFrequency === 'custom' && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Number of Months to Pay</label>
+                  <select
+                    value={customMonths}
+                    onChange={(e) => setCustomMonths(parseInt(e.target.value))}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                      <option key={n} value={n}>{n} {n === 1 ? 'Month' : 'Months'}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', padding: '1rem', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Payment Summary</div>
+              
+              {(() => {
+                const { base, final, discount, monthsCount } = getCalculatedAmount();
+                
+                // Calculate estimated coverage details
+                let start = memberInfo?.paidUntil ? new Date(memberInfo.paidUntil) : new Date();
+                if (!memberInfo?.paidUntil) {
+                  start.setDate(1);
+                  start.setHours(0, 0, 0, 0);
+                } else {
+                  start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+                }
+                const end = new Date(start);
+                end.setMonth(end.getMonth() + monthsCount);
+                end.setDate(0);
+
+                const formatDate = (d: Date) => d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Dues Duration:</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{monthsCount} {monthsCount === 1 ? 'Month' : 'Months'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Estimated Coverage:</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{formatDate(start)} to {formatDate(end)}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
+                      <span>Base Rate:</span>
+                      <span>₹{base.toLocaleString()}</span>
+                    </div>
+                    {discount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)' }}>
+                        <span>Early Payment Discount:</span>
+                        <span>-₹{discount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', fontSize: '1rem', fontWeight: 700 }}>
+                      <span>Amount to Pay:</span>
+                      <span style={{ color: 'var(--primary)' }}>₹{final.toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <button
+              onClick={handleOnlinePayment}
+              disabled={isProcessingPayment}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <CreditCard size={18} />
+              {isProcessingPayment ? 'Processing Securely...' : 'Pay Online with Razorpay'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
