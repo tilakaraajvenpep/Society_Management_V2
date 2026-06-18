@@ -4021,14 +4021,15 @@ const TenantAdminDashboard = () => {
                     padding: '0.875rem 1rem',
                     borderRadius: '0.75rem',
                     border: 'none',
-                    background: activeSettingsTab === t.id ? 'var(--primary-color)' : 'transparent',
+                    background: activeSettingsTab === t.id ? 'var(--primary)' : 'transparent',
                     color: activeSettingsTab === t.id ? '#ffffff' : 'var(--text-secondary)',
                     fontWeight: activeSettingsTab === t.id ? 600 : 500,
                     fontSize: '0.875rem',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     textAlign: 'left',
-                    width: '100%'
+                    width: '100%',
+                    boxShadow: activeSettingsTab === t.id ? '0 4px 12px rgba(37, 99, 235, 0.2)' : 'none'
                   }}
                   className="settings-tab-btn"
                 >
@@ -4043,7 +4044,7 @@ const TenantAdminDashboard = () => {
               {activeSettingsTab === 'pricing' && (
                 <div className="card" style={{ animation: 'fadeIn 0.3s ease-out' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '0.5rem', color: 'var(--primary-color)' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderRadius: '0.5rem', color: 'var(--primary)' }}>
                       <DollarSign size={20} />
                     </div>
                     <div>
@@ -4101,7 +4102,7 @@ const TenantAdminDashboard = () => {
               {activeSettingsTab === 'reminders' && (
                 <div className="card" style={{ animation: 'fadeIn 0.3s ease-out' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '0.5rem', color: 'var(--primary-color)' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderRadius: '0.5rem', color: 'var(--primary)' }}>
                       <Bell size={20} />
                     </div>
                     <div>
@@ -4130,7 +4131,7 @@ const TenantAdminDashboard = () => {
                         />
                         <span className="slider round" style={{
                           position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-                          backgroundColor: enableMonthlyReminder ? 'var(--primary-color)' : '#ccc',
+                          backgroundColor: enableMonthlyReminder ? 'var(--primary)' : '#ccc',
                           transition: '0.4s', borderRadius: '24px'
                         }}>
                           <span style={{
@@ -4188,7 +4189,7 @@ const TenantAdminDashboard = () => {
                         />
                         <span className="slider round" style={{
                           position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-                          backgroundColor: enableOverdueReminder ? 'var(--primary-color)' : '#ccc',
+                          backgroundColor: enableOverdueReminder ? 'var(--primary)' : '#ccc',
                           transition: '0.4s', borderRadius: '24px'
                         }}>
                           <span style={{
@@ -4246,7 +4247,7 @@ const TenantAdminDashboard = () => {
               {activeSettingsTab === 'discount' && (
                 <div className="card" style={{ animation: 'fadeIn 0.3s ease-out' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '0.5rem', color: 'var(--primary-color)' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderRadius: '0.5rem', color: 'var(--primary)' }}>
                       <Percent size={20} />
                     </div>
                     <div>
