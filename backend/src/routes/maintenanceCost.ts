@@ -7,6 +7,12 @@ const router = express.Router();
 
 router.use(authenticate);
 
+const getStartYear = (fy: string) => {
+  const match = fy.trim().match(/^(\d{4})/);
+  return match ? parseInt(match[1], 10) : 0;
+};
+
+
 // Helper: create MaintenanceCost table in public schema if it doesn't exist
 async function ensureMaintenanceCostTable() {
   const connStr = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
@@ -154,32 +160,33 @@ router.post("/bulk", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         });
 
         if (diff !== 0) {
-          let memberFilter: any = {
-            tenantId: req.user.tenantId,
-            registrationYear: financialYear.trim()
-          };
-
-          if (residenceType === "COMMON" && targetBhk === "COMMON") {
-            memberFilter = {
-              ...memberFilter,
-              OR: [
-                { useCommonMaintenance: true },
-                { residenceType: "COMMON" }
-              ]
-            };
-          } else {
-            memberFilter = {
-              ...memberFilter,
-              useCommonMaintenance: false,
-              residenceType,
-              bhk: targetBhk
-            };
-          }
-
-          await tx.member.updateMany({
-            where: memberFilter,
-            data: { outstandingDues: { increment: diff } }
+          const targetStartYear = getStartYear(financialYear);
+          const members = await tx.member.findMany({
+            where: {
+              tenantId: req.user.tenantId,
+              status: "ACTIVE"
+            }
           });
+
+          const membersToUpdate = members.filter(m => {
+            const memberStartYear = getStartYear(m.registrationYear || "");
+            if (memberStartYear > targetStartYear) return false;
+
+            if (residenceType === "COMMON" && targetBhk === "COMMON") {
+              return m.useCommonMaintenance || m.residenceType === "COMMON";
+            } else {
+              return !m.useCommonMaintenance && m.residenceType === residenceType && m.bhk === targetBhk;
+            }
+          });
+
+          if (membersToUpdate.length > 0) {
+            await tx.member.updateMany({
+              where: {
+                id: { in: membersToUpdate.map(m => m.id) }
+              },
+              data: { outstandingDues: { increment: diff } }
+            });
+          }
         }
 
         await tx.auditLog.create({
@@ -270,32 +277,33 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       });
 
       if (diff !== 0) {
-        let memberFilter: any = {
-          tenantId: req.user.tenantId,
-          registrationYear: financialYear.trim()
-        };
-
-        if (targetResType === "COMMON" && targetBhk === "COMMON") {
-          memberFilter = {
-            ...memberFilter,
-            OR: [
-              { useCommonMaintenance: true },
-              { residenceType: "COMMON" }
-            ]
-          };
-        } else {
-          memberFilter = {
-            ...memberFilter,
-            useCommonMaintenance: false,
-            residenceType: targetResType,
-            bhk: targetBhk
-          };
-        }
-
-        await tx.member.updateMany({
-          where: memberFilter,
-          data: { outstandingDues: { increment: diff } }
+        const targetStartYear = getStartYear(financialYear);
+        const members = await tx.member.findMany({
+          where: {
+            tenantId: req.user.tenantId,
+            status: "ACTIVE"
+          }
         });
+
+        const membersToUpdate = members.filter(m => {
+          const memberStartYear = getStartYear(m.registrationYear || "");
+          if (memberStartYear > targetStartYear) return false;
+
+          if (targetResType === "COMMON" && targetBhk === "COMMON") {
+            return m.useCommonMaintenance || m.residenceType === "COMMON";
+          } else {
+            return !m.useCommonMaintenance && m.residenceType === targetResType && m.bhk === targetBhk;
+          }
+        });
+
+        if (membersToUpdate.length > 0) {
+          await tx.member.updateMany({
+            where: {
+              id: { in: membersToUpdate.map(m => m.id) }
+            },
+            data: { outstandingDues: { increment: diff } }
+          });
+        }
       }
 
       await tx.auditLog.create({
@@ -358,29 +366,31 @@ router.delete("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       await tx.maintenanceCost.delete({ where: { id: req.params.id } });
 
-      let memberFilter: any = {
-        tenantId: req.user.tenantId,
-        registrationYear: cost.financialYear
-      };
-
-      if (cost.residenceType === "COMMON" && cost.bhk === "COMMON") {
-        memberFilter = {
-          ...memberFilter,
-          OR: [{ useCommonMaintenance: true }, { residenceType: "COMMON" }]
-        };
-      } else {
-        memberFilter = {
-          ...memberFilter,
-          useCommonMaintenance: false,
-          residenceType: cost.residenceType,
-          bhk: cost.bhk
-        };
-      }
-
-      await tx.member.updateMany({
-        where: memberFilter,
-        data: { outstandingDues: { decrement: cost.amount } }
+      const targetStartYear = getStartYear(cost.financialYear);
+      const members = await tx.member.findMany({
+        where: {
+          tenantId: req.user.tenantId,
+          status: "ACTIVE"
+        }
       });
+
+      const membersToUpdate = members.filter(m => {
+        const memberStartYear = getStartYear(m.registrationYear || "");
+        if (memberStartYear > targetStartYear) return false;
+
+        if (cost.residenceType === "COMMON" && cost.bhk === "COMMON") {
+          return m.useCommonMaintenance || m.residenceType === "COMMON";
+        } else {
+          return !m.useCommonMaintenance && m.residenceType === cost.residenceType && m.bhk === cost.bhk;
+        }
+      });
+
+      if (membersToUpdate.length > 0) {
+        await tx.member.updateMany({
+          where: { id: { in: membersToUpdate.map(m => m.id) } },
+          data: { outstandingDues: { decrement: cost.amount } }
+        });
+      }
 
       await tx.auditLog.create({
         data: {

@@ -18,6 +18,55 @@ const getFinancialYear = (date: Date) => {
   }
 };
 
+const getStartYear = (fy: string) => {
+  const match = fy.trim().match(/^(\d{4})/);
+  return match ? parseInt(match[1], 10) : 0;
+};
+
+const calculateTotalMaintenanceForMember = (
+  registrationYear: string,
+  useCommonMaintenance: boolean,
+  residenceType: string,
+  bhk: string,
+  costs: any[]
+): number => {
+  const regStartYear = getStartYear(registrationYear);
+  if (!regStartYear) return 0;
+
+  const uniqueYears = Array.from(new Set(costs.map(c => c.financialYear)))
+    .filter(fy => getStartYear(fy) >= regStartYear);
+
+  let total = 0;
+  for (const fy of uniqueYears) {
+    let costResType = "COMMON";
+    let costBhk = "COMMON";
+    if (!useCommonMaintenance) {
+      costResType = residenceType || "COMMON";
+      costBhk = bhk || "COMMON";
+    }
+
+    let cost = costs.find(c =>
+      c.financialYear === fy &&
+      c.residenceType === costResType &&
+      c.bhk === costBhk
+    );
+
+    if (!cost && (costResType !== "COMMON" || costBhk !== "COMMON")) {
+      cost = costs.find(c =>
+        c.financialYear === fy &&
+        c.residenceType === "COMMON" &&
+        c.bhk === "COMMON"
+      );
+    }
+
+    if (cost) {
+      total += cost.amount;
+    }
+  }
+  return total;
+};
+
+
 router.use(authenticate);
 
 // Member Profile (for logged in members)
@@ -236,45 +285,23 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       const { residenceType, bhk, useCommonMaintenance } = req.body;
       const regYear = registrationYear?.trim() || getFinancialYear(new Date());
 
-      // Resolve maintenance cost
-      let costResType = "COMMON";
-      let costBhk = "COMMON";
-      const actualUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : true;
-      if (!actualUseCommon) {
-        costResType = residenceType || "COMMON";
-        costBhk = bhk || "COMMON";
-      }
-
-      // Try specific
-      let mCost = await tx.maintenanceCost.findUnique({
-        where: {
-          tenantId_financialYear_residenceType_bhk: {
-            tenantId: req.user.tenantId,
-            financialYear: regYear,
-            residenceType: costResType,
-            bhk: costBhk
-          }
-        }
+      // Get all configured maintenance costs for this tenant
+      const allCosts = await tx.maintenanceCost.findMany({
+        where: { tenantId: req.user.tenantId }
       });
 
-      // Fallback
-      if (!mCost && (costResType !== "COMMON" || costBhk !== "COMMON")) {
-        mCost = await tx.maintenanceCost.findUnique({
-          where: {
-            tenantId_financialYear_residenceType_bhk: {
-              tenantId: req.user.tenantId,
-              financialYear: regYear,
-              residenceType: "COMMON",
-              bhk: "COMMON"
-            }
-          }
-        });
-      }
+      const actualUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : true;
+      const totalApplicableDues = calculateTotalMaintenanceForMember(
+        regYear,
+        actualUseCommon,
+        residenceType || "COMMON",
+        bhk || "COMMON",
+        allCosts
+      );
 
       let initialDues = outstandingDues ? parseFloat(outstandingDues.toString()) : 0;
-      if (mCost) {
-        initialDues += mCost.amount;
-      }
+      initialDues += totalApplicableDues;
+
 
       const member = await tx.member.create({
         data: {
@@ -488,81 +515,40 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       const { residenceType, bhk, useCommonMaintenance } = req.body;
 
-      // Resolve old fee
-      let oldCostResType = "COMMON";
-      let oldCostBhk = "COMMON";
-      if (currentMember.useCommonMaintenance === false) {
-        oldCostResType = currentMember.residenceType || "COMMON";
-        oldCostBhk = currentMember.bhk || "COMMON";
-      }
-      const oldRegYear = currentMember.registrationYear;
+      // Get all configured maintenance costs for this tenant
+      const allCosts = await tx.maintenanceCost.findMany({
+        where: { tenantId: req.user.tenantId }
+      });
 
-      let oldFeeConfig = oldRegYear ? await tx.maintenanceCost.findUnique({
-        where: {
-          tenantId_financialYear_residenceType_bhk: {
-            tenantId: req.user.tenantId,
-            financialYear: oldRegYear,
-            residenceType: oldCostResType,
-            bhk: oldCostBhk
-          }
-        }
-      }) : null;
+      // Calculate old total maintenance dues
+      const oldRegYear = currentMember.registrationYear || "";
+      const oldUseCommon = currentMember.useCommonMaintenance;
+      const oldResType = currentMember.residenceType || "COMMON";
+      const oldBhk = currentMember.bhk || "COMMON";
 
-      // Fallback
-      if (!oldFeeConfig && oldRegYear && (oldCostResType !== "COMMON" || oldCostBhk !== "COMMON")) {
-        oldFeeConfig = await tx.maintenanceCost.findUnique({
-          where: {
-            tenantId_financialYear_residenceType_bhk: {
-              tenantId: req.user.tenantId,
-              financialYear: oldRegYear,
-              residenceType: "COMMON",
-              bhk: "COMMON"
-            }
-          }
-        });
-      }
-      const oldFee = oldFeeConfig ? oldFeeConfig.amount : 0;
+      const oldMaintenanceTotal = calculateTotalMaintenanceForMember(
+        oldRegYear,
+        oldUseCommon,
+        oldResType,
+        oldBhk,
+        allCosts
+      );
 
-      // Resolve new fee
+      // Calculate new total maintenance dues
       const nextRegYear = registrationYear !== undefined ? registrationYear : currentMember.registrationYear;
       const nextUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : currentMember.useCommonMaintenance;
       const nextResType = residenceType !== undefined ? residenceType : currentMember.residenceType;
       const nextBhk = bhk !== undefined ? bhk : currentMember.bhk;
 
-      let newCostResType = "COMMON";
-      let newCostBhk = "COMMON";
-      if (nextUseCommon === false) {
-        newCostResType = nextResType || "COMMON";
-        newCostBhk = nextBhk || "COMMON";
-      }
+      const newMaintenanceTotal = calculateTotalMaintenanceForMember(
+        nextRegYear || "",
+        nextUseCommon,
+        nextResType || "COMMON",
+        nextBhk || "COMMON",
+        allCosts
+      );
 
-      let newFeeConfig = nextRegYear ? await tx.maintenanceCost.findUnique({
-        where: {
-          tenantId_financialYear_residenceType_bhk: {
-            tenantId: req.user.tenantId,
-            financialYear: nextRegYear,
-            residenceType: newCostResType,
-            bhk: newCostBhk
-          }
-        }
-      }) : null;
-
-      // Fallback
-      if (!newFeeConfig && nextRegYear && (newCostResType !== "COMMON" || newCostBhk !== "COMMON")) {
-        newFeeConfig = await tx.maintenanceCost.findUnique({
-          where: {
-            tenantId_financialYear_residenceType_bhk: {
-              tenantId: req.user.tenantId,
-              financialYear: nextRegYear,
-              residenceType: "COMMON",
-              bhk: "COMMON"
-            }
-          }
-        });
-      }
-      const newFee = newFeeConfig ? newFeeConfig.amount : 0;
-
-      const duesAdjustment = newFee - oldFee;
+      const duesAdjustment = newMaintenanceTotal - oldMaintenanceTotal;
       if (duesAdjustment !== 0) {
         if (finalOutstandingDues !== undefined) {
           finalOutstandingDues += duesAdjustment;
