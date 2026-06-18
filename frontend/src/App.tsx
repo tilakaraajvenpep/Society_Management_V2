@@ -35,6 +35,20 @@ const ThemeToggle = () => {
   );
 };
 
+const RoleThemeSelector = () => {
+  const { user } = useAuth();
+
+  React.useEffect(() => {
+    if (user?.role) {
+      document.documentElement.setAttribute('data-role', user.role.toLowerCase());
+    } else {
+      document.documentElement.removeAttribute('data-role');
+    }
+  }, [user]);
+
+  return null;
+};
+
 function App() {
   return (
     <TenantProvider>
@@ -43,6 +57,7 @@ function App() {
           <ToastProvider>
             <ConfirmProvider>
               <Router>
+                <RoleThemeSelector />
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/:tenantSlug" element={<LoginPage />} />

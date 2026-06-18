@@ -34,6 +34,100 @@
   --sidebar-bg: #0f172a;
 }
 
+/* ========================================================
+   ROLE-SPECIFIC THEMES (Tenant Admin & Member)
+   ======================================================== */
+
+/* --- Tenant Admin: Corporate Emerald & Deep Teal Theme --- */
+[data-role="tenant_admin"] {
+  --bg-primary: #f0f7f4;      /* Soft sage-mint white */
+  --bg-secondary: #e1ece8;    /* Beautiful soft sage-mint gray */
+  --bg-tertiary: #cbdad4;     /* Medium sage-mint */
+  --text-primary: #0a2520;    /* Deep forest teal text */
+  --text-secondary: #3b5e56;  /* Muted forest teal text */
+  --border-color: #d2e2dc;
+  --primary: #0d9488;         /* Teal 600 */
+  --primary-hover: #0f766e;   /* Teal 700 */
+  --accent: #10b981;          /* Emerald 500 */
+  --card-bg: #ffffff;
+  --card-shadow: 0 4px 12px rgba(13, 148, 136, 0.04);
+  --sidebar-bg: #ffffff;
+}
+
+/* Tenant Admin Dark Mode */
+[data-theme='dark'][data-role="tenant_admin"] {
+  --bg-primary: #060a0c;      /* Very dark slate teal-black */
+  --bg-secondary: #0e1518;    /* Deep dark slate teal-gray */
+  --bg-tertiary: #1a262a;     /* Dark teal-slate accent */
+  --text-primary: #e0f2f1;    /* Light teal text */
+  --text-secondary: #80cbc4;  /* Muted teal text */
+  --border-color: #1f2e33;
+  --primary: #0d9488;         /* Teal 600 */
+  --primary-hover: #14b8a6;   /* Teal 500 */
+  --accent: #34d399;          /* Emerald 400 */
+  --card-bg: #121b1e;         /* Dark teal card */
+  --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  --sidebar-bg: #060a0c;
+}
+
+/* --- Member Portal: Aesthetic Amethyst & Indigo Theme --- */
+[data-role="member"] {
+  --bg-primary: #faf6fe;      /* Amethyst-tinted white */
+  --bg-secondary: #f1e6fd;    /* Soft lavender gray */
+  --bg-tertiary: #e3cef9;     /* Medium lavender */
+  --text-primary: #12002b;    /* Deep dark violet text */
+  --text-secondary: #6025a8;  /* Muted violet text */
+  --border-color: #e7d5fb;
+  --primary: #7c3aed;         /* Amethyst Violet 600 */
+  --primary-hover: #6d28d9;   /* Violet 700 */
+  --accent: #db2777;          /* Pink/Rose 600 */
+  --card-bg: #ffffff;
+  --card-shadow: 0 4px 12px rgba(124, 58, 237, 0.04);
+  --sidebar-bg: #ffffff;
+}
+
+/* Member Dark Mode */
+[data-theme='dark'][data-role="member"] {
+  --bg-primary: #06030c;      /* Midnight Violet */
+  --bg-secondary: #0f091c;    /* Deep dark amethyst-gray */
+  --bg-tertiary: #1c1133;     /* Dark amethyst accent */
+  --text-primary: #f3e8ff;    /* Light violet text */
+  --text-secondary: #b388ff;  /* Muted light violet text */
+  --border-color: #241641;
+  --primary: #a78bfa;         /* Lavender 400 */
+  --primary-hover: #c084fc;   /* Lavender 300 */
+  --accent: #f472b6;          /* Pink 400 */
+  --card-bg: #140c26;         /* Dark violet card */
+  --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+  --sidebar-bg: #06030c;
+}
+
+/* Specific Active Link overrides for better visual hierarchy */
+[data-role="tenant_admin"] .nav-link.active {
+  background-color: rgba(13, 148, 136, 0.12) !important;
+  color: var(--primary) !important;
+}
+
+[data-role="member"] .nav-link.active {
+  background-color: rgba(124, 58, 237, 0.12) !important;
+  color: var(--primary) !important;
+}
+
+/* Specific focus outline colors */
+[data-role="tenant_admin"] input:focus, 
+[data-role="tenant_admin"] select:focus,
+[data-role="tenant_admin"] textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
+[data-role="member"] input:focus, 
+[data-role="member"] select:focus,
+[data-role="member"] textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
 * {
   margin: 0;
   padding: 0;
