@@ -24,6 +24,11 @@ model Tenant {
   halfYearlyAmount   Float?
   quarterlyAmount    Float?
   enableForums       Boolean           @default(false)
+  enableMonthlyReminder  Boolean       @default(false)
+  monthlyReminderCount   Int           @default(1)
+  monthlyReminderInterval Int          @default(7) // interval in days
+  enableOverdueReminder  Boolean       @default(false)
+  overdueReminderInterval Int          @default(7) // interval in days
   
   auditLogs          AuditLog[]
   cashTransactions   CashTransaction[]
@@ -86,6 +91,9 @@ model Member {
   residenceType   String         @default("COMMON") // FLAT, VILLA, COMMON
   bhk             String         @default("COMMON") // 1, 2, 3, 4, or custom string
   useCommonMaintenance Boolean   @default(true)
+  lastMonthlyReminderSentAt DateTime?
+  monthlyReminderSentCount  Int       @default(0)
+  lastOverdueReminderSentAt DateTime?
   
   expensesPaid    Expense[]      @relation("PaidBy")
   tenant          Tenant         @relation(fields: [tenantId], references: [id])

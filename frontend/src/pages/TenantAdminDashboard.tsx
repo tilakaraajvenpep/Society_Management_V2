@@ -2152,12 +2152,25 @@ const TenantAdminDashboard = () => {
   const [halfYearlyAmountInput, setHalfYearlyAmountInput] = useState('');
   const [annualAmountInput, setAnnualAmountInput] = useState('');
 
+  // Reminder settings states
+  const [enableMonthlyReminder, setEnableMonthlyReminder] = useState(false);
+  const [monthlyReminderCountInput, setMonthlyReminderCountInput] = useState('1');
+  const [monthlyReminderIntervalInput, setMonthlyReminderIntervalInput] = useState('7');
+  const [enableOverdueReminder, setEnableOverdueReminder] = useState(false);
+  const [overdueReminderIntervalInput, setOverdueReminderIntervalInput] = useState('7');
+
   useEffect(() => {
     if (summary) {
       setMaintenanceAmountInput(summary.maintenanceAmount !== undefined && summary.maintenanceAmount !== null ? String(summary.maintenanceAmount) : '0');
       setQuarterlyAmountInput(summary.quarterlyAmount !== undefined && summary.quarterlyAmount !== null ? String(summary.quarterlyAmount) : '');
       setHalfYearlyAmountInput(summary.halfYearlyAmount !== undefined && summary.halfYearlyAmount !== null ? String(summary.halfYearlyAmount) : '');
       setAnnualAmountInput(summary.annualAmount !== undefined && summary.annualAmount !== null ? String(summary.annualAmount) : '');
+      
+      setEnableMonthlyReminder(!!summary.enableMonthlyReminder);
+      setMonthlyReminderCountInput(summary.monthlyReminderCount !== undefined && summary.monthlyReminderCount !== null ? String(summary.monthlyReminderCount) : '1');
+      setMonthlyReminderIntervalInput(summary.monthlyReminderInterval !== undefined && summary.monthlyReminderInterval !== null ? String(summary.monthlyReminderInterval) : '7');
+      setEnableOverdueReminder(!!summary.enableOverdueReminder);
+      setOverdueReminderIntervalInput(summary.overdueReminderInterval !== undefined && summary.overdueReminderInterval !== null ? String(summary.overdueReminderInterval) : '7');
     }
   }, [summary]);
 
@@ -3946,48 +3959,183 @@ const TenantAdminDashboard = () => {
       case 'settings':
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div className="card" style={{ maxWidth: '800px' }}>
-              <h3 style={{ marginBottom: '1.5rem' }}>Society Settings (Pricing Master)</h3>
-              <div className="responsive-form-grid">
-                <div>
-                  <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Base Monthly Amount (₹)</label>
-                  <input type="text" value={maintenanceAmountInput} onChange={e => setMaintenanceAmountInput(e.target.value)} placeholder="0" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+              
+              {/* Pricing Master Card */}
+              <div className="card">
+                <h3 style={{ marginBottom: '1.5rem' }}>Society Settings (Pricing Master)</h3>
+                <div className="responsive-form-grid">
+                  <div>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Base Monthly Amount (₹)</label>
+                    <input type="text" value={maintenanceAmountInput} onChange={e => setMaintenanceAmountInput(e.target.value)} placeholder="0" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Quarterly Amount (₹)</label>
+                    <input type="text" value={quarterlyAmountInput} onChange={e => setQuarterlyAmountInput(e.target.value)} placeholder="Optional discounted price" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Half-Yearly Amount (₹)</label>
+                    <input type="text" value={halfYearlyAmountInput} onChange={e => setHalfYearlyAmountInput(e.target.value)} placeholder="Optional discounted price" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Amount (₹)</label>
+                    <input type="text" value={annualAmountInput} onChange={e => setAnnualAmountInput(e.target.value)} placeholder="Optional discounted price" />
+                  </div>
                 </div>
-                <div>
-                  <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Quarterly Amount (₹)</label>
-                  <input type="text" value={quarterlyAmountInput} onChange={e => setQuarterlyAmountInput(e.target.value)} placeholder="Optional discounted price" />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Half-Yearly Amount (₹)</label>
-                  <input type="text" value={halfYearlyAmountInput} onChange={e => setHalfYearlyAmountInput(e.target.value)} placeholder="Optional discounted price" />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Amount (₹)</label>
-                  <input type="text" value={annualAmountInput} onChange={e => setAnnualAmountInput(e.target.value)} placeholder="Optional discounted price" />
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <button className="btn btn-primary" onClick={async () => {
-                  try {
-                    const cleanAmt = maintenanceAmountInput.trim();
-                    const cleanQ = quarterlyAmountInput.trim();
-                    const cleanH = halfYearlyAmountInput.trim();
-                    const cleanA = annualAmountInput.trim();
+                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', marginTop: '1.5rem' }}>
+                  <button className="btn btn-primary" onClick={async () => {
+                    try {
+                      const cleanAmt = maintenanceAmountInput.trim();
+                      const cleanQ = quarterlyAmountInput.trim();
+                      const cleanH = halfYearlyAmountInput.trim();
+                      const cleanA = annualAmountInput.trim();
 
-                    await axios.patch('/tenants/settings', { 
-                      maintenanceAmount: cleanAmt === '' ? 0 : (parseFloat(cleanAmt) || 0),
-                      quarterlyAmount: cleanQ === '' ? null : (parseFloat(cleanQ) || null),
-                      halfYearlyAmount: cleanH === '' ? null : (parseFloat(cleanH) || null),
-                      annualAmount: cleanA === '' ? null : (parseFloat(cleanA) || null)
-                    }, { headers: { Authorization: `Bearer ${token}` } });
-                    
-                    await fetchData();
-                    showToast('Settings updated successfully', 'success');
-                  } catch (err: any) {
-                    showToast(err.response?.data?.message || 'Error updating settings', 'error');
-                  }
-                }}>Save Pricing Settings</button>
+                      await axios.patch('/tenants/settings', { 
+                        maintenanceAmount: cleanAmt === '' ? 0 : (parseFloat(cleanAmt) || 0),
+                        quarterlyAmount: cleanQ === '' ? null : (parseFloat(cleanQ) || null),
+                        halfYearlyAmount: cleanH === '' ? null : (parseFloat(cleanH) || null),
+                        annualAmount: cleanA === '' ? null : (parseFloat(cleanA) || null)
+                      }, { headers: { Authorization: `Bearer ${token}` } });
+                      
+                      await fetchData();
+                      showToast('Pricing settings updated successfully', 'success');
+                    } catch (err: any) {
+                      showToast(err.response?.data?.message || 'Error updating settings', 'error');
+                    }
+                  }}>Save Pricing Settings</button>
+                </div>
               </div>
+
+              {/* Notification & Reminder Settings Card */}
+              <div className="card">
+                <h3 style={{ marginBottom: '1.5rem' }}>Auto-Reminder Settings</h3>
+                
+                {/* Monthly reminder settings */}
+                <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontWeight: 600, fontSize: '0.95rem' }}>Monthly Maintenance Reminder</label>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                        Send a payment reminder notification to active members every month.
+                      </span>
+                    </div>
+                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={enableMonthlyReminder} 
+                        onChange={e => setEnableMonthlyReminder(e.target.checked)} 
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span className="slider round" style={{
+                        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: enableMonthlyReminder ? 'var(--primary-color)' : '#ccc',
+                        transition: '0.4s', borderRadius: '20px'
+                      }}>
+                        <span style={{
+                          position: 'absolute', content: '""', height: '14px', width: '14px', left: enableMonthlyReminder ? '22px' : '4px', bottom: '3px',
+                          backgroundColor: 'white', transition: '0.4s', borderRadius: '50%'
+                        }} />
+                      </span>
+                    </label>
+                  </div>
+                  
+                  {enableMonthlyReminder && (
+                    <div className="responsive-form-grid" style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.825rem', fontWeight: 500, marginBottom: '0.35rem', display: 'block' }}>Frequency (Times)</label>
+                        <input 
+                          type="number" 
+                          min="1"
+                          max="10"
+                          value={monthlyReminderCountInput} 
+                          onChange={e => setMonthlyReminderCountInput(e.target.value)} 
+                        />
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Times to remind per month</span>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.825rem', fontWeight: 500, marginBottom: '0.35rem', display: 'block' }}>Interval (Days)</label>
+                        <input 
+                          type="number" 
+                          min="1"
+                          value={monthlyReminderIntervalInput} 
+                          onChange={e => setMonthlyReminderIntervalInput(e.target.value)} 
+                        />
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Days between reminders</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Overdue reminder settings */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontWeight: 600, fontSize: '0.95rem' }}>Overdue Dues Reminder</label>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                        Remind members with pending dues periodically. Stops automatically once paid.
+                      </span>
+                    </div>
+                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={enableOverdueReminder} 
+                        onChange={e => setEnableOverdueReminder(e.target.checked)} 
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span className="slider round" style={{
+                        position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: enableOverdueReminder ? 'var(--primary-color)' : '#ccc',
+                        transition: '0.4s', borderRadius: '20px'
+                      }}>
+                        <span style={{
+                          position: 'absolute', content: '""', height: '14px', width: '14px', left: enableOverdueReminder ? '22px' : '4px', bottom: '3px',
+                          backgroundColor: 'white', transition: '0.4s', borderRadius: '50%'
+                        }} />
+                      </span>
+                    </label>
+                  </div>
+                  
+                  {enableOverdueReminder && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <label style={{ fontSize: '0.825rem', fontWeight: 500, marginBottom: '0.35rem', display: 'block' }}>Interval (Days)</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        style={{ maxWidth: '180px' }}
+                        value={overdueReminderIntervalInput} 
+                        onChange={e => setOverdueReminderIntervalInput(e.target.value)} 
+                      />
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
+                        Days between overdue reminders. Multiple months' outstanding will also send emails.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', marginTop: '1.5rem' }}>
+                  <button className="btn btn-primary" onClick={async () => {
+                    try {
+                      const countVal = parseInt(monthlyReminderCountInput, 10) || 1;
+                      const intervalVal = parseInt(monthlyReminderIntervalInput, 10) || 7;
+                      const overdueVal = parseInt(overdueReminderIntervalInput, 10) || 7;
+
+                      await axios.patch('/tenants/settings', { 
+                        enableMonthlyReminder,
+                        monthlyReminderCount: countVal,
+                        monthlyReminderInterval: intervalVal,
+                        enableOverdueReminder,
+                        overdueReminderInterval: overdueVal
+                      }, { headers: { Authorization: `Bearer ${token}` } });
+                      
+                      await fetchData();
+                      showToast('Reminder settings updated successfully', 'success');
+                    } catch (err: any) {
+                      showToast(err.response?.data?.message || 'Error updating reminder settings', 'error');
+                    }
+                  }}>Save Reminder Settings</button>
+                </div>
+              </div>
+
             </div>
             <FinancialYearCostSetup token={token} />
             <MastersManagement token={token} onRefresh={fetchData} />

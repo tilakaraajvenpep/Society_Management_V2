@@ -222,7 +222,7 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
 
 // Update tenant settings (used by Tenant Admin inside their session)
 router.patch("/settings", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { maintenanceAmount, billingCycle, quarterlyAmount, halfYearlyAmount, annualAmount, enableForums } = req.body;
+  const { maintenanceAmount, billingCycle, quarterlyAmount, halfYearlyAmount, annualAmount, enableForums, enableMonthlyReminder, monthlyReminderCount, monthlyReminderInterval, enableOverdueReminder, overdueReminderInterval } = req.body;
   try {
     const tenant = await prisma.tenant.update({
       where: { id: req.user.tenantId as string },
@@ -233,6 +233,11 @@ router.patch("/settings", authenticate, authorize(["TENANT_ADMIN"]), async (req:
         halfYearlyAmount: halfYearlyAmount !== undefined ? (halfYearlyAmount === null || halfYearlyAmount === "" ? null : parseFloat(halfYearlyAmount.toString())) : undefined,
         annualAmount: annualAmount !== undefined ? (annualAmount === null || annualAmount === "" ? null : parseFloat(annualAmount.toString())) : undefined,
         enableForums: enableForums !== undefined ? !!enableForums : undefined,
+        enableMonthlyReminder: enableMonthlyReminder !== undefined ? !!enableMonthlyReminder : undefined,
+        monthlyReminderCount: monthlyReminderCount !== undefined ? parseInt(monthlyReminderCount.toString(), 10) : undefined,
+        monthlyReminderInterval: monthlyReminderInterval !== undefined ? parseInt(monthlyReminderInterval.toString(), 10) : undefined,
+        enableOverdueReminder: enableOverdueReminder !== undefined ? !!enableOverdueReminder : undefined,
+        overdueReminderInterval: overdueReminderInterval !== undefined ? parseInt(overdueReminderInterval.toString(), 10) : undefined,
       },
     });
     res.json(tenant);

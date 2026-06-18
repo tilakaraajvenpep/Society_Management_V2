@@ -26,7 +26,12 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           quarterlyAmount: true, 
           halfYearlyAmount: true, 
           annualAmount: true,
-          enableForums: true
+          enableForums: true,
+          enableMonthlyReminder: true,
+          monthlyReminderCount: true,
+          monthlyReminderInterval: true,
+          enableOverdueReminder: true,
+          overdueReminderInterval: true
         } as any 
       }),
     ]);
@@ -131,6 +136,11 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       halfYearlyAmount: (tenantInfo as any)?.halfYearlyAmount || null,
       annualAmount: (tenantInfo as any)?.annualAmount || null,
       enableForums: (tenantInfo as any)?.enableForums || false,
+      enableMonthlyReminder: (tenantInfo as any)?.enableMonthlyReminder || false,
+      monthlyReminderCount: (tenantInfo as any)?.monthlyReminderCount || 1,
+      monthlyReminderInterval: (tenantInfo as any)?.monthlyReminderInterval || 7,
+      enableOverdueReminder: (tenantInfo as any)?.enableOverdueReminder || false,
+      overdueReminderInterval: (tenantInfo as any)?.overdueReminderInterval || 7,
       // Charts
       monthlyTrends: monthlyData,
       expenseByCategory: expenseByCategory.map((e: any) => ({ category: e.category, amount: e._sum.amount || 0 })),

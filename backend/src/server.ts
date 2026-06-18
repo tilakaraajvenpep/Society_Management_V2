@@ -1,6 +1,7 @@
 import app from "./app";
 import { ensureTenantSchemas } from "./utils/prisma";
 import pg from "pg";
+import { runReminderJob } from "./utils/reminderScheduler";
 
 const PORT = process.env.PORT || 5001;
 
@@ -172,6 +173,15 @@ async function start() {
   // Step 3: Start the server
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    
+    // Run reminder scheduler job at startup and then hourly (every 3600000 ms)
+    setTimeout(() => {
+      runReminderJob().catch(err => console.error("Error running reminder job at startup:", err));
+    }, 5000); // 5 seconds grace period after startup
+    
+    setInterval(() => {
+      runReminderJob().catch(err => console.error("Error running periodic reminder job:", err));
+    }, 60 * 60 * 1000);
   });
 }
 
