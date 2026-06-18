@@ -12,6 +12,69 @@ const getStartYear = (fy: string) => {
   return match ? parseInt(match[1], 10) : 0;
 };
 
+const recalculateDuesForAllMembers = async (tx: any, tenantId: string) => {
+  const members = await tx.member.findMany({
+    where: { tenantId, status: "ACTIVE" }
+  });
+
+  const costs = await tx.maintenanceCost.findMany({
+    where: { tenantId }
+  });
+
+  const payments = await tx.payment.findMany({
+    where: { tenantId, status: { not: "CANCELLED" } }
+  });
+
+  for (const m of members) {
+    const regYear = m.registrationYear || "";
+    const regStartYear = getStartYear(regYear);
+    if (!regStartYear) continue;
+
+    // Calculate total applicable costs
+    const uniqueYears = Array.from(new Set(costs.map((c: any) => c.financialYear)))
+      .filter((fy: any) => getStartYear(fy) >= regStartYear);
+
+    let totalApplicable = 0;
+    for (const fy of uniqueYears) {
+      let costResType = "COMMON";
+      let costBhk = "COMMON";
+      if (!m.useCommonMaintenance) {
+        costResType = m.residenceType || "COMMON";
+        costBhk = m.bhk || "COMMON";
+      }
+
+      let cost = costs.find((c: any) =>
+        c.financialYear === fy &&
+        c.residenceType === costResType &&
+        c.bhk === costBhk
+      );
+
+      if (!cost && (costResType !== "COMMON" || costBhk !== "COMMON")) {
+        cost = costs.find((c: any) =>
+          c.financialYear === fy &&
+          c.residenceType === "COMMON" &&
+          c.bhk === "COMMON"
+        );
+      }
+
+      if (cost) {
+        totalApplicable += cost.amount;
+      }
+    }
+
+    const memberPayments = payments.filter((p: any) => p.memberId === m.id);
+    const totalPaid = memberPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+
+    const correctDues = totalApplicable - totalPaid;
+    if (m.outstandingDues !== correctDues) {
+      await tx.member.update({
+        where: { id: m.id },
+        data: { outstandingDues: correctDues }
+      });
+    }
+  }
+};
+
 
 // Helper: create MaintenanceCost table in public schema if it doesn't exist
 async function ensureMaintenanceCostTable() {
@@ -159,48 +222,22 @@ router.post("/bulk", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           }
         });
 
-        if (diff !== 0) {
-          const targetStartYear = getStartYear(financialYear);
-          const members = await tx.member.findMany({
-            where: {
-              tenantId: req.user.tenantId,
-              status: "ACTIVE"
-            }
-          });
-
-          const membersToUpdate = members.filter(m => {
-            const memberStartYear = getStartYear(m.registrationYear || "");
-            if (memberStartYear > targetStartYear) return false;
-
-            if (residenceType === "COMMON" && targetBhk === "COMMON") {
-              return m.useCommonMaintenance || m.residenceType === "COMMON";
-            } else {
-              return !m.useCommonMaintenance && m.residenceType === residenceType && m.bhk === targetBhk;
-            }
-          });
-
-          if (membersToUpdate.length > 0) {
-            await tx.member.updateMany({
-              where: {
-                id: { in: membersToUpdate.map(m => m.id) }
-              },
-              data: { outstandingDues: { increment: diff } }
-            });
-          }
-        }
-
         await tx.auditLog.create({
           data: {
             tenantId: req.user.tenantId,
             actionType: "MAINTENANCE_COST_SETUP",
             performedBy: req.user.name,
             referenceId: cost.id,
-            details: `Configured annual maintenance cost for FY ${financialYear} (${residenceType} - BHK ${targetBhk}) as Rs.${parsedAmount}. Adjusted dues for corresponding members by diff of Rs.${diff}`
+            details: `Configured annual maintenance cost for FY ${financialYear} (${residenceType} - BHK ${targetBhk}) as Rs.${parsedAmount}.`
           }
         });
 
         savedCosts.push(cost);
       }
+
+      // Recalculate dues for all active members to ensure accuracy
+      await recalculateDuesForAllMembers(tx, req.user.tenantId);
+
       return savedCosts;
     });
 
@@ -276,45 +313,18 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         }
       });
 
-      if (diff !== 0) {
-        const targetStartYear = getStartYear(financialYear);
-        const members = await tx.member.findMany({
-          where: {
-            tenantId: req.user.tenantId,
-            status: "ACTIVE"
-          }
-        });
-
-        const membersToUpdate = members.filter(m => {
-          const memberStartYear = getStartYear(m.registrationYear || "");
-          if (memberStartYear > targetStartYear) return false;
-
-          if (targetResType === "COMMON" && targetBhk === "COMMON") {
-            return m.useCommonMaintenance || m.residenceType === "COMMON";
-          } else {
-            return !m.useCommonMaintenance && m.residenceType === targetResType && m.bhk === targetBhk;
-          }
-        });
-
-        if (membersToUpdate.length > 0) {
-          await tx.member.updateMany({
-            where: {
-              id: { in: membersToUpdate.map(m => m.id) }
-            },
-            data: { outstandingDues: { increment: diff } }
-          });
-        }
-      }
-
       await tx.auditLog.create({
         data: {
           tenantId: req.user.tenantId,
           actionType: "MAINTENANCE_COST_SETUP",
           performedBy: req.user.name,
           referenceId: cost.id,
-          details: `Configured annual maintenance cost for FY ${financialYear} (${targetResType} - BHK ${targetBhk}) as Rs.${parsedAmount}. Adjusted dues for corresponding members by diff of Rs.${diff}`
+          details: `Configured annual maintenance cost for FY ${financialYear} (${targetResType} - BHK ${targetBhk}) as Rs.${parsedAmount}.`
         }
       });
+
+      // Recalculate dues for all active members to ensure accuracy
+      await recalculateDuesForAllMembers(tx, req.user.tenantId);
 
       return cost;
     });
@@ -366,41 +376,18 @@ router.delete("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       await tx.maintenanceCost.delete({ where: { id: req.params.id } });
 
-      const targetStartYear = getStartYear(cost.financialYear);
-      const members = await tx.member.findMany({
-        where: {
-          tenantId: req.user.tenantId,
-          status: "ACTIVE"
-        }
-      });
-
-      const membersToUpdate = members.filter(m => {
-        const memberStartYear = getStartYear(m.registrationYear || "");
-        if (memberStartYear > targetStartYear) return false;
-
-        if (cost.residenceType === "COMMON" && cost.bhk === "COMMON") {
-          return m.useCommonMaintenance || m.residenceType === "COMMON";
-        } else {
-          return !m.useCommonMaintenance && m.residenceType === cost.residenceType && m.bhk === cost.bhk;
-        }
-      });
-
-      if (membersToUpdate.length > 0) {
-        await tx.member.updateMany({
-          where: { id: { in: membersToUpdate.map(m => m.id) } },
-          data: { outstandingDues: { decrement: cost.amount } }
-        });
-      }
-
       await tx.auditLog.create({
         data: {
           tenantId: req.user.tenantId,
           actionType: "MAINTENANCE_COST_DELETED",
           performedBy: req.user.name,
           referenceId: cost.id,
-          details: `Deleted annual maintenance cost configuration for FY ${cost.financialYear} (${cost.residenceType} - BHK ${cost.bhk}). Adjusted dues for corresponding members by -Rs.${cost.amount}`
+          details: `Deleted annual maintenance cost configuration for FY ${cost.financialYear} (${cost.residenceType} - BHK ${cost.bhk}).`
         }
       });
+
+      // Recalculate dues for all active members to ensure accuracy
+      await recalculateDuesForAllMembers(tx, req.user.tenantId);
 
       return cost;
     });
