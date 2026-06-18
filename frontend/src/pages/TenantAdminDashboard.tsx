@@ -2035,6 +2035,8 @@ const TenantAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [duesCalcMode, setDuesCalcMode] = useState<string>('DB');
+  const [duesSortField, setDuesSortField] = useState<'flatNo' | 'name' | 'outstandingDues'>('flatNo');
+  const [duesSortDir, setDuesSortDir] = useState<'asc' | 'desc'>('asc');
   const [summary, setSummary] = useState<any>({ totalIncome: 0, totalExpenses: 0, totalOutstanding: 0, netBalance: 0, totalCashInHand: 0, thisMonthIncome: 0, thisMonthExpenses: 0, thisMonthNet: 0, lastMonthIncome: 0, lastMonthExpenses: 0, totalMembers: 0, membersWithDues: 0, maintenanceAmount: 0, monthlyTrends: [], expenseByCategory: [], recentPayments: [] });
   const [financials, setFinancials] = useState<any>({});
   const [activeReportTab, setActiveReportTab] = useState<'pnl' | 'balanceSheet'>('pnl');
@@ -3848,16 +3850,81 @@ const TenantAdminDashboard = () => {
       case 'staff':
         return <StaffManagement token={token} currentUserId={user?.id} designations={designations} staff={staff} onRefresh={fetchData} />;
       case 'upcoming': {
-        const totalCalculatedDues = upcomingMembers.reduce((sum: number, m: any) => {
+        // ── Sort helper ──────────────────────────────────────────────────────
+        const handleDuesSort = (field: 'flatNo' | 'name' | 'outstandingDues') => {
+          if (duesSortField === field) {
+            setDuesSortDir(d => d === 'asc' ? 'desc' : 'asc');
+          } else {
+            setDuesSortField(field);
+            setDuesSortDir('asc');
+          }
+        };
+        const SortIcon = ({ field }: { field: 'flatNo' | 'name' | 'outstandingDues' }) => {
+          const active = duesSortField === field;
+          return (
+            <span style={{ marginLeft: '0.35rem', fontSize: '0.7rem', opacity: active ? 1 : 0.35, display: 'inline-flex', flexDirection: 'column', lineHeight: 1, verticalAlign: 'middle' }}>
+              <span style={{ color: active && duesSortDir === 'asc' ? 'var(--primary)' : 'inherit' }}>▲</span>
+              <span style={{ color: active && duesSortDir === 'desc' ? 'var(--primary)' : 'inherit' }}>▼</span>
+            </span>
+          );
+        };
+
+        // ── Compute FY years with outstanding dues for a member ──────────────
+        const getStartYearFromFy = (fy: string) => {
+          const m = fy.trim().match(/^(\d{4})/);
+          return m ? parseInt(m[1], 10) : 0;
+        };
+        const getOutstandingFYs = (m: any): string[] => {
+          if (duesCalcMode !== 'DB' || !m.outstandingDues || m.outstandingDues <= 0) return [];
+          const regStart = getStartYearFromFy(m.registrationYear || '');
+          if (!regStart) return [];
+          const useCommon = m.useCommonMaintenance !== undefined ? m.useCommonMaintenance : true;
+          const unpaidFYs: string[] = [];
+          const uniqueYears = Array.from(new Set(maintenanceCosts.map((c: any) => c.financialYear as string)))
+            .filter((fy: string) => getStartYearFromFy(fy) >= regStart);
+          for (const fy of uniqueYears) {
+            const costResType = useCommon ? 'COMMON' : (m.residenceType || 'COMMON');
+            const costBhk     = useCommon ? 'COMMON' : (m.bhk || 'COMMON');
+            const cost = maintenanceCosts.find((c: any) =>
+              c.financialYear === fy && c.residenceType === costResType && c.bhk === costBhk
+            );
+            if (cost && cost.amount > 0) unpaidFYs.push(fy);
+          }
+          return unpaidFYs;
+        };
+
+        // ── Sort members ─────────────────────────────────────────────────────
+        const sortedUpcoming = [...upcomingMembers].sort((a: any, b: any) => {
+          let aVal: any, bVal: any;
+          if (duesSortField === 'flatNo') {
+            aVal = isNaN(Number(a.flatNo)) ? a.flatNo : Number(a.flatNo);
+            bVal = isNaN(Number(b.flatNo)) ? b.flatNo : Number(b.flatNo);
+          } else if (duesSortField === 'name') {
+            aVal = (a.name || '').toLowerCase();
+            bVal = (b.name || '').toLowerCase();
+          } else {
+            const dA = getCalculatedDuesDetails(a, duesCalcMode);
+            const dB = getCalculatedDuesDetails(b, duesCalcMode);
+            aVal = dA.amount;
+            bVal = dB.amount;
+          }
+          if (aVal < bVal) return duesSortDir === 'asc' ? -1 : 1;
+          if (aVal > bVal) return duesSortDir === 'asc' ? 1 : -1;
+          return 0;
+        });
+
+        const totalCalculatedDues = sortedUpcoming.reduce((sum: number, m: any) => {
           const details = getCalculatedDuesDetails(m, duesCalcMode);
           return sum + details.amount;
         }, 0);
+
+        const thSortStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' };
 
         return (
           <div className="card">
             <div className="section-header-row">
               <div>
-                <h3 style={{ fontSize: '1.125rem', margin: 0 }}>Upcoming & Overdue Payments</h3>
+                <h3 style={{ fontSize: '1.125rem', margin: 0 }}>Upcoming &amp; Overdue Payments</h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
                   Monitor and manage member maintenance dues
                 </p>
@@ -3924,21 +3991,28 @@ const TenantAdminDashboard = () => {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>FLAT NO</th>
-                    <th>MEMBER</th>
+                    <th style={thSortStyle} onClick={() => handleDuesSort('flatNo')}>
+                      FLAT NO <SortIcon field="flatNo" />
+                    </th>
+                    <th style={thSortStyle} onClick={() => handleDuesSort('name')}>
+                      MEMBER <SortIcon field="name" />
+                    </th>
                     <th>PAID UNTIL</th>
-                    <th>OUTSTANDING DUES</th>
+                    <th style={thSortStyle} onClick={() => handleDuesSort('outstandingDues')}>
+                      OUTSTANDING DUES <SortIcon field="outstandingDues" />
+                    </th>
                     <th>STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {upcomingMembers.map((m: any) => {
+                  {sortedUpcoming.map((m: any) => {
                     const details = getCalculatedDuesDetails(m, duesCalcMode);
                     const dueAmount = details.amount;
                     const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
                     const isOverdue = m.paidUntil ? new Date(m.paidUntil) < currentMonthStart : true;
                     const isPaid = dueAmount === 0;
                     const regYear = m.registrationYear || '';
+                    const outstandingFYs = getOutstandingFYs(m);
                     return (
                       <tr key={m.id}>
                         <td><strong>{m.flatNo}</strong></td>
@@ -3953,6 +4027,26 @@ const TenantAdminDashboard = () => {
                         </td>
                         <td style={{ fontWeight: 600, color: (dueAmount || 0) > 0 ? 'var(--error)' : 'var(--success)' }}>
                           ₹{(dueAmount || 0).toLocaleString()}
+                          {/* FY year tags — shown only in DB mode when dues > 0 */}
+                          {duesCalcMode === 'DB' && outstandingFYs.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.3rem' }}>
+                              {outstandingFYs.map(fy => (
+                                <span key={fy} style={{
+                                  display: 'inline-block',
+                                  fontSize: '0.65rem',
+                                  fontWeight: 600,
+                                  padding: '0.1rem 0.4rem',
+                                  borderRadius: '0.25rem',
+                                  backgroundColor: 'rgba(239,68,68,0.1)',
+                                  color: 'var(--error)',
+                                  border: '1px solid rgba(239,68,68,0.25)',
+                                  letterSpacing: '0.02em'
+                                }}>
+                                  FY {fy}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           {details.hasFee && duesCalcMode !== 'DB' && dueAmount > 0 && (
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginTop: '0.2rem' }}>
                               {details.unpaidPeriods} {details.periodName} @ {details.rateLabel}
@@ -3976,7 +4070,7 @@ const TenantAdminDashboard = () => {
                       </tr>
                     );
                   })}
-                  {upcomingMembers.length === 0 && (
+                  {sortedUpcoming.length === 0 && (
                     <tr>
                       <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
                         No upcoming or overdue payments! All members are paid up.
