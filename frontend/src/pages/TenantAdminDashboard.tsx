@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 import {
@@ -678,93 +678,54 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
   const [costAmount, setCostAmount] = useState('');
   const [configs, setConfigs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [residenceType, setResidenceType] = useState('COMMON'); // COMMON, FLAT, VILLA
-  const [bhk, setBhk] = useState('COMMON'); // COMMON, 1, 2, 3, 4, other
+  const [residenceType, setResidenceType] = useState('COMMON');
+  const [bhk, setBhk] = useState('COMMON');
   const [customBhk, setCustomBhk] = useState('');
 
   const fetchConfigs = async () => {
     try {
-      const res = await axios.get('/maintenance-costs', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get('/maintenance-costs', { headers: { Authorization: `Bearer ${token}` } });
       setConfigs(res.data);
-    } catch (err) {
-      console.error("Error fetching configurations", err);
-    }
+    } catch (err) { console.error('Error fetching configurations', err); }
   };
 
-  useEffect(() => {
-    fetchConfigs();
-  }, []);
+  useEffect(() => { fetchConfigs(); }, []);
 
   const generateFYRange = (start: number) => {
     const list = [];
     for (let i = 0; i < 5; i++) {
       const yr = start + i;
-      const nextYrShort = (yr + 1) % 100;
-      const nextYrStr = nextYrShort < 10 ? `0${nextYrShort}` : `${nextYrShort}`;
-      list.push(`${yr}-${nextYrStr}`);
+      const s = (yr + 1) % 100;
+      list.push(yr + '-' + (s < 10 ? '0' + s : '' + s));
     }
     return list;
   };
 
   const fyRangeList = generateFYRange(startYear);
-  const rangeLabel = `${fyRangeList[0]} — ${fyRangeList[4]}`;
+  const rangeLabel = fyRangeList[0] + ' - ' + fyRangeList[4];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFY) {
-      alert("Please select a financial year");
-      return;
-    }
-    if (!costAmount || parseFloat(costAmount) <= 0) {
-      alert("Please enter a valid amount");
-      return;
-    }
-    const finalBhk = residenceType === 'COMMON' 
-      ? 'COMMON' 
-      : (bhk === 'other' ? customBhk.trim() : bhk);
-
-    if (residenceType !== 'COMMON' && !finalBhk) {
-      alert("Please specify BHK value");
-      return;
-    }
-
+    if (!selectedFY) { alert('Please select a financial year'); return; }
+    if (!costAmount || parseFloat(costAmount) <= 0) { alert('Please enter a valid amount'); return; }
+    const finalBhk = residenceType === 'COMMON' ? 'COMMON' : (bhk === 'other' ? customBhk.trim() : bhk);
+    if (residenceType !== 'COMMON' && !finalBhk) { alert('Please specify BHK value'); return; }
     setLoading(true);
     try {
-      await axios.post('/maintenance-costs', {
-        financialYear: selectedFY,
-        amount: parseFloat(costAmount),
-        residenceType,
-        bhk: finalBhk
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setCostAmount('');
-      setSelectedFY('');
-      setResidenceType('COMMON');
-      setBhk('COMMON');
-      setCustomBhk('');
+      await axios.post('/maintenance-costs', { financialYear: selectedFY, amount: parseFloat(costAmount), residenceType, bhk: finalBhk }, { headers: { Authorization: `Bearer ${token}` } });
+      setCostAmount(''); setSelectedFY(''); setResidenceType('COMMON'); setBhk('COMMON'); setCustomBhk('');
       fetchConfigs();
-      alert("Maintenance cost configured successfully");
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Error saving configuration");
-    } finally {
-      setLoading(false);
-    }
+      alert('Maintenance cost configured successfully');
+    } catch (err: any) { alert(err.response?.data?.message || 'Error saving configuration'); }
+    finally { setLoading(false); }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this configuration?")) return;
+    if (!confirm('Are you sure you want to delete this configuration?')) return;
     try {
-      await axios.delete(`/maintenance-costs/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      fetchConfigs();
-      alert("Configuration deleted successfully");
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Error deleting configuration");
-    }
+      await axios.delete(`/maintenance-costs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      fetchConfigs(); alert('Configuration deleted successfully');
+    } catch (err: any) { alert(err.response?.data?.message || 'Error deleting configuration'); }
   };
 
   const handleEdit = (config: any) => {
@@ -772,176 +733,167 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
     const fyStart = parseInt(config.financialYear.split('-')[0]);
     if (fyStart < startYear || fyStart >= startYear + 5) {
       const offset = (fyStart - 2026) % 5;
-      const base = fyStart - (offset >= 0 ? offset : offset + 5);
-      setStartYear(base);
+      setStartYear(fyStart - (offset >= 0 ? offset : offset + 5));
     }
     setCostAmount(config.amount.toString());
     setResidenceType(config.residenceType);
-    if (['COMMON', '1', '2', '3', '4'].includes(config.bhk)) {
-      setBhk(config.bhk);
-      setCustomBhk('');
-    } else {
-      setBhk('other');
-      setCustomBhk(config.bhk);
-    }
+    if (['COMMON', '1', '2', '3', '4'].includes(config.bhk)) { setBhk(config.bhk); setCustomBhk(''); }
+    else { setBhk('other'); setCustomBhk(config.bhk); }
   };
 
+  const bhkOptions = ['1', '2', '3', '4', 'other'];
+  const selFlatCfg = configs.filter((c: any) => c.financialYear === selectedFY && c.residenceType === 'FLAT');
+  const selVillaCfg = configs.filter((c: any) => c.financialYear === selectedFY && c.residenceType === 'VILLA');
+
   return (
-    <div className="card" style={{ maxWidth: '800px' }}>
-      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.4rem' }}>Financial Year Maintenance Cost Setup</h3>
+    <div className="card" style={{ maxWidth: '860px' }}>
+      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.4rem' }}>Financial Year â€” Annual Fee Setup</h3>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        Define/edit the annual maintenance cost for members for specific financial years.
+        Set different annual fees per BHK type for Flat and Villa. Each combination (Residence Type + BHK) can have its own fee.
       </p>
 
       <form onSubmit={handleSubmit} style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.25rem' }}>
-          <div className="responsive-form-grid" style={{ gap: '1.25rem' }}>
-            <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Select Financial Year</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setStartYear(prev => prev - 5)}>
-                  ◀ Prev
-                </button>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 500, flex: 1, textAlign: 'center', backgroundColor: 'var(--bg-secondary)', padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
-                  {rangeLabel}
-                </span>
-                <button type="button" className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setStartYear(prev => prev + 5)}>
-                  Next ▶
-                </button>
-              </div>
-              <select value={selectedFY} onChange={e => setSelectedFY(e.target.value)} style={{ width: '100%' }}>
-                <option value="">-- Choose Financial Year --</option>
-                {fyRangeList.map(fy => (
-                  <option key={fy} value={fy}>{fy}</option>
-                ))}
-              </select>
+        <div className="responsive-form-grid" style={{ gap: '1.25rem', marginBottom: '1.25rem' }}>
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Financial Year</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
+              <button type="button" className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }} onClick={() => setStartYear(p => p - 5)}>Prev</button>
+              <span style={{ fontSize: '0.75rem', fontWeight: 500, flex: 1, textAlign: 'center', backgroundColor: 'var(--bg-secondary)', padding: '0.35rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{rangeLabel}</span>
+              <button type="button" className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }} onClick={() => setStartYear(p => p + 5)}>Next</button>
             </div>
-
-            <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Residence Type</label>
-              <select 
-                value={residenceType} 
-                onChange={e => {
-                  const val = e.target.value;
-                  setResidenceType(val);
-                  if (val === 'COMMON') {
-                    setBhk('COMMON');
-                  } else {
-                    setBhk('1');
-                  }
-                }} 
-                style={{ width: '100%' }}
-              >
-                <option value="COMMON">Common Value</option>
-                <option value="FLAT">Flat</option>
-                <option value="VILLA">Villa</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Maintenance Cost (₹)</label>
-              <input type="number" required placeholder="Enter cost (e.g. 18000)" value={costAmount} onChange={e => setCostAmount(e.target.value)} style={{ width: '100%' }} />
-            </div>
+            <select value={selectedFY} onChange={e => setSelectedFY(e.target.value)} style={{ width: '100%' }}>
+              <option value="">-- Choose Financial Year --</option>
+              {fyRangeList.map(fy => <option key={fy} value={fy}>{fy}</option>)}
+            </select>
           </div>
 
-          {residenceType !== 'COMMON' && (
-            <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem', display: 'block', color: 'var(--text-primary)' }}>
-                Select BHK for {residenceType === 'FLAT' ? 'Flat' : 'Villa'} *
-              </label>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                {['1', '2', '3', '4', 'other'].map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setBhk(opt)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      fontSize: '0.8125rem',
-                      fontWeight: 600,
-                      borderRadius: '0.375rem',
-                      border: bhk === opt ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                      backgroundColor: bhk === opt ? 'rgba(99, 102, 241, 0.1)' : 'var(--bg-primary)',
-                      color: bhk === opt ? 'var(--primary)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {opt === 'other' ? 'Other / Manual' : `${opt} BHK`}
-                  </button>
-                ))}
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Residence Type</label>
+            <select value={residenceType} onChange={e => { const v = e.target.value; setResidenceType(v); setBhk(v === 'COMMON' ? 'COMMON' : '1'); }} style={{ width: '100%' }}>
+              <option value="COMMON">Common (all members)</option>
+              <option value="FLAT">Flat</option>
+              <option value="VILLA">Villa</option>
+            </select>
+          </div>
 
-                {bhk === 'other' && (
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter BHK manually (e.g. 5, Duplex)"
-                    value={customBhk}
-                    onChange={e => setCustomBhk(e.target.value)}
-                    style={{
-                      maxWidth: '240px',
-                      padding: '0.45rem 0.75rem',
-                      fontSize: '0.8125rem',
-                      borderRadius: '0.375rem',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-primary)'
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-          )}
+          <div>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Fee (Rs.)</label>
+            <input type="number" required placeholder="e.g. 18000" value={costAmount} onChange={e => setCostAmount(e.target.value)} style={{ width: '100%' }} />
+          </div>
         </div>
+
+        {residenceType !== 'COMMON' && (
+          <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.4rem', display: 'block' }}>
+              Select BHK Type for {residenceType === 'FLAT' ? 'Flat' : 'Villa'}
+            </label>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Pick a BHK type, enter the fee above, then click Add. Repeat for each BHK variant.
+            </p>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              {bhkOptions.map(opt => (
+                <button key={opt} type="button" onClick={() => setBhk(opt)}
+                  style={{ padding: '0.45rem 1rem', fontSize: '0.8125rem', fontWeight: 600, borderRadius: '0.375rem', cursor: 'pointer', transition: 'all 0.15s',
+                    border: bhk === opt ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                    backgroundColor: bhk === opt ? 'rgba(99,102,241,0.12)' : 'var(--bg-primary)',
+                    color: bhk === opt ? 'var(--primary)' : 'var(--text-secondary)' }}>
+                  {opt === 'other' ? 'Custom' : opt + ' BHK'}
+                </button>
+              ))}
+              {bhk === 'other' && (
+                <input type="text" required placeholder="e.g. 5, Duplex, Penthouse" value={customBhk} onChange={e => setCustomBhk(e.target.value)}
+                  style={{ maxWidth: '220px', padding: '0.4rem 0.7rem', fontSize: '0.8125rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }} />
+              )}
+            </div>
+
+            {selectedFY && (residenceType === 'FLAT' ? selFlatCfg : selVillaCfg).length > 0 && (
+              <div style={{ marginTop: '1rem', padding: '0.65rem 0.875rem', backgroundColor: 'var(--bg-primary)', borderRadius: '0.375rem', border: '1px dashed var(--border-color)' }}>
+                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+                  Already set for {selectedFY} - {residenceType === 'FLAT' ? 'Flat' : 'Villa'}:
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {(residenceType === 'FLAT' ? selFlatCfg : selVillaCfg)
+                    .sort((a: any, b: any) => a.bhk > b.bhk ? 1 : -1)
+                    .map((c: any) => (
+                      <span key={c.id} style={{ padding: '0.25rem 0.65rem', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 600,
+                        backgroundColor: 'rgba(99,102,241,0.1)', color: 'var(--primary)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                        {c.bhk === 'COMMON' ? 'Common' : c.bhk + ' BHK'}: Rs.{Number(c.amount).toLocaleString()}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            Setup Cost
+            {loading ? 'Saving...' : 'Add / Update Fee'}
           </button>
         </div>
       </form>
 
-      <h4 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem' }}>Configured Maintenance Costs</h4>
-      <div className="table-responsive">
-        <table className="table" style={{ width: '100%' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border-color)' }}>
-              <th style={{ padding: '0.75rem' }}>FINANCIAL YEAR</th>
-              <th style={{ padding: '0.75rem' }}>RESIDENCE TYPE</th>
-              <th style={{ padding: '0.75rem' }}>BHK</th>
-              <th style={{ padding: '0.75rem' }}>ANNUAL COST</th>
-              <th style={{ padding: '0.75rem', textAlign: 'right' }}>ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {configs.map((c) => (
-              <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '0.75rem', fontWeight: 600 }}>{c.financialYear}</td>
-                <td style={{ padding: '0.75rem', textTransform: 'capitalize' }}>{c.residenceType.toLowerCase()}</td>
-                <td style={{ padding: '0.75rem' }}>{c.bhk}</td>
-                <td style={{ padding: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>₹{c.amount.toLocaleString()}</td>
-                <td style={{ padding: '0.75rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                  <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => handleEdit(c)}>
-                    Edit
-                  </button>
-                  <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.8125rem', color: 'var(--error)' }} onClick={() => handleDelete(c.id)}>
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {configs.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-                  No configured maintenance costs yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>Configured Annual Fees</h4>
+      {(() => {
+        const fys = [...new Set(configs.map((c: any) => c.financialYear))].sort().reverse();
+        if (fys.length === 0) return (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', border: '1px dashed var(--border-color)', borderRadius: '0.5rem' }}>
+            <Calendar size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
+            <p style={{ fontSize: '0.875rem' }}>No fees configured yet. Use the form above to get started.</p>
+          </div>
+        );
+        return fys.map(fy => {
+          const fyc = configs.filter((c: any) => c.financialYear === fy);
+          const common = fyc.filter((c: any) => c.residenceType === 'COMMON');
+          const flats = fyc.filter((c: any) => c.residenceType === 'FLAT').sort((a: any, b: any) => a.bhk > b.bhk ? 1 : -1);
+          const villas = fyc.filter((c: any) => c.residenceType === 'VILLA').sort((a: any, b: any) => a.bhk > b.bhk ? 1 : -1);
+          const Chip = ({ c, accent }: { c: any; accent: string }) => (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem',
+              backgroundColor: accent + '14', border: '1px solid ' + accent + '35', borderRadius: '0.5rem' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: accent, minWidth: '3.5rem' }}>
+                {c.residenceType === 'COMMON' ? 'Common' : (c.bhk === 'COMMON' ? 'Common' : c.bhk + ' BHK')}
+              </span>
+              <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>Rs.{Number(c.amount).toLocaleString()}<span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 400 }}>/yr</span></span>
+              <button type="button" onClick={() => handleEdit(c)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.72rem', padding: '0.1rem 0.3rem' }} title="Edit">Edit</button>
+              <button type="button" onClick={() => handleDelete(c.id)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '0.72rem', padding: '0.1rem 0.3rem' }} title="Delete">x</button>
+            </div>
+          );
+          return (
+            <div key={fy} style={{ marginBottom: '1.25rem', border: '1px solid var(--border-color)', borderRadius: '0.625rem', overflow: 'hidden' }}>
+              <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '0.65rem 1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Calendar size={15} style={{ color: 'var(--primary)' }} />
+                <span style={{ fontWeight: 700, fontSize: '0.9375rem' }}>FY {fy}</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>{fyc.length} entry/entries</span>
+              </div>
+              <div style={{ padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                {common.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Common</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{common.map((c: any) => <Chip key={c.id} c={c} accent="#10b981" />)}</div>
+                  </div>
+                )}
+                {flats.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Flat â€” by BHK</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{flats.map((c: any) => <Chip key={c.id} c={c} accent="#6366f1" />)}</div>
+                  </div>
+                )}
+                {villas.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Villa â€” by BHK</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{villas.map((c: any) => <Chip key={c.id} c={c} accent="#f59e0b" />)}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        });
+      })()}
     </div>
   );
-};
+};;
 
 const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefresh: () => void }) => {
   const [activeCategory, setActiveCategory] = useState('SERVICE_TYPE');
@@ -2742,8 +2694,8 @@ const TenantAdminDashboard = () => {
               {/* 6-month trend */}
               <div className="card">
                 <h3 style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>6-Month Income vs Expense Trend</h3>
-                <div style={{ position: 'relative', width: '100%', minWidth: 0, height: '260px' }}>
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <div style={{ width: '100%', minWidth: 0, height: 260, overflow: 'hidden' }}>
+                  <ResponsiveContainer width="100%" height={260} debounce={50}>
                     <LineChart data={summary.monthlyTrends || []} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
                       <XAxis dataKey="month" stroke="var(--text-secondary)" tick={{ fontSize: 11 }} />
@@ -2764,8 +2716,8 @@ const TenantAdminDashboard = () => {
                 {(summary.expenseByCategory || []).length === 0 ? (
                   <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem 0', fontSize: '0.875rem' }}>No expenses recorded yet</div>
                 ) : (
-                  <div style={{ position: 'relative', width: '100%', minWidth: 0, height: '220px' }}>
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <div style={{ width: '100%', minWidth: 0, height: 220, overflow: 'hidden' }}>
+                    <ResponsiveContainer width="100%" height={220} debounce={50}>
                       <PieChart>
                         <Pie data={summary.expenseByCategory || []} dataKey="amount" nameKey="category" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
                           {(summary.expenseByCategory || []).map((_: any, index: number) => (
