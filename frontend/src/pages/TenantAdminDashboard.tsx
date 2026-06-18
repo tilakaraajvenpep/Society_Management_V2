@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 import {
@@ -679,8 +679,14 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
   const [configs, setConfigs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [residenceType, setResidenceType] = useState('COMMON');
-  const [bhk, setBhk] = useState('COMMON');
-  const [customBhk, setCustomBhk] = useState('');
+  
+  const [bhkFees, setBhkFees] = useState<Record<string, string>>({
+    '1': '',
+    '2': '',
+    '3': '',
+    '4': ''
+  });
+  const [customBhkFees, setCustomBhkFees] = useState<{ bhk: string; amount: string }[]>([]);
 
   const fetchConfigs = async () => {
     try {
@@ -690,6 +696,32 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
   };
 
   useEffect(() => { fetchConfigs(); }, []);
+
+  // Prefill the form inputs whenever Selected FY, Residence Type, or configs change
+  useEffect(() => {
+    if (!selectedFY) return;
+
+    if (residenceType === 'COMMON') {
+      const commonCfg = configs.find((c: any) => c.financialYear === selectedFY && c.residenceType === 'COMMON');
+      setCostAmount(commonCfg ? commonCfg.amount.toString() : '');
+      return;
+    }
+
+    const filtered = configs.filter((c: any) => c.financialYear === selectedFY && c.residenceType === residenceType);
+    const newBhkFees: Record<string, string> = { '1': '', '2': '', '3': '', '4': '' };
+    const newCustom: { bhk: string; amount: string }[] = [];
+
+    filtered.forEach((c: any) => {
+      if (['1', '2', '3', '4'].includes(c.bhk)) {
+        newBhkFees[c.bhk] = c.amount.toString();
+      } else if (c.bhk !== 'COMMON') {
+        newCustom.push({ bhk: c.bhk, amount: c.amount.toString() });
+      }
+    });
+
+    setBhkFees(newBhkFees);
+    setCustomBhkFees(newCustom);
+  }, [selectedFY, residenceType, configs]);
 
   const generateFYRange = (start: number) => {
     const list = [];
@@ -707,17 +739,64 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFY) { alert('Please select a financial year'); return; }
-    if (!costAmount || parseFloat(costAmount) <= 0) { alert('Please enter a valid amount'); return; }
-    const finalBhk = residenceType === 'COMMON' ? 'COMMON' : (bhk === 'other' ? customBhk.trim() : bhk);
-    if (residenceType !== 'COMMON' && !finalBhk) { alert('Please specify BHK value'); return; }
+    
     setLoading(true);
     try {
-      await axios.post('/maintenance-costs', { financialYear: selectedFY, amount: parseFloat(costAmount), residenceType, bhk: finalBhk }, { headers: { Authorization: `Bearer ${token}` } });
-      setCostAmount(''); setSelectedFY(''); setResidenceType('COMMON'); setBhk('COMMON'); setCustomBhk('');
+      if (residenceType === 'COMMON') {
+        if (!costAmount || parseFloat(costAmount) <= 0) {
+          alert('Please enter a valid amount');
+          setLoading(false);
+          return;
+        }
+        await axios.post('/maintenance-costs', {
+          financialYear: selectedFY,
+          amount: parseFloat(costAmount),
+          residenceType: 'COMMON',
+          bhk: 'COMMON'
+        }, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        const configsToSave: { bhk: string; amount: number }[] = [];
+
+        // Add standard BHKs
+        for (const [b, val] of Object.entries(bhkFees)) {
+          if (val && parseFloat(val) > 0) {
+            configsToSave.push({ bhk: b, amount: parseFloat(val) });
+          }
+        }
+
+        // Add custom BHKs
+        for (const item of customBhkFees) {
+          if (item.bhk.trim() && item.amount && parseFloat(item.amount) > 0) {
+            configsToSave.push({ bhk: item.bhk.trim(), amount: parseFloat(item.amount) });
+          }
+        }
+
+        if (configsToSave.length === 0) {
+          alert('Please specify fee amount for at least one BHK type');
+          setLoading(false);
+          return;
+        }
+
+        await axios.post('/maintenance-costs/bulk', {
+          financialYear: selectedFY,
+          residenceType,
+          configs: configsToSave
+        }, { headers: { Authorization: `Bearer ${token}` } });
+      }
+
+      setCostAmount('');
+      setBhkFees({ '1': '', '2': '', '3': '', '4': '' });
+      setCustomBhkFees([]);
+      setSelectedFY('');
+      setResidenceType('COMMON');
+
       fetchConfigs();
-      alert('Maintenance cost configured successfully');
-    } catch (err: any) { alert(err.response?.data?.message || 'Error saving configuration'); }
-    finally { setLoading(false); }
+      alert('Maintenance cost(s) configured successfully');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error saving configuration');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -735,15 +814,11 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
       const offset = (fyStart - 2026) % 5;
       setStartYear(fyStart - (offset >= 0 ? offset : offset + 5));
     }
-    setCostAmount(config.amount.toString());
     setResidenceType(config.residenceType);
-    if (['COMMON', '1', '2', '3', '4'].includes(config.bhk)) { setBhk(config.bhk); setCustomBhk(''); }
-    else { setBhk('other'); setCustomBhk(config.bhk); }
+    if (config.residenceType === 'COMMON') {
+      setCostAmount(config.amount.toString());
+    }
   };
-
-  const bhkOptions = ['1', '2', '3', '4', 'other'];
-  const selFlatCfg = configs.filter((c: any) => c.financialYear === selectedFY && c.residenceType === 'FLAT');
-  const selVillaCfg = configs.filter((c: any) => c.financialYear === selectedFY && c.residenceType === 'VILLA');
 
   return (
     <div className="card" style={{ maxWidth: '860px' }}>
@@ -769,66 +844,110 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 
           <div>
             <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Residence Type</label>
-            <select value={residenceType} onChange={e => { const v = e.target.value; setResidenceType(v); setBhk(v === 'COMMON' ? 'COMMON' : '1'); }} style={{ width: '100%' }}>
+            <select value={residenceType} onChange={e => setResidenceType(e.target.value)} style={{ width: '100%' }}>
               <option value="COMMON">Common (all members)</option>
               <option value="FLAT">Flat</option>
               <option value="VILLA">Villa</option>
             </select>
           </div>
 
-          <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Fee (Rs.)</label>
-            <input type="number" required placeholder="e.g. 18000" value={costAmount} onChange={e => setCostAmount(e.target.value)} style={{ width: '100%' }} />
-          </div>
+          {residenceType === 'COMMON' && (
+            <div>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Fee (Rs.)</label>
+              <input type="number" required placeholder="e.g. 18000" value={costAmount} onChange={e => setCostAmount(e.target.value)} style={{ width: '100%' }} />
+            </div>
+          )}
         </div>
 
         {residenceType !== 'COMMON' && (
           <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.4rem', display: 'block' }}>
-              Select BHK Type for {residenceType === 'FLAT' ? 'Flat' : 'Villa'}
+            <label style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>
+              Set Annual Fees for {residenceType === 'FLAT' ? 'Flat' : 'Villa'} by BHK Type
             </label>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-              Pick a BHK type, enter the fee above, then click Add. Repeat for each BHK variant.
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              Specify the annual fee for each BHK type. Empty or 0 values will not be updated/configured.
             </p>
-            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              {bhkOptions.map(opt => (
-                <button key={opt} type="button" onClick={() => setBhk(opt)}
-                  style={{ padding: '0.45rem 1rem', fontSize: '0.8125rem', fontWeight: 600, borderRadius: '0.375rem', cursor: 'pointer', transition: 'all 0.15s',
-                    border: bhk === opt ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                    backgroundColor: bhk === opt ? 'rgba(99,102,241,0.12)' : 'var(--bg-primary)',
-                    color: bhk === opt ? 'var(--primary)' : 'var(--text-secondary)' }}>
-                  {opt === 'other' ? 'Custom' : opt + ' BHK'}
-                </button>
+
+            <div className="responsive-form-grid" style={{ gap: '1.25rem', marginBottom: '1.25rem' }}>
+              {['1', '2', '3', '4'].map(b => (
+                <div key={b}>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
+                    {b} BHK Fee (Rs.)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder={`Fee for ${b} BHK`}
+                    value={bhkFees[b] || ''}
+                    onChange={e => setBhkFees({ ...bhkFees, [b]: e.target.value })}
+                    style={{ width: '100%' }}
+                  />
+                </div>
               ))}
-              {bhk === 'other' && (
-                <input type="text" required placeholder="e.g. 5, Duplex, Penthouse" value={customBhk} onChange={e => setCustomBhk(e.target.value)}
-                  style={{ maxWidth: '220px', padding: '0.4rem 0.7rem', fontSize: '0.8125rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }} />
-              )}
             </div>
 
-            {selectedFY && (residenceType === 'FLAT' ? selFlatCfg : selVillaCfg).length > 0 && (
-              <div style={{ marginTop: '1rem', padding: '0.65rem 0.875rem', backgroundColor: 'var(--bg-primary)', borderRadius: '0.375rem', border: '1px dashed var(--border-color)' }}>
-                <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
-                  Already set for {selectedFY} - {residenceType === 'FLAT' ? 'Flat' : 'Villa'}:
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {(residenceType === 'FLAT' ? selFlatCfg : selVillaCfg)
-                    .sort((a: any, b: any) => a.bhk > b.bhk ? 1 : -1)
-                    .map((c: any) => (
-                      <span key={c.id} style={{ padding: '0.25rem 0.65rem', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 600,
-                        backgroundColor: 'rgba(99,102,241,0.1)', color: 'var(--primary)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                        {c.bhk === 'COMMON' ? 'Common' : c.bhk + ' BHK'}: Rs.{Number(c.amount).toLocaleString()}
-                      </span>
-                    ))}
-                </div>
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>Custom BHK Fees (optional)</span>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                  onClick={() => setCustomBhkFees([...customBhkFees, { bhk: '', amount: '' }])}
+                >
+                  + Add Custom BHK
+                </button>
               </div>
-            )}
+
+              {customBhkFees.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+                  {customBhkFees.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="e.g. 5 BHK, Duplex, Penthouse"
+                        value={item.bhk}
+                        onChange={e => {
+                          const updated = [...customBhkFees];
+                          updated[idx].bhk = e.target.value;
+                          setCustomBhkFees(updated);
+                        }}
+                        style={{ flex: 2 }}
+                        required
+                      />
+                      <input
+                        type="number"
+                        placeholder="Fee Amount (Rs.)"
+                        value={item.amount}
+                        onChange={e => {
+                          const updated = [...customBhkFees];
+                          updated[idx].amount = e.target.value;
+                          setCustomBhkFees(updated);
+                        }}
+                        style={{ flex: 2 }}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '0.5rem 0.75rem', color: 'var(--error)' }}
+                        onClick={() => {
+                          const updated = customBhkFees.filter((_, i) => i !== idx);
+                          setCustomBhkFees(updated);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : 'Add / Update Fee'}
+            {loading ? 'Saving...' : 'Set Annual Fees'}
           </button>
         </div>
       </form>

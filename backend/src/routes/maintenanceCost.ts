@@ -100,6 +100,111 @@ router.get("/", authorize(["TENANT_ADMIN", "MEMBER"]), async (req: any, res) => 
   }
 });
 
+// POST bulk setup or update annual maintenance costs (Upsert)
+router.post("/bulk", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
+  const { financialYear, residenceType, configs } = req.body;
+
+  if (!financialYear || !residenceType || !Array.isArray(configs)) {
+    return res.status(400).json({ message: "Financial year, residence type, and configs array are required" });
+  }
+
+  try {
+    const results = await prisma.$transaction(async (tx) => {
+      const savedCosts = [];
+      for (const item of configs) {
+        const { amount, bhk } = item;
+        if (amount === undefined || amount === null || !bhk) continue;
+
+        const parsedAmount = parseFloat(amount.toString());
+        if (isNaN(parsedAmount) || parsedAmount < 0) continue;
+
+        const targetBhk = bhk.trim();
+
+        const existingCost = await tx.maintenanceCost.findUnique({
+          where: {
+            tenantId_financialYear_residenceType_bhk: {
+              tenantId: req.user.tenantId,
+              financialYear: financialYear.trim(),
+              residenceType,
+              bhk: targetBhk
+            }
+          }
+        });
+
+        const oldAmount = existingCost ? existingCost.amount : 0;
+        const diff = parsedAmount - oldAmount;
+
+        const cost = await tx.maintenanceCost.upsert({
+          where: {
+            tenantId_financialYear_residenceType_bhk: {
+              tenantId: req.user.tenantId,
+              financialYear: financialYear.trim(),
+              residenceType,
+              bhk: targetBhk
+            }
+          },
+          update: { amount: parsedAmount },
+          create: {
+            tenantId: req.user.tenantId,
+            financialYear: financialYear.trim(),
+            amount: parsedAmount,
+            residenceType,
+            bhk: targetBhk
+          }
+        });
+
+        if (diff !== 0) {
+          let memberFilter: any = {
+            tenantId: req.user.tenantId,
+            registrationYear: financialYear.trim()
+          };
+
+          if (residenceType === "COMMON" && targetBhk === "COMMON") {
+            memberFilter = {
+              ...memberFilter,
+              OR: [
+                { useCommonMaintenance: true },
+                { residenceType: "COMMON" }
+              ]
+            };
+          } else {
+            memberFilter = {
+              ...memberFilter,
+              useCommonMaintenance: false,
+              residenceType,
+              bhk: targetBhk
+            };
+          }
+
+          await tx.member.updateMany({
+            where: memberFilter,
+            data: { outstandingDues: { increment: diff } }
+          });
+        }
+
+        await tx.auditLog.create({
+          data: {
+            tenantId: req.user.tenantId,
+            actionType: "MAINTENANCE_COST_SETUP",
+            performedBy: req.user.name,
+            referenceId: cost.id,
+            details: `Configured annual maintenance cost for FY ${financialYear} (${residenceType} - BHK ${targetBhk}) as Rs.${parsedAmount}. Adjusted dues for corresponding members by diff of Rs.${diff}`
+          }
+        });
+
+        savedCosts.push(cost);
+      }
+      return savedCosts;
+    });
+
+    res.json(results);
+  } catch (error: any) {
+    const msg = error.message || "";
+    console.error("Error setting up bulk maintenance costs:", error);
+    res.status(500).json({ message: "Error setting up bulk maintenance costs", error: msg });
+  }
+});
+
 // POST setup or update annual maintenance cost (Upsert)
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   const { financialYear, amount, residenceType, bhk } = req.body;
