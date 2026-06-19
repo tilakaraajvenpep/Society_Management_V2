@@ -2267,6 +2267,7 @@ const TenantAdminDashboard = () => {
   const [auditFilterFrom, setAuditFilterFrom] = useState('');
   const [auditFilterTo, setAuditFilterTo] = useState('');
   const [auditFilterUser, setAuditFilterUser] = useState('');
+  const [auditLogsVisible, setAuditLogsVisible] = useState(false);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>(SERVICE_TYPES_DEFAULT);
   const [designations, setDesignations] = useState<string[]>(['President', 'Secretary', 'Treasurer', 'Committee Member']);
@@ -4111,6 +4112,8 @@ const TenantAdminDashboard = () => {
           new Set((auditLogs as any[]).map((l: any) => l.performedBy).filter(Boolean))
         ).sort() as string[];
 
+        const hasFilter = !!(auditFilterFrom || auditFilterTo || auditFilterUser);
+
         const filteredLogs = (auditLogs as any[]).filter((log: any) => {
           const ts = log.timestamp || log.createdAt;
           const date = ts ? new Date(ts) : null;
@@ -4132,9 +4135,11 @@ const TenantAdminDashboard = () => {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
               <h3 style={{ margin: 0 }}>Audit Logs</h3>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                {filteredLogs.length} of {(auditLogs as any[]).length} entries
-              </span>
+              {auditLogsVisible && (
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  {filteredLogs.length} of {(auditLogs as any[]).length} entries
+                </span>
+              )}
             </div>
 
             {/* Filter Bar */}
@@ -4149,7 +4154,7 @@ const TenantAdminDashboard = () => {
                   type="date"
                   value={auditFilterFrom}
                   style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
-                  onChange={e => setAuditFilterFrom(e.target.value)}
+                  onChange={e => { setAuditFilterFrom(e.target.value); setAuditLogsVisible(false); }}
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', minWidth: '140px' }}>
@@ -4158,7 +4163,7 @@ const TenantAdminDashboard = () => {
                   type="date"
                   value={auditFilterTo}
                   style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
-                  onChange={e => setAuditFilterTo(e.target.value)}
+                  onChange={e => { setAuditFilterTo(e.target.value); setAuditLogsVisible(false); }}
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', minWidth: '180px' }}>
@@ -4166,7 +4171,7 @@ const TenantAdminDashboard = () => {
                 <select
                   value={auditFilterUser}
                   style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
-                  onChange={e => setAuditFilterUser(e.target.value)}
+                  onChange={e => { setAuditFilterUser(e.target.value); setAuditLogsVisible(false); }}
                 >
                   <option value="">All Office Bearers</option>
                   {uniquePerformers.map(name => (
@@ -4174,64 +4179,81 @@ const TenantAdminDashboard = () => {
                   ))}
                 </select>
               </div>
-              {(auditFilterFrom || auditFilterTo || auditFilterUser) && (
+              {/* Show Logs button */}
+              <button
+                className="btn btn-primary"
+                style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem', height: 'fit-content', alignSelf: 'flex-end' }}
+                onClick={() => setAuditLogsVisible(true)}
+              >
+                {hasFilter ? 'Show Logs' : 'Show All Logs'}
+              </button>
+              {hasFilter && (
                 <button
                   className="btn btn-secondary"
                   style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', height: 'fit-content', alignSelf: 'flex-end' }}
-                  onClick={() => { setAuditFilterFrom(''); setAuditFilterTo(''); setAuditFilterUser(''); }}
+                  onClick={() => { setAuditFilterFrom(''); setAuditFilterTo(''); setAuditFilterUser(''); setAuditLogsVisible(false); }}
                 >
                   Clear Filters
                 </button>
               )}
             </div>
 
-            <div className="table-container">
-              <table style={{ tableLayout: 'fixed', width: '100%' }}>
-                <colgroup>
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '20%' }} />
-                  <col style={{ width: '50%' }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLogs.length === 0 ? (
+            {/* Table — only rendered after clicking Show Logs */}
+            {auditLogsVisible ? (
+              <div className="table-container">
+                <table style={{ tableLayout: 'fixed', width: '100%' }}>
+                  <colgroup>
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '50%' }} />
+                  </colgroup>
+                  <thead>
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                        No audit log entries match your filters.
-                      </td>
+                      <th>Timestamp</th>
+                      <th>User</th>
+                      <th>Action</th>
+                      <th>Details</th>
                     </tr>
-                  ) : filteredLogs.map((log: any) => {
-                    let details = log.details || '';
-                    members.forEach((m: any) => {
-                      if (details.includes(m.id)) {
-                        details = details.replace(m.id, `${m.name} (Flat ${m.flatNo})`);
-                      }
-                    });
-                    const ts = log.timestamp || log.createdAt;
-                    const date = ts ? new Date(ts) : null;
-                    const displayDate = date && !isNaN(date.getTime())
-                      ? date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-                      : '—';
-                    return (
-                      <tr key={log.id}>
-                        <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{displayDate}</td>
-                        <td><strong>{log.performedBy}</strong></td>
-                        <td><span className="badge badge-warning" style={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{log.actionType}</span></td>
-                        <td style={{ fontSize: '0.875rem', wordBreak: 'break-word' }}>{details}</td>
+                  </thead>
+                  <tbody>
+                    {filteredLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                          No audit log entries match your filters.
+                        </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    ) : filteredLogs.map((log: any) => {
+                      let details = log.details || '';
+                      members.forEach((m: any) => {
+                        if (details.includes(m.id)) {
+                          details = details.replace(m.id, `${m.name} (Flat ${m.flatNo})`);
+                        }
+                      });
+                      const ts = log.timestamp || log.createdAt;
+                      const date = ts ? new Date(ts) : null;
+                      const displayDate = date && !isNaN(date.getTime())
+                        ? date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                        : '—';
+                      return (
+                        <tr key={log.id}>
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{displayDate}</td>
+                          <td><strong>{log.performedBy}</strong></td>
+                          <td><span className="badge badge-warning" style={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{log.actionType}</span></td>
+                          <td style={{ fontSize: '0.875rem', wordBreak: 'break-word' }}>{details}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.2 }}>📋</div>
+                <p style={{ fontSize: '0.95rem', fontWeight: 500, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Set filters and click <strong>Show Logs</strong></p>
+                <p style={{ fontSize: '0.8125rem' }}>Use the filters above to narrow down the audit trail, then click the button to load results.</p>
+              </div>
+            )}
           </div>
         );
       }
