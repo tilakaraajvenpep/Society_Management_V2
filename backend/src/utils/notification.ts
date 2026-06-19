@@ -71,17 +71,28 @@ export async function notifyMember(params: NotifyMemberParams) {
   try {
     const member = await prisma.member.findUnique({
       where: { id: params.memberId },
-      select: { userId: true },
+      select: { userId: true, secondaryUserId: true },
     });
 
-    if (member && member.userId) {
-      await createNotification({
-        tenantId: params.tenantId,
-        userId: member.userId,
-        title: params.title,
-        message: params.message,
-        type: params.type,
-      });
+    if (member) {
+      if (member.userId) {
+        await createNotification({
+          tenantId: params.tenantId,
+          userId: member.userId,
+          title: params.title,
+          message: params.message,
+          type: params.type,
+        });
+      }
+      if (member.secondaryUserId) {
+        await createNotification({
+          tenantId: params.tenantId,
+          userId: member.secondaryUserId,
+          title: params.title,
+          message: params.message,
+          type: params.type,
+        });
+      }
     }
   } catch (error) {
     console.error("Error notifying member:", error);

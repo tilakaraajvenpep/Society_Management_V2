@@ -435,6 +435,155 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
   );
 };
 
+const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) => {
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+
+  const viewReceipt = (p: any) => {
+    setSelectedPayment({
+      ...p,
+      member: {
+        name: memberInfo.name,
+        flatNo: memberInfo.flatNo
+      }
+    });
+    setShowReceipt(true);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>My Payment Receipts</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>View, download or print all your society payment receipts.</p>
+        </div>
+      </div>
+
+      {!memberInfo?.payments || memberInfo.payments.length === 0 ? (
+        <div className="card" style={{ padding: '4rem 2rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', border: '1px solid var(--border-color)' }}>
+          <FileText size={48} style={{ margin: '0 auto 1.5rem', color: 'var(--text-secondary)', opacity: 0.3 }} />
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Receipts Available</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '300px', margin: '0 auto' }}>Once society payments are recorded against your flat, your receipts will be generated here.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          {memberInfo.payments.map((p: any) => {
+            const receiptNo = p.receiptNumber || `RCP-${p.id.slice(-6).toUpperCase()}`;
+            return (
+              <div key={p.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem', transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: 'default', border: '1px solid var(--border-color)' }}
+                   onMouseEnter={(e) => {
+                     e.currentTarget.style.transform = 'translateY(-2px)';
+                     e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                   }}
+                   onMouseLeave={(e) => {
+                     e.currentTarget.style.transform = 'none';
+                     e.currentTarget.style.boxShadow = 'none';
+                   }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 600 }}>{receiptNo}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '2rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontWeight: 600 }}>Paid</span>
+                  </div>
+                  <h4 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>₹{p.amount.toLocaleString()}</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Period:</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{p.periodLabel || `${p.paidMonths} Month(s)`}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Payment Date:</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{new Date(p.paymentDate).toLocaleDateString()}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Mode:</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{p.mode}</strong>
+                    </div>
+                  </div>
+                </div>
+                
+                <button className="btn btn-secondary" style={{ width: '100%', padding: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.8125rem', fontWeight: 600 }} onClick={() => viewReceipt(p)}>
+                  <Printer size={16} /> View & Print Receipt
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showReceipt && selectedPayment && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
+          <div className="card" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Payment Receipt</h2>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button className="btn btn-secondary" onClick={() => window.print()} style={{ padding: '0.5rem' }}><Printer size={18} /></button>
+                <button onClick={() => setShowReceipt(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
+              </div>
+            </div>
+
+            <div id="receipt-content" style={{
+              backgroundColor: 'white',
+              color: '#1e293b',
+              padding: '2rem',
+              borderRadius: '0.5rem',
+              border: '1px solid #e2e8f0',
+              minHeight: '400px'
+            }}>
+              <div style={{ textAlign: 'center', marginBottom: '2rem', borderBottom: '2px solid var(--primary)', paddingBottom: '1rem' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>{user?.tenantName}</div>
+                <div style={{ fontSize: '0.875rem', color: '#64748b' }}>Maintenance Fee Receipt</div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Receipt Number</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{selectedPayment.receiptNumber || `RCP-${selectedPayment.id.slice(-6).toUpperCase()}`}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</div>
+                  <div style={{ fontWeight: 700 }}>{new Date(selectedPayment.paymentDate).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Received From</div>
+                <div style={{ fontSize: '1.125rem', fontWeight: 600 }}>{selectedPayment.member?.name}</div>
+                <div style={{ color: '#475569' }}>Flat No: {selectedPayment.member?.flatNo}</div>
+              </div>
+
+              <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <span style={{ color: '#64748b' }}>Payment Period</span>
+                  <span style={{ fontWeight: 600 }}>{selectedPayment.periodLabel || `${selectedPayment.paidMonths} Month(s)`}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <span style={{ color: '#64748b' }}>Payment Mode</span>
+                  <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>₹{selectedPayment.amount.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {selectedPayment.notes && (
+                <div style={{ marginBottom: '2rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Notes</div>
+                  <div style={{ fontSize: '0.875rem', color: '#475569' }}>{selectedPayment.notes}</div>
+                </div>
+              )}
+
+              <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+                This is a computer generated receipt and does not require a signature.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: any, setMemberInfo: any, token: string | null }) => {
   const { updateUser } = useAuth();
   const { showToast } = useToast();
@@ -1241,6 +1390,8 @@ const MemberPortal = () => {
         return <MemberHelpdesk token={token} />;
       case 'payments':
         return <MemberPayments memberInfo={memberInfo} user={user} />;
+      case 'receipts':
+        return <MemberReceipts memberInfo={memberInfo} user={user} />;
       case 'profile':
         return <MemberProfileTab memberInfo={memberInfo} setMemberInfo={setMemberInfo} token={token} />;
       case 'events':
@@ -1290,6 +1441,9 @@ const MemberPortal = () => {
           </a>
           <a href="#" className={`nav-link ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => { setActiveTab('payments'); setIsSidebarOpen(false); }}>
             <History size={20} /> Payment History
+          </a>
+          <a href="#" className={`nav-link ${activeTab === 'receipts' ? 'active' : ''}`} onClick={() => { setActiveTab('receipts'); setIsSidebarOpen(false); }}>
+            <FileText size={20} /> Receipts
           </a>
           <a href="#" className={`nav-link ${activeTab === 'events' ? 'active' : ''}`} onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }}>
             <Calendar size={20} /> Society Events

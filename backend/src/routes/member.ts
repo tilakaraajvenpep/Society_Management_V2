@@ -64,8 +64,13 @@ router.use(authenticate);
 // Member Profile (for logged in members)
 router.get("/profile", authorize(["MEMBER"]), async (req: any, res) => {
   try {
-    const member = await prisma.member.findUnique({
-      where: { userId: req.user.id },
+    const member = await prisma.member.findFirst({
+      where: {
+        OR: [
+          { userId: req.user.id },
+          { secondaryUserId: req.user.id }
+        ]
+      },
       include: { 
         tenant: true,
         payments: {
@@ -92,8 +97,13 @@ router.get("/profile", authorize(["MEMBER"]), async (req: any, res) => {
 router.patch("/profile", authorize(["MEMBER"]), async (req: any, res) => {
   const { name, email, mobile, password, photoUrl } = req.body;
   try {
-    const member = await prisma.member.findUnique({
-      where: { userId: req.user.id }
+    const member = await prisma.member.findFirst({
+      where: {
+        OR: [
+          { userId: req.user.id },
+          { secondaryUserId: req.user.id }
+        ]
+      }
     });
 
     if (!member) {
@@ -156,11 +166,20 @@ router.patch("/profile", authorize(["MEMBER"]), async (req: any, res) => {
       if (name) {
         memberUpdateData.name = name;
       }
-      if (email !== undefined) {
-        memberUpdateData.email = email ? email.toLowerCase().trim() : null;
-      }
-      if (mobile) {
-        memberUpdateData.mobile = mobile.trim();
+      if (req.user.id === member.userId) {
+        if (email !== undefined) {
+          memberUpdateData.email = email ? email.toLowerCase().trim() : null;
+        }
+        if (mobile) {
+          memberUpdateData.mobile = mobile.trim();
+        }
+      } else {
+        if (email !== undefined) {
+          memberUpdateData.secondaryEmail = email ? email.toLowerCase().trim() : null;
+        }
+        if (mobile) {
+          memberUpdateData.secondaryMobile = mobile.trim();
+        }
       }
       if (photoUrl !== undefined) {
         memberUpdateData.photoUrl = photoUrl;
@@ -191,100 +210,100 @@ router.get("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 });
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { name, email, mobile, flatNo, address, outstandingDues, password, enableLogin, loginMethod, defaultTenure, paidUntil, initialPaymentAmount, initialPaymentMode, initialPaymentNotes, photoUrl, idProofUrl, registrationYear, initialPaymentDate } = req.body;
-  try {
-    // Constraint check for Email
-    if (email) {
-      const targetEmail = email.toLowerCase().trim();
-      const userExists = await prisma.user.findFirst({
-        where: { tenantId: req.user.tenantId, email: targetEmail }
-      });
-      const memberExists = await prisma.member.findFirst({
-        where: { tenantId: req.user.tenantId, email: targetEmail, status: { not: "VACANT" } }
-      });
-      if (userExists || memberExists) {
-        return res.status(400).json({ message: "This email address is already registered in this society. Please use another email." });
-      }
-    }
+  const { 
+    name, email, mobile, secondaryEmail, secondaryMobile, flatNo, address, outstandingDues, 
+    password, secondaryPassword, defaultTenure, paidUntil, 
+    initialPaymentAmount, initialPaymentMode, initialPaymentNotes, 
+    photoUrl, idProofUrl, registrationYear, initialPaymentDate 
+  } = req.body;
 
-    // Constraint check for Mobile
-    if (mobile) {
-      const targetMobile = mobile.trim();
-      if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
-        return res.status(400).json({ message: "Mobile number must be exactly 10 digits" });
+  try {
+    const checkUniqueness = async (emailVal?: string, mobileVal?: string) => {
+      if (emailVal) {
+        const targetEmail = emailVal.toLowerCase().trim();
+        const userExists = await prisma.user.findFirst({
+          where: { tenantId: req.user.tenantId, email: targetEmail }
+        });
+        const memberExists = await prisma.member.findFirst({
+          where: { 
+            tenantId: req.user.tenantId, 
+            OR: [
+              { email: targetEmail },
+              { secondaryEmail: targetEmail }
+            ],
+            status: { not: "VACANT" } 
+          }
+        });
+        if (userExists || memberExists) {
+          throw new Error(`Email address ${targetEmail} is already registered in this society.`);
+        }
       }
-      const userExists = await prisma.user.findFirst({
-        where: { tenantId: req.user.tenantId, mobile: targetMobile }
-      });
-      const memberExists = await prisma.member.findFirst({
-        where: { tenantId: req.user.tenantId, mobile: targetMobile, status: { not: "VACANT" } }
-      });
-      if (userExists || memberExists) {
-        return res.status(400).json({ message: "This mobile number is already registered in this society. Please use another mobile number." });
+      if (mobileVal) {
+        const targetMobile = mobileVal.trim();
+        if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
+          throw new Error("Mobile number must be exactly 10 digits");
+        }
+        const userExists = await prisma.user.findFirst({
+          where: { tenantId: req.user.tenantId, mobile: targetMobile }
+        });
+        const memberExists = await prisma.member.findFirst({
+          where: { 
+            tenantId: req.user.tenantId, 
+            OR: [
+              { mobile: targetMobile },
+              { secondaryMobile: targetMobile }
+            ],
+            status: { not: "VACANT" } 
+          }
+        });
+        if (userExists || memberExists) {
+          throw new Error(`Mobile number ${targetMobile} is already registered in this society.`);
+        }
       }
-    }
+    };
+
+    if (email) await checkUniqueness(email, undefined);
+    if (mobile) await checkUniqueness(undefined, mobile);
+    if (secondaryEmail) await checkUniqueness(secondaryEmail, undefined);
+    if (secondaryMobile) await checkUniqueness(undefined, secondaryMobile);
 
     const result = await prisma.$transaction(async (tx) => {
       let userId = undefined;
+      let secondaryUserId = undefined;
       
-      if (enableLogin && password) {
-        const targetEmail = (loginMethod === "EMAIL" || loginMethod === "BOTH" || !loginMethod) ? (email?.toLowerCase().trim() || null) : null;
-        const targetMobile = (loginMethod === "MOBILE" || loginMethod === "BOTH" || !loginMethod) ? (mobile?.trim() || null) : null;
+      if (password) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await tx.user.create({
+          data: {
+            name: `${name} (Primary)`,
+            email: email?.toLowerCase().trim() || null,
+            mobile: mobile.trim(),
+            password: hashedPassword,
+            role: "MEMBER",
+            tenantId: req.user.tenantId,
+          }
+        });
+        userId = user.id;
+      }
 
-        console.log("Checking existing user (isolated) for:", { email: targetEmail, mobile: targetMobile, tenantId: req.user.tenantId });
-        // Check if user already exists IN THIS TENANT ONLY
-        let existingUser = null;
-        if (targetEmail) {
-          existingUser = await tx.user.findUnique({ 
-            where: { 
-              email_tenantId: { 
-                email: targetEmail, 
-                tenantId: req.user.tenantId 
-              } 
-            } 
-          });
-        }
-        if (!existingUser && targetMobile) {
-          existingUser = await tx.user.findUnique({ 
-            where: { 
-              mobile_tenantId: { 
-                mobile: targetMobile, 
-                tenantId: req.user.tenantId 
-              } 
-            } 
-          });
-        }
-
-        if (existingUser) {
-          userId = existingUser.id;
-          // Update credentials on existing user to match
-          await tx.user.update({
-            where: { id: userId },
-            data: {
-              email: targetEmail,
-              mobile: targetMobile
-            }
-          });
-        } else {
-          const hashedPassword = await bcrypt.hash(password, 10);
-          const user = await tx.user.create({
-            data: {
-              name,
-              email: targetEmail,
-              mobile: targetMobile,
-              password: hashedPassword,
-              role: "MEMBER",
-              tenantId: req.user.tenantId,
-            }
-          });
-          userId = user.id;
-        }
+      if (secondaryPassword) {
+        const hashedPassword = await bcrypt.hash(secondaryPassword, 10);
+        const sUser = await tx.user.create({
+          data: {
+            name: `${name} (Secondary)`,
+            email: secondaryEmail?.toLowerCase().trim() || null,
+            mobile: secondaryMobile?.trim() || null,
+            password: hashedPassword,
+            role: "MEMBER",
+            tenantId: req.user.tenantId,
+          }
+        });
+        secondaryUserId = sUser.id;
       }
 
       const { residenceType, bhk, useCommonMaintenance } = req.body;
       const regYear = registrationYear?.trim() || getFinancialYear(new Date());
 
-      // Get all configured maintenance costs for this tenant
       const allCosts = await tx.maintenanceCost.findMany({
         where: { tenantId: req.user.tenantId }
       });
@@ -301,17 +320,19 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       let initialDues = outstandingDues ? parseFloat(outstandingDues.toString()) : 0;
       initialDues += totalApplicableDues;
 
-
       const member = await tx.member.create({
         data: {
           name,
-          email,
+          email: email || null,
           mobile,
+          secondaryEmail: secondaryEmail || null,
+          secondaryMobile: secondaryMobile || null,
           flatNo,
           address,
           outstandingDues: initialDues,
           tenantId: req.user.tenantId,
           userId,
+          secondaryUserId,
           defaultTenure: defaultTenure || "MONTHLY",
           paidUntil: paidUntil ? new Date(paidUntil) : null,
           photoUrl,
@@ -323,7 +344,6 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         },
       });
 
-      // Handle initial payment (Corpus Fund, Setup Fee, etc)
       if (initialPaymentAmount && parseFloat(initialPaymentAmount) > 0) {
         const pCount = await tx.payment.count({ where: { tenantId: req.user.tenantId } });
         const receiptNumber = `REC-${(pCount + 1).toString().padStart(4, '0')}`;
@@ -416,9 +436,14 @@ router.patch("/:id/vacant", authorize(["TENANT_ADMIN"]), async (req: any, res) =
           await tx.user.delete({ where: { id: member.userId } });
         }
       }
+
+      if (member.secondaryUserId) {
+        await tx.user.delete({ where: { id: member.secondaryUserId } });
+      }
+
       return await tx.member.update({
         where: { id: req.params.id },
-        data: { status: "VACANT", userId: null }
+        data: { status: "VACANT", userId: null, secondaryUserId: null }
       });
     });
     res.json(result);
@@ -428,73 +453,92 @@ router.patch("/:id/vacant", authorize(["TENANT_ADMIN"]), async (req: any, res) =
 });
 
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { name, email, mobile, flatNo, address, outstandingDues, status, password, enableLogin, loginMethod, defaultTenure, paidUntil, photoUrl, idProofUrl, registrationYear } = req.body;
-  try {
-    // Constraint check for Email
-    if (email) {
-      const targetEmail = email.toLowerCase().trim();
-      const userExists = await prisma.user.findFirst({
-        where: { tenantId: req.user.tenantId, email: targetEmail }
-      });
-      const memberExists = await prisma.member.findFirst({
-        where: { tenantId: req.user.tenantId, email: targetEmail, id: { not: req.params.id }, status: { not: "VACANT" } }
-      });
-      const currentMember = await prisma.member.findUnique({ where: { id: req.params.id } });
-      if ((userExists && userExists.id !== currentMember?.userId) || memberExists) {
-        return res.status(400).json({ message: "This email address is already registered in this society. Please use another email." });
-      }
-    }
+  const { 
+    name, email, mobile, secondaryEmail, secondaryMobile, flatNo, address, outstandingDues, status, 
+    password, secondaryPassword, defaultTenure, paidUntil, photoUrl, idProofUrl, registrationYear 
+  } = req.body;
 
-    // Constraint check for Mobile
-    if (mobile) {
-      const targetMobile = mobile.trim();
-      if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
-        return res.status(400).json({ message: "Mobile number must be exactly 10 digits" });
+  try {
+    const checkUniqueness = async (emailVal?: string, mobileVal?: string) => {
+      if (emailVal) {
+        const targetEmail = emailVal.toLowerCase().trim();
+        const userExists = await prisma.user.findFirst({
+          where: { tenantId: req.user.tenantId, email: targetEmail, memberProfile: { id: { not: req.params.id } } }
+        });
+        const memberExists = await prisma.member.findFirst({
+          where: { 
+            tenantId: req.user.tenantId, 
+            OR: [
+              { email: targetEmail },
+              { secondaryEmail: targetEmail }
+            ],
+            id: { not: req.params.id },
+            status: { not: "VACANT" } 
+          }
+        });
+        if (userExists || memberExists) {
+          throw new Error(`Email address ${targetEmail} is already registered in this society.`);
+        }
       }
-      const userExists = await prisma.user.findFirst({
-        where: { tenantId: req.user.tenantId, mobile: targetMobile }
-      });
-      const memberExists = await prisma.member.findFirst({
-        where: { tenantId: req.user.tenantId, mobile: targetMobile, id: { not: req.params.id }, status: { not: "VACANT" } }
-      });
-      const currentMember = await prisma.member.findUnique({ where: { id: req.params.id } });
-      if ((userExists && userExists.id !== currentMember?.userId) || memberExists) {
-        return res.status(400).json({ message: "This mobile number is already registered in this society. Please use another mobile number." });
+      if (mobileVal) {
+        const targetMobile = mobileVal.trim();
+        if (targetMobile !== "" && !/^\d{10}$/.test(targetMobile)) {
+          throw new Error("Mobile number must be exactly 10 digits");
+        }
+        const userExists = await prisma.user.findFirst({
+          where: { tenantId: req.user.tenantId, mobile: targetMobile, memberProfile: { id: { not: req.params.id } } }
+        });
+        const memberExists = await prisma.member.findFirst({
+          where: { 
+            tenantId: req.user.tenantId, 
+            OR: [
+              { mobile: targetMobile },
+              { secondaryMobile: targetMobile }
+            ],
+            id: { not: req.params.id },
+            status: { not: "VACANT" } 
+          }
+        });
+        if (userExists || memberExists) {
+          throw new Error(`Mobile number ${targetMobile} is already registered in this society.`);
+        }
       }
-    }
+    };
+
+    if (email) await checkUniqueness(email, undefined);
+    if (mobile) await checkUniqueness(undefined, mobile);
+    if (secondaryEmail) await checkUniqueness(secondaryEmail, undefined);
+    if (secondaryMobile) await checkUniqueness(undefined, secondaryMobile);
 
     const result = await prisma.$transaction(async (tx) => {
       const currentMember = await tx.member.findUnique({
-        where: { id: req.params.id, tenantId: req.user.tenantId },
-        include: { user: true }
+        where: { id: req.params.id, tenantId: req.user.tenantId }
       });
 
       if (!currentMember) throw new Error("Member not found");
 
       let userId = currentMember.userId;
+      let secondaryUserId = currentMember.secondaryUserId;
 
-      if (enableLogin) {
-        const targetEmail = (loginMethod === "EMAIL" || loginMethod === "BOTH" || !loginMethod) ? (email?.toLowerCase().trim() || null) : null;
-        const targetMobile = (loginMethod === "MOBILE" || loginMethod === "BOTH" || !loginMethod) ? (mobile?.trim() || null) : null;
-
+      // 1. Primary User setup/update
+      if (password) {
+        const hashedPassword = await bcrypt.hash(password, 10);
         if (userId) {
-          // Update existing user
-          const updateData: any = { name, email: targetEmail, mobile: targetMobile };
-          if (password) {
-            updateData.password = await bcrypt.hash(password, 10);
-          }
           await tx.user.update({
             where: { id: userId },
-            data: updateData
+            data: {
+              name: `${name} (Primary)`,
+              email: email?.toLowerCase().trim() || null,
+              mobile: mobile.trim(),
+              password: hashedPassword
+            }
           });
-        } else if (password) {
-          // Create new user
-          const hashedPassword = await bcrypt.hash(password, 10);
+        } else {
           const user = await tx.user.create({
             data: {
-              name,
-              email: targetEmail,
-              mobile: targetMobile,
+              name: `${name} (Primary)`,
+              email: email?.toLowerCase().trim() || null,
+              mobile: mobile.trim(),
               password: hashedPassword,
               role: "MEMBER",
               tenantId: req.user.tenantId,
@@ -502,27 +546,64 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           });
           userId = user.id;
         }
-      } else {
-        if (userId) {
-          await tx.member.update({
-            where: { id: req.params.id },
-            data: { userId: null }
+      } else if (userId) {
+        // Just update name, email, mobile
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            name: `${name} (Primary)`,
+            email: email?.toLowerCase().trim() || null,
+            mobile: mobile.trim()
+          }
+        });
+      }
+
+      // 2. Secondary User setup/update
+      if (secondaryPassword) {
+        const hashedPassword = await bcrypt.hash(secondaryPassword, 10);
+        if (secondaryUserId) {
+          await tx.user.update({
+            where: { id: secondaryUserId },
+            data: {
+              name: `${name} (Secondary)`,
+              email: secondaryEmail?.toLowerCase().trim() || null,
+              mobile: secondaryMobile?.trim() || null,
+              password: hashedPassword
+            }
           });
-          await tx.user.delete({ where: { id: userId } });
-          userId = null;
+        } else {
+          const sUser = await tx.user.create({
+            data: {
+              name: `${name} (Secondary)`,
+              email: secondaryEmail?.toLowerCase().trim() || null,
+              mobile: secondaryMobile?.trim() || null,
+              password: hashedPassword,
+              role: "MEMBER",
+              tenantId: req.user.tenantId,
+            }
+          });
+          secondaryUserId = sUser.id;
         }
+      } else if (secondaryUserId) {
+        // Just update name, email, mobile
+        await tx.user.update({
+          where: { id: secondaryUserId },
+          data: {
+            name: `${name} (Secondary)`,
+            email: secondaryEmail?.toLowerCase().trim() || null,
+            mobile: secondaryMobile?.trim() || null
+          }
+        });
       }
 
       let finalOutstandingDues = outstandingDues !== undefined ? parseFloat(outstandingDues.toString()) : undefined;
 
       const { residenceType, bhk, useCommonMaintenance } = req.body;
 
-      // Get all configured maintenance costs for this tenant
       const allCosts = await tx.maintenanceCost.findMany({
         where: { tenantId: req.user.tenantId }
       });
 
-      // Calculate old total maintenance dues
       const oldRegYear = currentMember.registrationYear || "";
       const oldUseCommon = currentMember.useCommonMaintenance;
       const oldResType = currentMember.residenceType || "COMMON";
@@ -536,7 +617,6 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         allCosts
       );
 
-      // Calculate new total maintenance dues
       const nextRegYear = registrationYear !== undefined ? registrationYear : currentMember.registrationYear;
       const nextUseCommon = useCommonMaintenance !== undefined ? (useCommonMaintenance === true || useCommonMaintenance === 'true') : currentMember.useCommonMaintenance;
       const nextResType = residenceType !== undefined ? residenceType : currentMember.residenceType;
@@ -563,13 +643,16 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         where: { id: req.params.id },
         data: {
           name,
-          email,
+          email: email || null,
           mobile,
+          secondaryEmail: secondaryEmail || null,
+          secondaryMobile: secondaryMobile || null,
           flatNo,
           address,
           outstandingDues: finalOutstandingDues,
           status,
           userId,
+          secondaryUserId,
           defaultTenure: defaultTenure || undefined,
           paidUntil: req.body.hasOwnProperty('paidUntil') ? (paidUntil ? new Date(paidUntil) : null) : undefined,
           photoUrl: photoUrl !== undefined ? photoUrl : undefined,
@@ -587,7 +670,7 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           actionType: "MEMBER_UPDATED",
           performedBy: req.user.name,
           referenceId: member.id,
-          details: `Updated details for member ${member.name} (${member.flatNo}). Login ${enableLogin ? 'Enabled' : 'No Change'}.`,
+          details: `Updated details for member ${member.name} (${member.flatNo}).`,
         }
       });
 

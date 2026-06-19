@@ -64,7 +64,8 @@ model User {
   cashBalance       CashBalance?
   sentHandovers     CashTransaction[] @relation("SentBy")
   receivedHandovers CashTransaction[] @relation("ReceivedBy")
-  memberProfile     Member?
+  memberProfile           Member?           @relation("PrimaryUser")
+  secondaryMemberProfile  Member?           @relation("SecondaryUser")
   collectedPayments Payment[]         @relation("CollectedBy")
   tenant            Tenant?           @relation(fields: [tenantId], references: [id])
   ticketComments    TicketComment[]
@@ -101,7 +102,11 @@ model Member {
   
   expensesPaid    Expense[]      @relation("PaidBy")
   tenant          Tenant         @relation(fields: [tenantId], references: [id])
-  user            User?          @relation(fields: [userId], references: [id])
+  secondaryEmail    String?
+  secondaryMobile   String?
+  secondaryUserId   String?        @unique
+  user              User?          @relation("PrimaryUser", fields: [userId], references: [id])
+  secondaryUser     User?          @relation("SecondaryUser", fields: [secondaryUserId], references: [id])
   payments        Payment[]
   subscriptions   Subscription[]
   tickets         Ticket[]

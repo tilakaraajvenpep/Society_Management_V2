@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 import {
-  LayoutDashboard, Users,
+  LayoutDashboard, Users, User,
   ArrowDownLeft, Landmark, LogOut, Plus, Send,
   TrendingUp, Users2, Receipt, Building, Settings, History, Download, Upload, Edit, XCircle, Printer, Eye, UserCheck, Trash2, Calendar, BarChart2, Menu, X, Bell,
   MessageSquare, LifeBuoy, Clock, FileText, Image, Search, DollarSign, Percent, Wrench, Save
@@ -2192,7 +2192,7 @@ const TenantAdminDashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState<string | null>(null);
   const [newMember, setNewMember] = useState({ 
-    name: '', email: '', mobile: '', flatNo: '', address: '', 
+    name: '', email: '', mobile: '', secondaryEmail: '', secondaryMobile: '', secondaryPassword: '', enableSecondaryLogin: false, flatNo: '', address: '', 
     outstandingDues: 0, password: '', enableLogin: false, loginMethod: 'BOTH',
     defaultTenure: 'MONTHLY', paidUntil: '',
     initialPaymentAmount: 0, initialPaymentMode: 'CASH', initialPaymentNotes: '',
@@ -2544,7 +2544,14 @@ const TenantAdminDashboard = () => {
     if (newMember.mobile) {
       const cleanMobile = newMember.mobile.trim();
       if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
-        showToast("Mobile number must be exactly 10 digits", 'error');
+        showToast("Primary mobile number must be exactly 10 digits", 'error');
+        return;
+      }
+    }
+    if (newMember.secondaryMobile) {
+      const cleanSecMobile = newMember.secondaryMobile.trim();
+      if (cleanSecMobile !== "" && !/^\d{10}$/.test(cleanSecMobile)) {
+        showToast("Secondary mobile number must be exactly 10 digits", 'error');
         return;
       }
     }
@@ -2566,7 +2573,7 @@ const TenantAdminDashboard = () => {
       });
       setShowModal(null);
       setNewMember({ 
-        name: '', email: '', mobile: '', flatNo: '', address: '', 
+        name: '', email: '', mobile: '', secondaryEmail: '', secondaryMobile: '', secondaryPassword: '', enableSecondaryLogin: false, flatNo: '', address: '', 
         outstandingDues: 0, password: '', enableLogin: false, loginMethod: 'BOTH',
         defaultTenure: 'MONTHLY', paidUntil: '', 
         initialPaymentAmount: 0, initialPaymentMode: 'CASH', initialPaymentNotes: '',
@@ -2580,8 +2587,8 @@ const TenantAdminDashboard = () => {
       });
       fetchData();
       showToast('Member added successfully', 'success');
-    } catch (err) {
-      showToast('Error adding member', 'error');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Error adding member', 'error');
     }
   };
   const handleUpdateMember = async (e: React.FormEvent) => {
@@ -2589,7 +2596,14 @@ const TenantAdminDashboard = () => {
     if (editingMember.mobile) {
       const cleanMobile = editingMember.mobile.trim();
       if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
-        showToast("Mobile number must be exactly 10 digits", 'error');
+        showToast("Primary mobile number must be exactly 10 digits", 'error');
+        return;
+      }
+    }
+    if (editingMember.secondaryMobile) {
+      const cleanSecMobile = editingMember.secondaryMobile.trim();
+      if (cleanSecMobile !== "" && !/^\d{10}$/.test(cleanSecMobile)) {
+        showToast("Secondary mobile number must be exactly 10 digits", 'error');
         return;
       }
     }
@@ -2613,8 +2627,8 @@ const TenantAdminDashboard = () => {
       setEditingMember(null);
       fetchData();
       showToast('Member updated successfully', 'success');
-    } catch (err) {
-      showToast('Error updating member', 'error');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Error updating member', 'error');
     }
   };
 
@@ -2630,6 +2644,10 @@ const TenantAdminDashboard = () => {
       password: '', 
       enableLogin: !!m.userId,
       loginMethod: initialLoginMethod,
+      secondaryPassword: '',
+      enableSecondaryLogin: !!m.secondaryUserId,
+      secondaryEmail: m.secondaryEmail || '',
+      secondaryMobile: m.secondaryMobile || '',
       paidUntil: m.paidUntil ? new Date(m.paidUntil).toISOString().split('T')[0] : '',
       photoUrl: m.photoUrl || '',
       idProofUrl: m.idProofUrl || '',
@@ -5082,82 +5100,60 @@ const TenantAdminDashboard = () => {
                         <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>02. Contact & Access</span>
                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
                       </div>
-                      <div className="responsive-form-grid">
-                        <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Mobile Number *</label>
-                          <input type="text" required value={newMember.mobile} onChange={(e) => setNewMember({ ...newMember, mobile: e.target.value })} placeholder="10-digit mobile number" />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Email Address</label>
-                          <input type="email" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} placeholder="email@domain.com" />
-                        </div>
-
-                        {/* Enable Portal Login */}
-                        <div style={{ gridColumn: 'span 2', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                            <input
-                              type="checkbox"
-                              id="enableLogin"
-                              checked={newMember.enableLogin}
-                              onChange={(e) => setNewMember({ ...newMember, enableLogin: e.target.checked })}
-                              style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer', margin: 0 }}
-                            />
-                            <label htmlFor="enableLogin" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <UserCheck size={16} style={{ color: 'var(--primary)' }} /> Enable Member Portal Account
-                            </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }} className="member-contact-grid-layout">
+                        
+                        {/* Primary Contact Card */}
+                        <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <UserCheck size={16} style={{ color: 'var(--primary)' }} /> Primary Contact (Compulsory)
+                          </h4>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Primary Number *</label>
+                            <input type="text" required value={newMember.mobile} onChange={(e) => setNewMember({ ...newMember, mobile: e.target.value })} placeholder="10-digit mobile number" style={{ width: '100%' }} />
                           </div>
-
-                          {newMember.enableLogin && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                              <div>
-                                <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block', color: 'var(--text-primary)' }}>Allowed Login Identifier</label>
-                                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                  {[
-                                    { value: 'MOBILE', label: 'Mobile Number Only' },
-                                    { value: 'EMAIL', label: 'Email Address Only' },
-                                    { value: 'BOTH', label: 'Both Mobile & Email' }
-                                  ].map((opt) => (
-                                    <button
-                                      key={opt.value}
-                                      type="button"
-                                      onClick={() => setNewMember({ ...newMember, loginMethod: opt.value })}
-                                      style={{
-                                        flex: 1,
-                                        padding: '0.625rem',
-                                        fontSize: '0.8125rem',
-                                        fontWeight: 600,
-                                        borderRadius: '0.5rem',
-                                        border: newMember.loginMethod === opt.value ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                                        backgroundColor: newMember.loginMethod === opt.value ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-primary)',
-                                        color: newMember.loginMethod === opt.value ? 'var(--primary)' : 'var(--text-secondary)',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s ease'
-                                      }}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ))}
-                                </div>
-                                <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                                  {newMember.loginMethod === 'BOTH' && "💡 Member can log in using either their email address or mobile number."}
-                                  {newMember.loginMethod === 'MOBILE' && "💡 Member can only log in using their mobile number."}
-                                  {newMember.loginMethod === 'EMAIL' && "💡 Member can only log in using their email address."}
-                                </p>
-                              </div>
-
-                              <div>
-                                <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Set Initial Password *</label>
-                                <input
-                                  type="password"
-                                  required
-                                  placeholder="Min 6 characters"
-                                  value={newMember.password}
-                                  onChange={(e) => setNewMember({ ...newMember, password: e.target.value })}
-                                />
-                              </div>
-                            </div>
-                          )}
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Primary Email (Optional)</label>
+                            <input type="email" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} placeholder="email@domain.com" style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Set Primary Login Password (Optional)</label>
+                            <input
+                              type="password"
+                              placeholder="Min 6 characters"
+                              value={newMember.password}
+                              onChange={(e) => setNewMember({ ...newMember, password: e.target.value })}
+                              style={{ width: '100%' }}
+                            />
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Setting a password enables member portal login for the primary contact via mobile or email.</p>
+                          </div>
                         </div>
+
+                        {/* Secondary Contact Card */}
+                        <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <User size={16} style={{ color: 'var(--success)' }} /> Secondary Contact (Optional)
+                          </h4>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Secondary Number (Optional)</label>
+                            <input type="text" value={newMember.secondaryMobile || ''} onChange={(e) => setNewMember({ ...newMember, secondaryMobile: e.target.value })} placeholder="10-digit mobile number" style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Secondary Email (Optional)</label>
+                            <input type="email" value={newMember.secondaryEmail || ''} onChange={(e) => setNewMember({ ...newMember, secondaryEmail: e.target.value })} placeholder="email@domain.com" style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Set Secondary Login Password (Optional)</label>
+                            <input
+                              type="password"
+                              placeholder="Min 6 characters"
+                              value={newMember.secondaryPassword || ''}
+                              onChange={(e) => setNewMember({ ...newMember, secondaryPassword: e.target.value })}
+                              style={{ width: '100%' }}
+                            />
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Setting a password enables member portal login for the secondary contact via mobile or email.</p>
+                          </div>
+                        </div>
+
                       </div>
                     </div>
 
@@ -5576,84 +5572,72 @@ const TenantAdminDashboard = () => {
                         <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>02. Contact & Access</span>
                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
                       </div>
-                      <div className="responsive-form-grid">
-                        <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Mobile Number *</label>
-                          <input type="text" required value={editingMember.mobile} onChange={(e) => setEditingMember({ ...editingMember, mobile: e.target.value })} placeholder="10-digit mobile number" />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Email Address</label>
-                          <input type="email" value={editingMember.email || ''} onChange={(e) => setEditingMember({ ...editingMember, email: e.target.value })} placeholder="email@domain.com" />
-                        </div>
-
-                        {/* Enable Portal Login */}
-                        <div style={{ gridColumn: 'span 2', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                            <input
-                              type="checkbox"
-                              id="enableLoginEdit"
-                              checked={editingMember.enableLogin}
-                              onChange={(e) => setEditingMember({ ...editingMember, enableLogin: e.target.checked })}
-                              style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer', margin: 0 }}
-                            />
-                            <label htmlFor="enableLoginEdit" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <UserCheck size={16} style={{ color: 'var(--primary)' }} /> {editingMember.userId ? 'Member Login Enabled' : 'Enable Member Portal Account'}
-                            </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }} className="member-contact-grid-layout">
+                        
+                        {/* Primary Contact Card */}
+                        <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <UserCheck size={16} style={{ color: 'var(--primary)' }} /> Primary Contact (Compulsory)
+                          </h4>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Primary Number *</label>
+                            <input type="text" required value={editingMember.mobile} onChange={(e) => setEditingMember({ ...editingMember, mobile: e.target.value })} placeholder="10-digit mobile number" style={{ width: '100%' }} />
                           </div>
-
-                          {editingMember.enableLogin && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                              <div>
-                                <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block', color: 'var(--text-primary)' }}>Allowed Login Identifier</label>
-                                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                  {[
-                                    { value: 'MOBILE', label: 'Mobile Number Only' },
-                                    { value: 'EMAIL', label: 'Email Address Only' },
-                                    { value: 'BOTH', label: 'Both Mobile & Email' }
-                                  ].map((opt) => (
-                                    <button
-                                      key={opt.value}
-                                      type="button"
-                                      onClick={() => setEditingMember({ ...editingMember, loginMethod: opt.value })}
-                                      style={{
-                                        flex: 1,
-                                        padding: '0.625rem',
-                                        fontSize: '0.8125rem',
-                                        fontWeight: 600,
-                                        borderRadius: '0.5rem',
-                                        border: editingMember.loginMethod === opt.value ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                                        backgroundColor: editingMember.loginMethod === opt.value ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-primary)',
-                                        color: editingMember.loginMethod === opt.value ? 'var(--primary)' : 'var(--text-secondary)',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s ease'
-                                      }}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ))}
-                                </div>
-                                <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                                  {editingMember.loginMethod === 'BOTH' && "💡 Member can log in using either their email address or mobile number."}
-                                  {editingMember.loginMethod === 'MOBILE' && "💡 Member can only log in using their mobile number."}
-                                  {editingMember.loginMethod === 'EMAIL' && "💡 Member can only log in using their email address."}
-                                </p>
-                              </div>
-
-                              <div>
-                                <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
-                                  {editingMember.userId ? 'Change Password (leave blank to keep current)' : 'Set Initial Password *'}
-                                </label>
-                                <input
-                                  type="password"
-                                  required={!editingMember.userId}
-                                  placeholder={editingMember.userId ? "Leave blank to keep current password" : "Min 6 characters"}
-                                  value={editingMember.password || ''}
-                                  onChange={(e) => setEditingMember({ ...editingMember, password: e.target.value })}
-                                />
-                              </div>
-                            </div>
-                          )}
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Primary Email (Optional)</label>
+                            <input type="email" value={editingMember.email || ''} onChange={(e) => setEditingMember({ ...editingMember, email: e.target.value })} placeholder="email@domain.com" style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
+                              {editingMember.userId ? 'Change Primary Login Password (Optional)' : 'Set Primary Login Password (Optional)'}
+                            </label>
+                            <input
+                              type="password"
+                              placeholder={editingMember.userId ? "Leave blank to keep current" : "Min 6 characters"}
+                              value={editingMember.password || ''}
+                              onChange={(e) => setEditingMember({ ...editingMember, password: e.target.value })}
+                              style={{ width: '100%' }}
+                            />
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                              {editingMember.userId 
+                                ? 'Password will be updated only if you enter a new one.' 
+                                : 'Setting a password enables portal login for primary contact.'}
+                            </p>
+                          </div>
                         </div>
+
+                        {/* Secondary Contact Card */}
+                        <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <User size={16} style={{ color: 'var(--success)' }} /> Secondary Contact (Optional)
+                          </h4>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Secondary Number (Optional)</label>
+                            <input type="text" value={editingMember.secondaryMobile || ''} onChange={(e) => setEditingMember({ ...editingMember, secondaryMobile: e.target.value })} placeholder="10-digit mobile number" style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Secondary Email (Optional)</label>
+                            <input type="email" value={editingMember.secondaryEmail || ''} onChange={(e) => setEditingMember({ ...editingMember, secondaryEmail: e.target.value })} placeholder="email@domain.com" style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
+                              {editingMember.secondaryUserId ? 'Change Secondary Login Password (Optional)' : 'Set Secondary Login Password (Optional)'}
+                            </label>
+                            <input
+                              type="password"
+                              placeholder={editingMember.secondaryUserId ? "Leave blank to keep current" : "Min 6 characters"}
+                              value={editingMember.secondaryPassword || ''}
+                              onChange={(e) => setEditingMember({ ...editingMember, secondaryPassword: e.target.value })}
+                              style={{ width: '100%' }}
+                            />
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                              {editingMember.secondaryUserId 
+                                ? 'Password will be updated only if you enter a new one.' 
+                                : 'Setting a password enables portal login for secondary contact.'}
+                            </p>
+                          </div>
+                        </div>
+
                       </div>
                     </div>
 
