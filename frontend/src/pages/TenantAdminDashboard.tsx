@@ -3457,36 +3457,7 @@ const TenantAdminDashboard = () => {
                 </p>
               </div>
             </div>
-            
-            {/* KPI metrics */}
-            <div className="stat-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-              <div className="card stat-card" style={{ borderLeft: '4px solid var(--primary)', padding: '1rem' }}>
-                <div className="stat-title">Total Payments Tracked</div>
-                <div className="stat-value" style={{ fontSize: '1.5rem', marginTop: '0.25rem' }}>{payments.length}</div>
-              </div>
-              <div className="card stat-card" style={{ borderLeft: '4px solid var(--success)', padding: '1rem' }}>
-                <div className="stat-title">Same-Day Postings</div>
-                <div className="stat-value" style={{ fontSize: '1.5rem', color: 'var(--success)', marginTop: '0.25rem' }}>
-                  {payments.filter((p: any) => {
-                    if (!p.paymentDate || !p.ledgerDate) return false;
-                    const d1 = new Date(p.paymentDate).toDateString();
-                    const d2 = new Date(p.ledgerDate).toDateString();
-                    return d1 === d2;
-                  }).length}
-                </div>
-              </div>
-              <div className="card stat-card" style={{ borderLeft: '4px solid var(--warning)', padding: '1rem' }}>
-                <div className="stat-title">Delayed Ledger Postings</div>
-                <div className="stat-value" style={{ fontSize: '1.5rem', color: 'var(--warning)', marginTop: '0.25rem' }}>
-                  {payments.filter((p: any) => {
-                    if (!p.paymentDate || !p.ledgerDate) return false;
-                    const d1 = new Date(p.paymentDate).toDateString();
-                    const d2 = new Date(p.ledgerDate).toDateString();
-                    return d1 !== d2;
-                  }).length}
-                </div>
-              </div>
-            </div>
+
 
             <div className="table-container">
               <table>
@@ -3513,7 +3484,6 @@ const TenantAdminDashboard = () => {
                     payments.map((p: any) => {
                       const recDate = p.paymentDate ? new Date(p.paymentDate) : null;
                       const ledDate = p.ledgerDate ? new Date(p.ledgerDate) : null;
-                      const isDifferent = recDate && ledDate && recDate.toDateString() !== ledDate.toDateString();
 
                       return (
                         <tr key={p.id}>
@@ -3525,16 +3495,7 @@ const TenantAdminDashboard = () => {
                             {recDate ? recDate.toLocaleDateString() : '-'}
                           </td>
                           <td style={{ fontSize: '0.8125rem' }}>
-                            {ledDate ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: isDifferent ? 'var(--warning)' : 'inherit', fontWeight: isDifferent ? 600 : 'normal' }}>
-                                {ledDate.toLocaleDateString()}
-                                {isDifferent && (
-                                  <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '0.1rem 0.3rem', borderRadius: '0.25rem', color: 'var(--warning)' }} title="Dates differ">
-                                    diff
-                                  </span>
-                                )}
-                              </span>
-                            ) : (
+                            {ledDate ? ledDate.toLocaleDateString() : (
                               <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Not recorded</span>
                             )}
                           </td>
