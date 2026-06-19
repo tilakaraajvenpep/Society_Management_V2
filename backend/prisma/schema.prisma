@@ -130,6 +130,7 @@ model Payment {
   subscriptionId    String?
   amount            Float
   paymentDate       DateTime       @default(now())
+  ledgerDate        DateTime?
   mode              PaymentMode
   status            PaymentStatus  @default(PAID)
   notes             String?

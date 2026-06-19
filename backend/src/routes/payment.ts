@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { memberId, amount, mode, notes, subscriptionId, paidMonths, periodLabel, coverageStartDate, coverageEndDate, paymentDate, category } = req.body;
+  const { memberId, amount, mode, notes, subscriptionId, paidMonths, periodLabel, coverageStartDate, coverageEndDate, paymentDate, ledgerDate, category } = req.body;
   try {
     // Fetch member name and current paidUntil
     const currentMember = await prisma.member.findUnique({ where: { id: memberId }, select: { name: true, flatNo: true, paidUntil: true } });
@@ -37,6 +37,7 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           paidMonths: monthsToAdd,
           periodLabel: label,
           paymentDate: paymentDate ? new Date(paymentDate) : undefined,
+          ledgerDate: ledgerDate ? new Date(ledgerDate) : null,
           coverageStartDate: coverageStartDate ? new Date(coverageStartDate) : null,
           coverageEndDate: coverageEndDate ? new Date(coverageEndDate) : null,
           category: category || "Maintenance",
@@ -139,7 +140,7 @@ router.get("/upcoming", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 });
 
 router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { status, amount, mode, notes, coverageStartDate, coverageEndDate, paymentDate, category } = req.body;
+  const { status, amount, mode, notes, coverageStartDate, coverageEndDate, paymentDate, ledgerDate, category } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const current = await tx.payment.findUnique({
@@ -213,6 +214,9 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
       if (paymentDate) {
         updateData.paymentDate = new Date(paymentDate);
+      }
+      if (ledgerDate !== undefined) {
+        updateData.ledgerDate = ledgerDate ? new Date(ledgerDate) : null;
       }
       if (coverageStartDate !== undefined) {
         updateData.coverageStartDate = coverageStartDate ? new Date(coverageStartDate) : null;

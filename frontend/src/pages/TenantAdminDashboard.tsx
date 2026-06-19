@@ -2252,7 +2252,7 @@ const TenantAdminDashboard = () => {
   );
 
 
-  const [newPayment, setNewPayment] = useState({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString(), category: 'Maintenance' });
+  const [newPayment, setNewPayment] = useState({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString(), ledgerDate: getTodayDateString(), category: 'Maintenance' });
   const [editingPayment, setEditingPayment] = useState<any>(null);
   const [upcomingMembers, setUpcomingMembers] = useState([]);
   const [newTransfer, setNewTransfer] = useState({ toAdminId: '', amount: 0, type: 'HANDOVER', referenceNote: '' });
@@ -2486,7 +2486,7 @@ const TenantAdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setShowModal(null);
-      setNewPayment({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString(), category: 'Maintenance' });
+      setNewPayment({ memberId: '', amount: 0, mode: 'CASH', notes: '', paidMonths: 1, periodLabel: 'Monthly', coverageStartDate: '', coverageEndDate: '', paymentDate: getTodayDateString(), ledgerDate: getTodayDateString(), category: 'Maintenance' });
       fetchData();
       showToast('Payment recorded successfully', 'success');
     } catch (err: any) {
@@ -2679,6 +2679,7 @@ const TenantAdminDashboard = () => {
       mode: payment.mode,
       notes: payment.notes || '',
       paymentDate: toISODateString(payment.paymentDate),
+      ledgerDate: toISODateString(payment.ledgerDate),
       coverageStartDate: toISODateString(payment.coverageStartDate),
       coverageEndDate: toISODateString(payment.coverageEndDate),
     });
@@ -2693,6 +2694,7 @@ const TenantAdminDashboard = () => {
         mode: editingPayment.mode,
         notes: editingPayment.notes,
         paymentDate: editingPayment.paymentDate || null,
+        ledgerDate: editingPayment.ledgerDate || null,
         coverageStartDate: editingPayment.coverageStartDate || null,
         coverageEndDate: editingPayment.coverageEndDate || null,
       }, {
@@ -3444,6 +3446,116 @@ const TenantAdminDashboard = () => {
             </div>
           </div>
         );
+      case 'ledger-reconciliation': {
+        return (
+          <div className="card">
+            <div className="section-header-row">
+              <div>
+                <h3>Ledger Payment Dates</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  Compare the date payment was received from a member vs the date recorded in the ledger.
+                </p>
+              </div>
+            </div>
+            
+            {/* KPI metrics */}
+            <div className="stat-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+              <div className="card stat-card" style={{ borderLeft: '4px solid var(--primary)', padding: '1rem' }}>
+                <div className="stat-title">Total Payments Tracked</div>
+                <div className="stat-value" style={{ fontSize: '1.5rem', marginTop: '0.25rem' }}>{payments.length}</div>
+              </div>
+              <div className="card stat-card" style={{ borderLeft: '4px solid var(--success)', padding: '1rem' }}>
+                <div className="stat-title">Same-Day Postings</div>
+                <div className="stat-value" style={{ fontSize: '1.5rem', color: 'var(--success)', marginTop: '0.25rem' }}>
+                  {payments.filter((p: any) => {
+                    if (!p.paymentDate || !p.ledgerDate) return false;
+                    const d1 = new Date(p.paymentDate).toDateString();
+                    const d2 = new Date(p.ledgerDate).toDateString();
+                    return d1 === d2;
+                  }).length}
+                </div>
+              </div>
+              <div className="card stat-card" style={{ borderLeft: '4px solid var(--warning)', padding: '1rem' }}>
+                <div className="stat-title">Delayed Ledger Postings</div>
+                <div className="stat-value" style={{ fontSize: '1.5rem', color: 'var(--warning)', marginTop: '0.25rem' }}>
+                  {payments.filter((p: any) => {
+                    if (!p.paymentDate || !p.ledgerDate) return false;
+                    const d1 = new Date(p.paymentDate).toDateString();
+                    const d2 = new Date(p.ledgerDate).toDateString();
+                    return d1 !== d2;
+                  }).length}
+                </div>
+              </div>
+            </div>
+
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Receipt No</th>
+                    <th>Member</th>
+                    <th>Amount</th>
+                    <th>Mode</th>
+                    <th>Received Date (Member)</th>
+                    <th>Recorded Date (Ledger)</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                        No payment records found
+                      </td>
+                    </tr>
+                  ) : (
+                    payments.map((p: any) => {
+                      const recDate = p.paymentDate ? new Date(p.paymentDate) : null;
+                      const ledDate = p.ledgerDate ? new Date(p.ledgerDate) : null;
+                      const isDifferent = recDate && ledDate && recDate.toDateString() !== ledDate.toDateString();
+
+                      return (
+                        <tr key={p.id}>
+                          <td><code style={{ fontSize: '0.8125rem' }}>{p.receiptNumber}</code></td>
+                          <td><strong>{p.member?.name}</strong> <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>({p.member?.flatNo})</span></td>
+                          <td style={{ fontWeight: 600 }}>₹{p.amount.toLocaleString()}</td>
+                          <td><span className={`badge ${p.mode === 'CASH' ? 'badge-warning' : 'badge-success'}`}>{p.mode}</span></td>
+                          <td style={{ fontSize: '0.8125rem' }}>
+                            {recDate ? recDate.toLocaleDateString() : '-'}
+                          </td>
+                          <td style={{ fontSize: '0.8125rem' }}>
+                            {ledDate ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: isDifferent ? 'var(--warning)' : 'inherit', fontWeight: isDifferent ? 600 : 'normal' }}>
+                                {ledDate.toLocaleDateString()}
+                                {isDifferent && (
+                                  <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '0.1rem 0.3rem', borderRadius: '0.25rem', color: 'var(--warning)' }} title="Dates differ">
+                                    diff
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Not recorded</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`badge ${p.status === 'PAID' ? 'badge-success' : 'badge-error'}`}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.notes || ''}>
+                            {p.notes || '-'}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      }
       case 'expenses':
         return <ExpenseManagement token={token} expenses={expenses} vendors={vendors} expenseCategories={expenseCategories} members={members} onRefresh={fetchData} />;
       case 'reports': {
@@ -4578,6 +4690,7 @@ const TenantAdminDashboard = () => {
     { id: 'overview', icon: LayoutDashboard, label: 'Overview' },
       { id: 'members', icon: Users, label: 'Members' },
       { id: 'payments', icon: Receipt, label: 'Payments' },
+      { id: 'ledger-reconciliation', icon: FileText, label: 'Ledger Dates' },
       { id: 'upcoming', icon: Calendar, label: 'Upcoming Dues' },
       { id: 'expenses', icon: Landmark, label: 'Expenses' },
       ...(summary.enableForums ? [{ id: 'helpdesk', icon: LifeBuoy, label: 'Helpdesk' }] : []),
@@ -5642,7 +5755,7 @@ const TenantAdminDashboard = () => {
                         })()}
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Received from Member</label>
                         <input 
                           type="date" 
                           required 
@@ -5659,9 +5772,25 @@ const TenantAdminDashboard = () => {
                       </div>
                     </div>
 
-                    <div>
-                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Reference / Notes</label>
-                      <input type="text" placeholder="e.g. Receipt No, Transaction ID" value={newPayment.notes} onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })} />
+                    <div className="grid-2">
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Recorded in Ledger</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={newPayment.ledgerDate} 
+                          onChange={(e) => {
+                            setNewPayment({ 
+                              ...newPayment, 
+                              ledgerDate: e.target.value
+                            });
+                          }} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Reference / Notes</label>
+                        <input type="text" placeholder="e.g. Receipt No, Transaction ID" value={newPayment.notes} onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })} />
+                      </div>
                     </div>
 
                     {newPayment.category === 'Maintenance' && (
@@ -5739,13 +5868,17 @@ const TenantAdminDashboard = () => {
                     </div>
                     <div className="grid-2">
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Received from Member</label>
                         <input type="date" required value={editingPayment.paymentDate} onChange={(e) => setEditingPayment({ ...editingPayment, paymentDate: e.target.value })} />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Reference / Notes</label>
-                        <input type="text" value={editingPayment.notes} onChange={(e) => setEditingPayment({ ...editingPayment, notes: e.target.value })} />
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Recorded in Ledger</label>
+                        <input type="date" required value={editingPayment.ledgerDate || ''} onChange={(e) => setEditingPayment({ ...editingPayment, ledgerDate: e.target.value })} />
                       </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Reference / Notes</label>
+                      <input type="text" value={editingPayment.notes} onChange={(e) => setEditingPayment({ ...editingPayment, notes: e.target.value })} />
                     </div>
                     <div className="grid-2" style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px dashed var(--border-color)' }}>
                       <div style={{ gridColumn: 'span 2' }}>
