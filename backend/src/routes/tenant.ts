@@ -222,7 +222,7 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
 
 // Update tenant settings (used by Tenant Admin inside their session)
 router.patch("/settings", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { maintenanceAmount, billingCycle, quarterlyAmount, halfYearlyAmount, annualAmount, enableForums, enableMonthlyReminder, monthlyReminderCount, monthlyReminderInterval, enableOverdueReminder, overdueReminderInterval, discountDate, discountAmount } = req.body;
+  const { maintenanceAmount, billingCycle, quarterlyAmount, halfYearlyAmount, annualAmount, enableForums, enableMonthlyReminder, monthlyReminderCount, monthlyReminderInterval, enableOverdueReminder, overdueReminderInterval, discountDate, discountAmount, lateFeeDate, lateFeeAmount } = req.body;
   try {
     const tenant = await prisma.tenant.update({
       where: { id: req.user.tenantId as string },
@@ -240,6 +240,8 @@ router.patch("/settings", authenticate, authorize(["TENANT_ADMIN"]), async (req:
         overdueReminderInterval: overdueReminderInterval !== undefined ? parseInt(overdueReminderInterval.toString(), 10) : undefined,
         discountDate: discountDate !== undefined ? (discountDate === null || discountDate === "" ? null : new Date(discountDate)) : undefined,
         discountAmount: discountAmount !== undefined ? (discountAmount === null || discountAmount === "" ? 0 : parseFloat(discountAmount.toString())) : undefined,
+        lateFeeDate: lateFeeDate !== undefined ? (lateFeeDate === null || lateFeeDate === "" ? null : new Date(lateFeeDate)) : undefined,
+        lateFeeAmount: lateFeeAmount !== undefined ? (lateFeeAmount === null || lateFeeAmount === "" ? 0 : parseFloat(lateFeeAmount.toString())) : undefined,
       },
     });
     res.json(tenant);

@@ -31,6 +31,8 @@ model Tenant {
   overdueReminderInterval Int          @default(7) // interval in days
   discountDate           DateTime?
   discountAmount         Float         @default(0)
+  lateFeeDate            DateTime?
+  lateFeeAmount          Float         @default(0)
   
   auditLogs          AuditLog[]
   cashTransactions   CashTransaction[]
