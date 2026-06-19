@@ -87,7 +87,9 @@ router.get("/profile", authorize(["MEMBER"]), async (req: any, res) => {
       return res.status(404).json({ message: "Member profile not found" });
     }
     
-    res.json(member);
+    // Tell the frontend whether the currently logged-in user is the secondary contact
+    const isSecondaryUser = member.secondaryUserId === req.user.id;
+    res.json({ ...member, isSecondaryUser });
   } catch (error) {
     res.status(500).json({ message: "Error fetching profile", error });
   }

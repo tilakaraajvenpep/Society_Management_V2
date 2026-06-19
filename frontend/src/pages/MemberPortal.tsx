@@ -402,20 +402,52 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                 <div style={{ color: '#475569' }}>Flat No: {selectedPayment.member?.flatNo}</div>
               </div>
 
-              <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <span style={{ color: '#64748b' }}>Payment Period</span>
-                  <span style={{ fontWeight: 600 }}>{selectedPayment.periodLabel || `${selectedPayment.paidMonths} Month(s)`}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <span style={{ color: '#64748b' }}>Payment Mode</span>
-                  <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>₹{selectedPayment.amount.toLocaleString()}</span>
-                </div>
-              </div>
+              {(() => {
+                const tenant = selectedPayment.member?.tenant || memberInfo?.tenant;
+                let lateFee = 0;
+                if (selectedPayment.category === 'Maintenance' && tenant?.lateFeeDate && tenant?.lateFeeAmount && selectedPayment.paymentDate) {
+                  const cutOffDay = new Date(tenant.lateFeeDate).getDate();
+                  const payDay = new Date(selectedPayment.paymentDate).getDate();
+                  if (payDay > cutOffDay) {
+                    const startStr = selectedPayment.coverageStartDate;
+                    const endStr = selectedPayment.coverageEndDate;
+                    if (startStr && endStr) {
+                      const s = new Date(startStr); const e = new Date(endStr);
+                      const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
+                      lateFee = months * tenant.lateFeeAmount;
+                    } else {
+                      lateFee = tenant.lateFeeAmount;
+                    }
+                  }
+                }
+                const amountReceived = Math.max(0, selectedPayment.amount - lateFee);
+                return (
+                  <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <span style={{ color: '#64748b' }}>Payment Period</span>
+                      <span style={{ fontWeight: 600 }}>{selectedPayment.periodLabel || `${selectedPayment.paidMonths} Month(s)`}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <span style={{ color: '#64748b' }}>Payment Mode</span>
+                      <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                      <span style={{ color: '#64748b' }}>Amount Received</span>
+                      <span style={{ fontWeight: 600 }}>₹{amountReceived.toLocaleString()}</span>
+                    </div>
+                    {lateFee > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#dc2626' }}>Late Fee</span>
+                        <span style={{ fontWeight: 600, color: '#dc2626' }}>₹{lateFee.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>₹{selectedPayment.amount.toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {selectedPayment.notes && (
                 <div style={{ marginBottom: '2rem' }}>
@@ -423,10 +455,6 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                   <div style={{ fontSize: '0.875rem', color: '#475569' }}>{selectedPayment.notes}</div>
                 </div>
               )}
-
-              <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
-                This is a computer generated receipt and does not require a signature.
-              </div>
             </div>
           </div>
         </div>
@@ -551,20 +579,52 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                 <div style={{ color: '#475569' }}>Flat No: {selectedPayment.member?.flatNo}</div>
               </div>
 
-              <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <span style={{ color: '#64748b' }}>Payment Period</span>
-                  <span style={{ fontWeight: 600 }}>{selectedPayment.periodLabel || `${selectedPayment.paidMonths} Month(s)`}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <span style={{ color: '#64748b' }}>Payment Mode</span>
-                  <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>₹{selectedPayment.amount.toLocaleString()}</span>
-                </div>
-              </div>
+              {(() => {
+                const tenant = memberInfo?.tenant;
+                let lateFee = 0;
+                if (selectedPayment.category === 'Maintenance' && tenant?.lateFeeDate && tenant?.lateFeeAmount && selectedPayment.paymentDate) {
+                  const cutOffDay = new Date(tenant.lateFeeDate).getDate();
+                  const payDay = new Date(selectedPayment.paymentDate).getDate();
+                  if (payDay > cutOffDay) {
+                    const startStr = selectedPayment.coverageStartDate;
+                    const endStr = selectedPayment.coverageEndDate;
+                    if (startStr && endStr) {
+                      const s = new Date(startStr); const e = new Date(endStr);
+                      const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
+                      lateFee = months * tenant.lateFeeAmount;
+                    } else {
+                      lateFee = tenant.lateFeeAmount;
+                    }
+                  }
+                }
+                const amountReceived = Math.max(0, selectedPayment.amount - lateFee);
+                return (
+                  <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <span style={{ color: '#64748b' }}>Payment Period</span>
+                      <span style={{ fontWeight: 600 }}>{selectedPayment.periodLabel || `${selectedPayment.paidMonths} Month(s)`}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <span style={{ color: '#64748b' }}>Payment Mode</span>
+                      <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                      <span style={{ color: '#64748b' }}>Amount Received</span>
+                      <span style={{ fontWeight: 600 }}>₹{amountReceived.toLocaleString()}</span>
+                    </div>
+                    {lateFee > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#dc2626' }}>Late Fee</span>
+                        <span style={{ fontWeight: 600, color: '#dc2626' }}>₹{lateFee.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>₹{selectedPayment.amount.toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {selectedPayment.notes && (
                 <div style={{ marginBottom: '2rem' }}>
@@ -572,10 +632,6 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                   <div style={{ fontSize: '0.875rem', color: '#475569' }}>{selectedPayment.notes}</div>
                 </div>
               )}
-
-              <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
-                This is a computer generated receipt and does not require a signature.
-              </div>
             </div>
           </div>
         </div>
@@ -587,9 +643,10 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
 const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: any, setMemberInfo: any, token: string | null }) => {
   const { updateUser } = useAuth();
   const { showToast } = useToast();
+  const isSecondary = !!memberInfo?.isSecondaryUser;
   const [name, setName] = useState(memberInfo?.name || '');
-  const [email, setEmail] = useState(memberInfo?.email || '');
-  const [mobile, setMobile] = useState(memberInfo?.mobile || '');
+  const [email, setEmail] = useState(isSecondary ? (memberInfo?.secondaryEmail || '') : (memberInfo?.email || ''));
+  const [mobile, setMobile] = useState(isSecondary ? (memberInfo?.secondaryMobile || '') : (memberInfo?.mobile || ''));
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [photoUrl, setPhotoUrl] = useState(memberInfo?.photoUrl || '');
@@ -598,9 +655,10 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
 
   useEffect(() => {
     if (memberInfo) {
+      const sec = !!memberInfo.isSecondaryUser;
       setName(memberInfo.name || '');
-      setEmail(memberInfo.email || '');
-      setMobile(memberInfo.mobile || '');
+      setEmail(sec ? (memberInfo.secondaryEmail || '') : (memberInfo.email || ''));
+      setMobile(sec ? (memberInfo.secondaryMobile || '') : (memberInfo.mobile || ''));
       setPhotoUrl(memberInfo.photoUrl || '');
     }
   }, [memberInfo]);
@@ -718,8 +776,10 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
             <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" />
           </div>
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Email Address</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address (Optional)" />
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>
+              {isSecondary ? 'Secondary Email' : 'Email Address'}
+            </label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isSecondary ? 'Secondary Email (Optional)' : 'Email Address (Optional)'} />
           </div>
           <div>
             <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>Flat Number</label>
@@ -740,10 +800,13 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
         <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <h4 style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)' }}>
             <Lock size={14} /> Security & Contact Info
+            {isSecondary && <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>(Secondary Account)</span>}
           </h4>
           
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Phone Number</label>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>
+              {isSecondary ? 'Secondary Phone Number' : 'Phone Number'}
+            </label>
             <input required type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="Enter phone number" />
           </div>
 
