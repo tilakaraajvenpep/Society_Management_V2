@@ -2509,13 +2509,11 @@ const TenantAdminDashboard = () => {
     const paymentDay = getDayFromDateString(payDate);
 
     if (paymentDay > cutOffDay) {
-      const totalMonths = (months > 0) 
-        ? getMonthsCount(months, coverageStart, coverageEnd) 
-        : (coverageStart && coverageEnd 
-            ? getMonthsCount(0, coverageStart, coverageEnd) 
-            : Math.max(1, Math.round(baseAmount / (summary.maintenanceAmount || 1000)))
-          );
-      return totalMonths * summary.lateFeeAmount;
+      if (coverageStart && coverageEnd) {
+        const totalMonths = getMonthsCount(months || 0, coverageStart, coverageEnd);
+        return totalMonths * summary.lateFeeAmount;
+      }
+      return summary.lateFeeAmount;
     }
     return 0;
   };
@@ -2535,8 +2533,14 @@ const TenantAdminDashboard = () => {
       const paymentDay = getDayFromDateString(toISODateString(payment.paymentDate));
       
       if (paymentDay > cutOffDay) {
-        const monthsCount = getMonthsCount(payment.paidMonths || 1, toISODateString(payment.coverageStartDate) || '', toISODateString(payment.coverageEndDate) || '');
-        lateFee = monthsCount * summary.lateFeeAmount;
+        const startStr = toISODateString(payment.coverageStartDate);
+        const endStr = toISODateString(payment.coverageEndDate);
+        if (startStr && endStr) {
+          const monthsCount = getMonthsCount(payment.paidMonths || 1, startStr, endStr);
+          lateFee = monthsCount * summary.lateFeeAmount;
+        } else {
+          lateFee = summary.lateFeeAmount;
+        }
         baseAmount = Math.max(0, payment.amount - lateFee);
       }
     }
@@ -6061,11 +6065,11 @@ const TenantAdminDashboard = () => {
                           const paymentDay = getDayFromDateString(editingPayment.paymentDate);
                           
                           if (paymentDay > cutOffDay) {
-                            const monthsCount = getMonthsCount(editingPayment.paidMonths, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
+                            const hasCoverage = editingPayment.coverageStartDate && editingPayment.coverageEndDate;
                             const charge = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '', editingPayment.baseAmount);
                             return (
                               <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.25rem', fontWeight: 500 }}>
-                                ⚠️ Late fee of ₹{charge} charged ({monthsCount} months * ₹{summary.lateFeeAmount}/month default)
+                                ⚠️ Late fee of ₹{charge} charged {hasCoverage ? `(${getMonthsCount(editingPayment.paidMonths, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '')} months * ₹${summary.lateFeeAmount}/month default)` : '(flat default)'}
                               </div>
                             );
                           }
