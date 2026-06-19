@@ -5430,16 +5430,37 @@ const TenantAdminDashboard = () => {
                     <div style={{ color: '#475569' }}>Flat No: {selectedPayment.member?.flatNo}</div>
                   </div>
 
-                  <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                      <span style={{ color: '#64748b' }}>Payment Mode</span>
-                      <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                      <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
-                      <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#3b82f6' }}>₹{selectedPayment.amount.toLocaleString()}</span>
-                    </div>
-                  </div>
+                  {(() => {
+                    const { baseAmount, lateFee } = getPaymentBaseAndLateFee(selectedPayment);
+                    return (
+                      <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                          <span style={{ color: '#64748b' }}>Payment Mode</span>
+                          <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
+                        </div>
+                        {selectedPayment.periodLabel && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                            <span style={{ color: '#64748b' }}>Payment Period</span>
+                            <span style={{ fontWeight: 600 }}>{selectedPayment.periodLabel}</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                          <span style={{ color: '#64748b' }}>Amount Received</span>
+                          <span style={{ fontWeight: 600 }}>₹{baseAmount.toLocaleString()}</span>
+                        </div>
+                        {lateFee > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                            <span style={{ color: '#dc2626' }}>Late Fee</span>
+                            <span style={{ fontWeight: 600, color: '#dc2626' }}>₹{lateFee.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
+                          <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
+                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#3b82f6' }}>₹{selectedPayment.amount.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {selectedPayment.notes && (
                     <div style={{ marginBottom: '2rem' }}>
@@ -5448,14 +5469,10 @@ const TenantAdminDashboard = () => {
                     </div>
                   )}
 
-                  <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '2rem' }}>
+                  <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                       Generated on {new Date().toLocaleString()}<br />
                       By {selectedPayment.collectedBy?.name || 'System'}
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ borderBottom: '1px solid #e2e8f0', width: '150px', marginBottom: '0.5rem' }}></div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Authorized Signatory</div>
                     </div>
                   </div>
                 </div>
