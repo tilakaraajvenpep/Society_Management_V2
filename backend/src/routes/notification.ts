@@ -1,7 +1,7 @@
 import express from "express";
 import prisma from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
-import { createNotification } from "../utils/notification";
+import { createNotification, notifyMember } from "../utils/notification";
 
 const router = express.Router();
 
@@ -128,7 +128,10 @@ router.post("/send-monthly-dues-reminders", authenticate, authorize(["TENANT_ADM
         tenantId,
         status: "ACTIVE",
         outstandingDues: { gt: 0 },
-        userId: { not: null },
+        OR: [
+          { userId: { not: null } },
+          { secondaryUserId: { not: null } }
+        ]
       },
       select: {
         id: true,
@@ -136,6 +139,7 @@ router.post("/send-monthly-dues-reminders", authenticate, authorize(["TENANT_ADM
         flatNo: true,
         outstandingDues: true,
         userId: true,
+        secondaryUserId: true,
       },
     });
 
@@ -150,15 +154,25 @@ router.post("/send-monthly-dues-reminders", authenticate, authorize(["TENANT_ADM
     const monthName = now.toLocaleString("default", { month: "long" });
     const year = now.getFullYear();
 
-    const notificationsData = membersWithDues.map((m) => ({
-      tenantId,
-      userId: m.userId!,
-      title: `Monthly Dues Reminder — ${monthName} ${year}`,
-      message: `Dear ${m.name}, your maintenance dues of ₹${m.outstandingDues.toLocaleString("en-IN")} for Flat ${m.flatNo} are pending. Please pay at the earliest to avoid inconvenience. Contact the society office if you have any questions.`,
-      type: "DUES_REMINDER",
-    }));
+    const notificationsData: any[] = [];
+    for (const m of membersWithDues) {
+      const template = {
+        tenantId,
+        title: `Monthly Dues Reminder — ${monthName} ${year}`,
+        message: `Dear ${m.name}, your maintenance dues of ₹${m.outstandingDues.toLocaleString("en-IN")} for Flat ${m.flatNo} are pending. Please pay at the earliest to avoid inconvenience. Contact the society office if you have any questions.`,
+        type: "DUES_REMINDER",
+      };
+      if (m.userId) {
+        notificationsData.push({ ...template, userId: m.userId });
+      }
+      if (m.secondaryUserId) {
+        notificationsData.push({ ...template, userId: m.secondaryUserId });
+      }
+    }
 
-    await prisma.notification.createMany({ data: notificationsData });
+    if (notificationsData.length > 0) {
+      await prisma.notification.createMany({ data: notificationsData });
+    }
 
     await prisma.auditLog.create({
       data: {
@@ -199,27 +213,27 @@ router.post("/", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res
     if (targetMemberId) {
       const member = await prisma.member.findUnique({
         where: { id: targetMemberId, tenantId },
-        include: { user: true },
+        select: { userId: true, secondaryUserId: true, name: true, flatNo: true }
       });
 
       if (!member) {
         return res.status(404).json({ message: "Target member not found in this society" });
       }
-      if (!member.userId) {
+      if (!member.userId && !member.secondaryUserId) {
         return res.status(400).json({
           message: `${member.name} (Flat ${member.flatNo}) does not have a member portal account. Notification cannot be sent.`,
         });
       }
 
-      const notification = await createNotification({
+      await notifyMember({
         tenantId,
-        userId: member.userId,
+        memberId: targetMemberId,
         title,
         message,
         type: type || "ANNOUNCEMENT",
       });
 
-      return res.status(201).json(notification);
+      return res.status(201).json({ message: "Announcement sent to member contacts." });
     }
 
     // Send to a specific user by userId

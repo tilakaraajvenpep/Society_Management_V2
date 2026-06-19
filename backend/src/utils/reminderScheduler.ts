@@ -111,11 +111,20 @@ export async function runReminderJob() {
             if (count < monthlyReminderCount) {
               const daysSinceLastSent = lastSent ? (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
               if (daysSinceLastSent >= monthlyReminderInterval) {
-                // Raise notification
+                // Raise notification to both primary and secondary
                 if (member.userId) {
                   await createNotification({
                     tenantId,
                     userId: member.userId,
+                    title: "Monthly Maintenance Reminder",
+                    message: `Dear ${member.name}, please remember to pay your monthly maintenance fee for this period.`,
+                    type: "PAYMENT"
+                  });
+                }
+                if (member.secondaryUserId) {
+                  await createNotification({
+                    tenantId,
+                    userId: member.secondaryUserId,
                     title: "Monthly Maintenance Reminder",
                     message: `Dear ${member.name}, please remember to pay your monthly maintenance fee for this period.`,
                     type: "PAYMENT"
@@ -134,7 +143,7 @@ export async function runReminderJob() {
           const daysSinceLastOverdue = lastOverdueSent ? (now.getTime() - lastOverdueSent.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
 
           if (daysSinceLastOverdue >= overdueReminderInterval) {
-            // Raise notification
+            // Raise notification to both primary and secondary
             if (member.userId) {
               await createNotification({
                 tenantId,
@@ -144,23 +153,35 @@ export async function runReminderJob() {
                 type: "OVERDUE"
               });
             }
+            if (member.secondaryUserId) {
+              await createNotification({
+                tenantId,
+                userId: member.secondaryUserId,
+                title: "Overdue Maintenance Dues",
+                message: `Dear ${member.name}, you have outstanding dues of ₹${member.outstandingDues}. Please clear them as soon as possible.`,
+                type: "OVERDUE"
+              });
+            }
 
             // If they have dues from subsequent months (meaning their paidUntil is in the past by more than 1 month, or they have outstanding dues), send email
-            if (member.email) {
-              let subsequentMonthDue = false;
-              if (member.paidUntil) {
-                const diffTime = now.getTime() - new Date(member.paidUntil).getTime();
-                const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                // If the paidUntil date is older than 30 days, they owe for subsequent/previous months
-                if (diffDays > 30) {
-                  subsequentMonthDue = true;
-                }
-              } else {
+            let subsequentMonthDue = false;
+            if (member.paidUntil) {
+              const diffTime = now.getTime() - new Date(member.paidUntil).getTime();
+              const diffDays = diffTime / (1000 * 60 * 60 * 24);
+              // If the paidUntil date is older than 30 days, they owe for subsequent/previous months
+              if (diffDays > 30) {
                 subsequentMonthDue = true;
               }
+            } else {
+              subsequentMonthDue = true;
+            }
 
-              if (subsequentMonthDue) {
+            if (subsequentMonthDue) {
+              if (member.email) {
                 await sendReminderEmail(member.email, member.name, member.outstandingDues, tenantName);
+              }
+              if (member.secondaryEmail) {
+                await sendReminderEmail(member.secondaryEmail, member.name, member.outstandingDues, tenantName);
               }
             }
 

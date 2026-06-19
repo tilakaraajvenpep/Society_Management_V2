@@ -1,4 +1,5 @@
 import prisma from "./prisma";
+import nodemailer from "nodemailer";
 
 export interface CreateNotificationParams {
   tenantId: string;
@@ -67,11 +68,52 @@ export interface NotifyMemberParams {
   type?: string;
 }
 
+async function sendMail(toEmail: string, subject: string, body: string, tenantName: string) {
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  if (smtpHost && smtpUser && smtpPass) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass
+        }
+      });
+
+      await transporter.sendMail({
+        from: `"${tenantName} Management" <${smtpUser}>`,
+        to: toEmail,
+        subject: subject,
+        text: body
+      });
+      console.log(`[Email Notification] Sent successfully to ${toEmail}`);
+    } catch (error: any) {
+      console.error(`[Email Notification] Failed to send to ${toEmail}:`, error.message);
+    }
+  } else {
+    console.log(`
+=========================================
+[MOCK EMAIL NOTIFICATION] (SMTP Not Configured)
+To: ${toEmail}
+Subject: ${subject}
+Body:
+${body}
+=========================================
+    `);
+  }
+}
+
 export async function notifyMember(params: NotifyMemberParams) {
   try {
     const member = await prisma.member.findUnique({
       where: { id: params.memberId },
-      select: { userId: true, secondaryUserId: true },
+      select: { userId: true, secondaryUserId: true, email: true, secondaryEmail: true, name: true },
     });
 
     if (member) {
@@ -92,6 +134,31 @@ export async function notifyMember(params: NotifyMemberParams) {
           message: params.message,
           type: params.type,
         });
+      }
+
+      // Fetch tenant name & Send Emails
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: params.tenantId },
+        select: { name: true }
+      });
+      const tenantName = tenant?.name || "Society Management";
+
+      const subject = `${params.title} - ${tenantName}`;
+      const emailBody = `
+Dear ${member.name},
+
+${params.message}
+
+Best regards,
+Management Committee
+${tenantName}
+      `;
+
+      if (member.email) {
+        await sendMail(member.email, subject, emailBody, tenantName);
+      }
+      if (member.secondaryEmail) {
+        await sendMail(member.secondaryEmail, subject, emailBody, tenantName);
       }
     }
   } catch (error) {
