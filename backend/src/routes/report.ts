@@ -33,7 +33,9 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           enableOverdueReminder: true,
           overdueReminderInterval: true,
           discountDate: true,
-          discountAmount: true
+          discountAmount: true,
+          lateFeeDate: true,
+          lateFeeAmount: true
         } as any 
       }),
     ]);
@@ -145,6 +147,8 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       overdueReminderInterval: (tenantInfo as any)?.overdueReminderInterval || 7,
       discountDate: (tenantInfo as any)?.discountDate || null,
       discountAmount: (tenantInfo as any)?.discountAmount || 0,
+      lateFeeDate: (tenantInfo as any)?.lateFeeDate || null,
+      lateFeeAmount: (tenantInfo as any)?.lateFeeAmount || 0,
       // Charts
       monthlyTrends: monthlyData,
       expenseByCategory: expenseByCategory.map((e: any) => ({ category: e.category, amount: e._sum.amount || 0 })),

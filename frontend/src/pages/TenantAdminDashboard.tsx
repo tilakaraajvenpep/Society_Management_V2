@@ -4443,6 +4443,22 @@ const TenantAdminDashboard = () => {
                     </div>
                   </div>
 
+                  {summary.lateFeeDate && summary.lateFeeAmount ? (
+                    <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '1rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-primary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#10b981', color: 'white', borderRadius: '50%', width: '20px', height: '20px', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>✓</div>
+                      <div>
+                        <strong>Active Settings:</strong> Cut-off Day is the <strong>{getDayFromDateString(summary.lateFeeDate)}th</strong> of every month with a late fee of <strong>₹{summary.lateFeeAmount}</strong>.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '1rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-primary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f59e0b', color: 'white', borderRadius: '50%', width: '20px', height: '20px', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>!</div>
+                      <div>
+                        No active late fee settings configured. Late fees will not be calculated.
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div>
                       <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Late Fee Cut-off Date</label>
