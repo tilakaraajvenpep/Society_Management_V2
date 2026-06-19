@@ -5826,14 +5826,35 @@ const TenantAdminDashboard = () => {
                       </div>
                     </div>
 
+                    <div className="grid-2">
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Received from Member</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={newPayment.paymentDate} 
+                          onChange={(e) => {
+                            const newDate = e.target.value;
+                            const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                            const totalAmt = getPricing(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                            setNewPayment({ 
+                              ...newPayment, 
+                              paymentDate: newDate,
+                              baseAmount: newPayment.category === 'Maintenance' ? baseAmt : newPayment.amount,
+                              amount: newPayment.category === 'Maintenance' ? totalAmt : newPayment.amount
+                            });
+                          }} 
+                        />
+                      </div>
+                    </div>
+
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                       <div>
                         <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Amount Received (₹)</label>
                         <input 
                           type="text" 
                           required 
-                          value={newPayment.category === 'Maintenance' && newPayment.paidMonths === 0 ? 'Click to select' : (newPayment.baseAmount === 0 ? '' : newPayment.baseAmount)} 
-                          disabled={newPayment.category === 'Maintenance' && newPayment.paidMonths === 0}
+                          value={newPayment.baseAmount === 0 ? '' : newPayment.baseAmount} 
                           onChange={(e) => {
                             const val = e.target.value;
                             if (/^\d*\.?\d*$/.test(val)) {
@@ -5846,11 +5867,6 @@ const TenantAdminDashboard = () => {
                               });
                             }
                           }} 
-                          style={{
-                            backgroundColor: newPayment.category === 'Maintenance' && newPayment.paidMonths === 0 ? 'var(--bg-secondary)' : 'transparent',
-                            color: newPayment.category === 'Maintenance' && newPayment.paidMonths === 0 ? 'var(--text-secondary)' : 'var(--text-primary)',
-                            cursor: newPayment.category === 'Maintenance' && newPayment.paidMonths === 0 ? 'not-allowed' : 'text'
-                          }}
                         />
                         {newPayment.category === 'Maintenance' && newPayment.paidMonths > 0 && summary.discountDate && summary.discountAmount && newPayment.paymentDate && (() => {
                           const deadline = new Date(summary.discountDate);
@@ -5872,7 +5888,7 @@ const TenantAdminDashboard = () => {
                         <input 
                           type="text" 
                           disabled 
-                          value={newPayment.category === 'Maintenance' && newPayment.paidMonths === 0 ? 'Click to select' : getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '')} 
+                          value={getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '')} 
                           style={{
                             backgroundColor: 'var(--bg-secondary)',
                             color: 'var(--text-secondary)',
@@ -5885,35 +5901,13 @@ const TenantAdminDashboard = () => {
                         <input 
                           type="text" 
                           disabled 
-                          value={newPayment.category === 'Maintenance' && newPayment.paidMonths === 0 ? 'Click to select' : newPayment.amount} 
+                          value={newPayment.amount} 
                           style={{
                             backgroundColor: 'var(--bg-secondary)',
                             color: 'var(--text-primary)',
                             fontWeight: 'bold',
                             cursor: 'not-allowed'
                           }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid-2">
-                      <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Received from Member</label>
-                        <input 
-                          type="date" 
-                          required 
-                          value={newPayment.paymentDate} 
-                          onChange={(e) => {
-                            const newDate = e.target.value;
-                            const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
-                            const totalAmt = getPricing(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
-                            setNewPayment({ 
-                              ...newPayment, 
-                              paymentDate: newDate,
-                              baseAmount: newPayment.category === 'Maintenance' ? baseAmt : newPayment.amount,
-                              amount: newPayment.category === 'Maintenance' ? totalAmt : newPayment.amount
-                            });
-                          }} 
                         />
                       </div>
                     </div>
@@ -6015,7 +6009,27 @@ const TenantAdminDashboard = () => {
                           <option value="CHEQUE">Cheque</option>
                         </select>
                       </div>
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Received from Member</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={editingPayment.paymentDate} 
+                          onChange={(e) => {
+                            const newDate = e.target.value;
+                            const baseAmt = getBaseAmount(editingPayment.paidMonths, editingPayment.category, newDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
+                            const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, newDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
+                            setEditingPayment({ 
+                              ...editingPayment, 
+                              paymentDate: newDate,
+                              baseAmount: editingPayment.category === 'Maintenance' ? baseAmt : editingPayment.amount,
+                              amount: editingPayment.category === 'Maintenance' ? (baseAmt + fee) : editingPayment.amount
+                            });
+                          }} 
+                        />
+                      </div>
                     </div>
+
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                       <div>
                         <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Amount Received (₹)</label>
@@ -6080,26 +6094,8 @@ const TenantAdminDashboard = () => {
                         />
                       </div>
                     </div>
+
                     <div className="grid-2">
-                      <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Received from Member</label>
-                        <input 
-                          type="date" 
-                          required 
-                          value={editingPayment.paymentDate} 
-                          onChange={(e) => {
-                            const newDate = e.target.value;
-                            const baseAmt = getBaseAmount(editingPayment.paidMonths, editingPayment.category, newDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
-                            const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, newDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
-                            setEditingPayment({ 
-                              ...editingPayment, 
-                              paymentDate: newDate,
-                              baseAmount: editingPayment.category === 'Maintenance' ? baseAmt : editingPayment.amount,
-                              amount: editingPayment.category === 'Maintenance' ? (baseAmt + fee) : editingPayment.amount
-                            });
-                          }} 
-                        />
-                      </div>
                       <div>
                         <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Recorded in Ledger</label>
                         <input type="date" required value={editingPayment.ledgerDate || ''} onChange={(e) => setEditingPayment({ ...editingPayment, ledgerDate: e.target.value })} />
