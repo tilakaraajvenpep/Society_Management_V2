@@ -2449,6 +2449,17 @@ const TenantAdminDashboard = () => {
     }
   };
 
+  const getDayFromDateString = (dateStr: string) => {
+    if (!dateStr) return 0;
+    const datePart = dateStr.split('T')[0];
+    const parts = datePart.split('-');
+    if (parts.length === 3) {
+      return parseInt(parts[2], 10);
+    }
+    const d = new Date(dateStr);
+    return !isNaN(d.getTime()) ? d.getDate() : 0;
+  };
+
   const getMonthsCount = (defaultMonths: number, start: string, end: string) => {
     if (start && end) {
       const s = new Date(start);
@@ -2488,14 +2499,12 @@ const TenantAdminDashboard = () => {
       }
     }
 
-    // Apply late fee
+    // Apply late fee based on day of the month only
     if (selectedCategory === 'Maintenance' && summary.lateFeeDate && summary.lateFeeAmount && payDate) {
-      const lateFeeDeadline = new Date(summary.lateFeeDate);
-      const paymentDateVal = new Date(payDate);
-      lateFeeDeadline.setHours(23, 59, 59, 999);
-      paymentDateVal.setHours(0, 0, 0, 0);
+      const cutOffDay = getDayFromDateString(summary.lateFeeDate);
+      const paymentDay = getDayFromDateString(payDate);
 
-      if (paymentDateVal > lateFeeDeadline) {
+      if (paymentDay > cutOffDay) {
         finalAmount += totalMonths * summary.lateFeeAmount;
       }
     }
@@ -5820,12 +5829,10 @@ const TenantAdminDashboard = () => {
                           return null;
                         })()}
                         {newPayment.category === 'Maintenance' && summary.lateFeeDate && summary.lateFeeAmount && newPayment.paymentDate && (() => {
-                          const lateFeeDeadline = new Date(summary.lateFeeDate);
-                          const paymentDateVal = new Date(newPayment.paymentDate);
-                          lateFeeDeadline.setHours(23, 59, 59, 999);
-                          paymentDateVal.setHours(0, 0, 0, 0);
+                          const cutOffDay = getDayFromDateString(summary.lateFeeDate);
+                          const paymentDay = getDayFromDateString(newPayment.paymentDate);
                           
-                          if (paymentDateVal > lateFeeDeadline) {
+                          if (paymentDay > cutOffDay) {
                             const monthsCount = getMonthsCount(newPayment.paidMonths, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
                             const charge = monthsCount * summary.lateFeeAmount;
                             return (
@@ -5962,12 +5969,10 @@ const TenantAdminDashboard = () => {
                           }} 
                         />
                         {editingPayment.category === 'Maintenance' && summary.lateFeeDate && summary.lateFeeAmount && editingPayment.paymentDate && (() => {
-                          const lateFeeDeadline = new Date(summary.lateFeeDate);
-                          const paymentDateVal = new Date(editingPayment.paymentDate);
-                          lateFeeDeadline.setHours(23, 59, 59, 999);
-                          paymentDateVal.setHours(0, 0, 0, 0);
+                          const cutOffDay = getDayFromDateString(summary.lateFeeDate);
+                          const paymentDay = getDayFromDateString(editingPayment.paymentDate);
                           
-                          if (paymentDateVal > lateFeeDeadline) {
+                          if (paymentDay > cutOffDay) {
                             const monthsCount = getMonthsCount(editingPayment.paidMonths, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
                             const charge = monthsCount * summary.lateFeeAmount;
                             return (
