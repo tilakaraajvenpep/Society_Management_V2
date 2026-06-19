@@ -2264,6 +2264,9 @@ const TenantAdminDashboard = () => {
   const [upcomingMembers, setUpcomingMembers] = useState([]);
   const [newTransfer, setNewTransfer] = useState({ toAdminId: '', amount: 0, type: 'HANDOVER', referenceNote: '' });
   const [auditLogs, setAuditLogs] = useState([]);
+  const [auditFilterFrom, setAuditFilterFrom] = useState('');
+  const [auditFilterTo, setAuditFilterTo] = useState('');
+  const [auditFilterUser, setAuditFilterUser] = useState('');
   const [expenses, setExpenses] = useState<any[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>(SERVICE_TYPES_DEFAULT);
   const [designations, setDesignations] = useState<string[]>(['President', 'Secretary', 'Treasurer', 'Committee Member']);
@@ -4102,10 +4105,86 @@ const TenantAdminDashboard = () => {
           </div>
         );
       }
-      case 'logs':
+      case 'logs': {
+        // Derive unique performers for the Office Bearer filter
+        const uniquePerformers: string[] = Array.from(
+          new Set((auditLogs as any[]).map((l: any) => l.performedBy).filter(Boolean))
+        ).sort() as string[];
+
+        const filteredLogs = (auditLogs as any[]).filter((log: any) => {
+          const ts = log.timestamp || log.createdAt;
+          const date = ts ? new Date(ts) : null;
+          if (auditFilterFrom && date) {
+            const from = new Date(auditFilterFrom);
+            from.setHours(0, 0, 0, 0);
+            if (date < from) return false;
+          }
+          if (auditFilterTo && date) {
+            const to = new Date(auditFilterTo);
+            to.setHours(23, 59, 59, 999);
+            if (date > to) return false;
+          }
+          if (auditFilterUser && log.performedBy !== auditFilterUser) return false;
+          return true;
+        });
+
         return (
           <div className="card">
-            <h3 style={{ marginBottom: '1.5rem' }}>Audit Logs</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Audit Logs</h3>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                {filteredLogs.length} of {(auditLogs as any[]).length} entries
+              </span>
+            </div>
+
+            {/* Filter Bar */}
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end',
+              backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.75rem',
+              border: '1px solid var(--border-color)', marginBottom: '1.25rem'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', minWidth: '140px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>From Date</label>
+                <input
+                  type="date"
+                  value={auditFilterFrom}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
+                  onChange={e => setAuditFilterFrom(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', minWidth: '140px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>To Date</label>
+                <input
+                  type="date"
+                  value={auditFilterTo}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
+                  onChange={e => setAuditFilterTo(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', minWidth: '180px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Office Bearer</label>
+                <select
+                  value={auditFilterUser}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
+                  onChange={e => setAuditFilterUser(e.target.value)}
+                >
+                  <option value="">All Office Bearers</option>
+                  {uniquePerformers.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              {(auditFilterFrom || auditFilterTo || auditFilterUser) && (
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', height: 'fit-content', alignSelf: 'flex-end' }}
+                  onClick={() => { setAuditFilterFrom(''); setAuditFilterTo(''); setAuditFilterUser(''); }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
             <div className="table-container">
               <table style={{ tableLayout: 'fixed', width: '100%' }}>
                 <colgroup>
@@ -4123,8 +4202,13 @@ const TenantAdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {auditLogs.map((log: any) => {
-                    // Resolve member UUID in details to readable name
+                  {filteredLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                        No audit log entries match your filters.
+                      </td>
+                    </tr>
+                  ) : filteredLogs.map((log: any) => {
                     let details = log.details || '';
                     members.forEach((m: any) => {
                       if (details.includes(m.id)) {
@@ -4150,6 +4234,7 @@ const TenantAdminDashboard = () => {
             </div>
           </div>
         );
+      }
       case 'vendors':
         return <VendorManagement token={token} vendors={vendors} onRefresh={fetchData} serviceTypes={serviceTypes} />;
       case 'profile':
