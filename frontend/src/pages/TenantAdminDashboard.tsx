@@ -2500,15 +2500,21 @@ const TenantAdminDashboard = () => {
     return baseAmount;
   };
 
-  const getLateFeeForPayment = (months: number, selectedCategory: string = 'Maintenance', payDate: string = getTodayDateString(), coverageStart: string = '', coverageEnd: string = '') => {
-    if (months === 0 || selectedCategory !== 'Maintenance') return 0;
+  const getLateFeeForPayment = (months: number, selectedCategory: string = 'Maintenance', payDate: string = getTodayDateString(), coverageStart: string = '', coverageEnd: string = '', baseAmount: number = 0) => {
+    if (selectedCategory !== 'Maintenance') return 0;
+    if (months === 0 && !baseAmount && !(coverageStart && coverageEnd)) return 0;
     if (!summary.lateFeeDate || !summary.lateFeeAmount || !payDate) return 0;
 
     const cutOffDay = getDayFromDateString(summary.lateFeeDate);
     const paymentDay = getDayFromDateString(payDate);
 
     if (paymentDay > cutOffDay) {
-      const totalMonths = getMonthsCount(months, coverageStart, coverageEnd);
+      const totalMonths = (months > 0) 
+        ? getMonthsCount(months, coverageStart, coverageEnd) 
+        : (coverageStart && coverageEnd 
+            ? getMonthsCount(0, coverageStart, coverageEnd) 
+            : Math.max(1, Math.round(baseAmount / (summary.maintenanceAmount || 1000)))
+          );
       return totalMonths * summary.lateFeeAmount;
     }
     return 0;
@@ -5836,12 +5842,12 @@ const TenantAdminDashboard = () => {
                           onChange={(e) => {
                             const newDate = e.target.value;
                             const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
-                            const totalAmt = getPricing(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', baseAmt);
                             setNewPayment({ 
                               ...newPayment, 
                               paymentDate: newDate,
                               baseAmount: newPayment.category === 'Maintenance' ? baseAmt : newPayment.amount,
-                              amount: newPayment.category === 'Maintenance' ? totalAmt : newPayment.amount
+                              amount: newPayment.category === 'Maintenance' ? (baseAmt + fee) : newPayment.amount
                             });
                           }} 
                         />
@@ -5859,7 +5865,7 @@ const TenantAdminDashboard = () => {
                             const val = e.target.value;
                             if (/^\d*\.?\d*$/.test(val)) {
                               const baseAmt = val === '' ? 0 : parseFloat(val);
-                              const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                              const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', baseAmt);
                               setNewPayment({ 
                                 ...newPayment, 
                                 baseAmount: baseAmt,
@@ -5888,7 +5894,7 @@ const TenantAdminDashboard = () => {
                         <input 
                           type="text" 
                           disabled 
-                          value={getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '')} 
+                          value={getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', newPayment.baseAmount)} 
                           style={{
                             backgroundColor: 'var(--bg-secondary)',
                             color: 'var(--text-secondary)',
@@ -5953,13 +5959,13 @@ const TenantAdminDashboard = () => {
                             }
                             
                             const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate);
-                            const totalAmt = getPricing(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate);
+                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate, baseAmt);
                             setNewPayment({ 
                               ...newPayment, 
                               coverageStartDate: startDate, 
                               coverageEndDate: updatedEndDate,
                               baseAmount: newPayment.category === 'Maintenance' ? baseAmt : newPayment.amount,
-                              amount: newPayment.category === 'Maintenance' ? totalAmt : newPayment.amount
+                              amount: newPayment.category === 'Maintenance' ? (baseAmt + fee) : newPayment.amount
                             });
                           }} />
                         </div>
@@ -5968,12 +5974,12 @@ const TenantAdminDashboard = () => {
                           <input type="date" value={newPayment.coverageEndDate || ''} onChange={(e) => {
                             const endDate = e.target.value;
                             const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate);
-                            const totalAmt = getPricing(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate);
+                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate, baseAmt);
                             setNewPayment({ 
                               ...newPayment, 
                               coverageEndDate: endDate,
                               baseAmount: newPayment.category === 'Maintenance' ? baseAmt : newPayment.amount,
-                              amount: newPayment.category === 'Maintenance' ? totalAmt : newPayment.amount
+                              amount: newPayment.category === 'Maintenance' ? (baseAmt + fee) : newPayment.amount
                             });
                           }} />
                         </div>
@@ -6018,7 +6024,7 @@ const TenantAdminDashboard = () => {
                           onChange={(e) => {
                             const newDate = e.target.value;
                             const baseAmt = getBaseAmount(editingPayment.paidMonths, editingPayment.category, newDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
-                            const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, newDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
+                            const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, newDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '', baseAmt);
                             setEditingPayment({ 
                               ...editingPayment, 
                               paymentDate: newDate,
@@ -6041,7 +6047,7 @@ const TenantAdminDashboard = () => {
                             const val = e.target.value;
                             if (/^\d*\.?\d*$/.test(val)) {
                               const baseAmt = val === '' ? 0 : parseFloat(val);
-                              const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
+                              const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '', baseAmt);
                               setEditingPayment({ 
                                 ...editingPayment, 
                                 baseAmount: baseAmt,
@@ -6056,7 +6062,7 @@ const TenantAdminDashboard = () => {
                           
                           if (paymentDay > cutOffDay) {
                             const monthsCount = getMonthsCount(editingPayment.paidMonths, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
-                            const charge = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '');
+                            const charge = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '', editingPayment.baseAmount);
                             return (
                               <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.25rem', fontWeight: 500 }}>
                                 ⚠️ Late fee of ₹{charge} charged ({monthsCount} months * ₹{summary.lateFeeAmount}/month default)
@@ -6071,7 +6077,7 @@ const TenantAdminDashboard = () => {
                         <input 
                           type="text" 
                           disabled 
-                          value={getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '')} 
+                          value={getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '', editingPayment.baseAmount)} 
                           style={{
                             backgroundColor: 'var(--bg-secondary)',
                             color: 'var(--text-secondary)',
@@ -6117,7 +6123,7 @@ const TenantAdminDashboard = () => {
                           onChange={(e) => {
                             const startDate = e.target.value;
                             const baseAmt = getBaseAmount(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, startDate, editingPayment.coverageEndDate || '');
-                            const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, startDate, editingPayment.coverageEndDate || '');
+                            const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, startDate, editingPayment.coverageEndDate || '', baseAmt);
                             setEditingPayment({ 
                               ...editingPayment, 
                               coverageStartDate: startDate, 
@@ -6135,7 +6141,7 @@ const TenantAdminDashboard = () => {
                           onChange={(e) => {
                             const endDate = e.target.value;
                             const baseAmt = getBaseAmount(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', endDate);
-                            const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', endDate);
+                            const fee = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', endDate, baseAmt);
                             setEditingPayment({ 
                               ...editingPayment, 
                               coverageEndDate: endDate, 
