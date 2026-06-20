@@ -283,6 +283,139 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   }
 });
 
+// TEST ONLY: Simulate a completed Razorpay payment without actual transaction
+router.post("/razorpay/test-payment-done", async (req: any, res) => {
+  const { amount, periodLabel, paidMonths, coverageStartDate, coverageEndDate, memberId } = req.body;
+
+  try {
+    const currentMember = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: { name: true, flatNo: true, paidUntil: true, tenantId: true }
+    });
+
+    if (!currentMember) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    const payment = await prisma.$transaction(async (tx) => {
+      const count = await tx.payment.count({ where: { tenantId: currentMember.tenantId } });
+      const receiptNumber = `REC-${(count + 1).toString().padStart(4, '0')}`;
+
+      // Find Treasurer or Tenant Admin to act as collector reference
+      const collector = await tx.user.findFirst({
+        where: { tenantId: currentMember.tenantId, designation: "Treasurer" }
+      }) || await tx.user.findFirst({
+        where: { tenantId: currentMember.tenantId, role: "TENANT_ADMIN" }
+      });
+
+      if (!collector) {
+        throw new Error("No society administrator found to associate payment with.");
+      }
+
+      const monthsToAdd = parseInt(paidMonths) || 1;
+
+      const p = await tx.payment.create({
+        data: {
+          memberId,
+          amount: parseFloat(amount.toString()),
+          mode: "UPI",
+          notes: `[TEST MODE] Payment marked as done manually. Simulated Razorpay payment for testing purposes.`,
+          tenantId: currentMember.tenantId,
+          collectedById: collector.id,
+          receiptNumber,
+          handoverStatus: "TRANSFERRED_TO_BANK",
+          paidMonths: monthsToAdd,
+          periodLabel: periodLabel || "Online Maintenance Payment",
+          paymentDate: new Date(),
+          coverageStartDate: coverageStartDate ? new Date(coverageStartDate) : null,
+          coverageEndDate: coverageEndDate ? new Date(coverageEndDate) : null,
+          category: "Maintenance",
+        },
+      });
+
+      // Calculate new paidUntil date
+      let newPaidUntil = currentMember.paidUntil ? new Date(currentMember.paidUntil) : new Date();
+      if (!currentMember.paidUntil) {
+        newPaidUntil.setDate(1);
+        newPaidUntil.setHours(0, 0, 0, 0);
+      }
+
+      if (coverageEndDate) {
+        const proposed = new Date(coverageEndDate);
+        if (proposed > newPaidUntil) {
+          newPaidUntil = proposed;
+        }
+      } else {
+        newPaidUntil.setMonth(newPaidUntil.getMonth() + monthsToAdd);
+      }
+
+      // Decrease member's outstandingDues and update paidUntil
+      await tx.member.update({
+        where: { id: memberId },
+        data: {
+          outstandingDues: { decrement: parseFloat(amount.toString()) },
+          paidUntil: newPaidUntil
+        }
+      });
+
+      return p;
+    });
+
+    // Create Audit Log
+    const memberLabel = `${currentMember.name} (Flat ${currentMember.flatNo})`;
+    await prisma.auditLog.create({
+      data: {
+        tenantId: currentMember.tenantId,
+        actionType: "PAYMENT_CREATED",
+        performedBy: currentMember.name,
+        referenceId: payment.id,
+        details: `[TEST] ${payment.receiptNumber}: ₹${amount} marked as paid (test mode) by ${memberLabel} (${payment.periodLabel})`,
+      },
+    });
+
+    // Notify member
+    await notifyMember({
+      tenantId: currentMember.tenantId,
+      memberId,
+      title: "Payment Confirmed",
+      message: `Your payment of ₹${amount} (${payment.periodLabel}) has been recorded. Receipt: ${payment.receiptNumber}.`,
+      type: "PAYMENT"
+    });
+
+    // Notify ONLY Treasurers
+    const treasurers = await prisma.user.findMany({
+      where: {
+        tenantId: currentMember.tenantId,
+        designation: "Treasurer"
+      },
+      select: { id: true }
+    });
+
+    // If no treasurer found, fallback to TENANT_ADMIN
+    const recipients = treasurers.length > 0 ? treasurers : await prisma.user.findMany({
+      where: { tenantId: currentMember.tenantId, role: "TENANT_ADMIN" },
+      select: { id: true }
+    });
+
+    const notificationsData = recipients.map((t) => ({
+      tenantId: currentMember.tenantId,
+      userId: t.id,
+      title: "🧾 Online Payment Received [Test Mode]",
+      message: `Member ${currentMember.name} (Flat ${currentMember.flatNo}) paid ₹${amount} online (test mode) for ${periodLabel}. Receipt: ${payment.receiptNumber}.`,
+      type: "PAYMENT"
+    }));
+
+    if (notificationsData.length > 0) {
+      await prisma.notification.createMany({ data: notificationsData });
+    }
+
+    res.json(payment);
+  } catch (error: any) {
+    console.error("Error recording test payment:", error);
+    res.status(500).json({ message: "Error recording test payment", error: error.message });
+  }
+});
+
 router.post("/razorpay/order", async (req: any, res) => {
   const { amount } = req.body;
   try {

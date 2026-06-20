@@ -1016,6 +1016,8 @@ const MemberPortal = () => {
   const [paymentFrequency, setPaymentFrequency] = useState<'monthly' | 'quarterly' | 'half_yearly' | 'annual' | 'custom'>('monthly');
   const [customMonths, setCustomMonths] = useState(1);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isTestPaymentProcessing, setIsTestPaymentProcessing] = useState(false);
+  const [manualAmount, setManualAmount] = useState('');
 
   const toggleYear = (yearId: string) => {
     setExpandedYears(prev => ({ ...prev, [yearId]: !prev[yearId] }));
@@ -1066,8 +1068,69 @@ const MemberPortal = () => {
       }
     }
 
-    const finalAmount = Math.max(0, baseAmount - discount);
+    // If manual amount is entered, use it as the final amount (override)
+    const parsedManual = parseFloat(manualAmount);
+    const finalAmount = !isNaN(parsedManual) && parsedManual > 0
+      ? parsedManual
+      : Math.max(0, baseAmount - discount);
+
     return { base: baseAmount, final: finalAmount, discount, monthsCount };
+  };
+
+  const handleTestPaymentDone = async () => {
+    const { final, monthsCount } = getCalculatedAmount();
+    if (final <= 0) {
+      showToast("Payment amount must be greater than 0", "error");
+      return;
+    }
+
+    setIsTestPaymentProcessing(true);
+
+    try {
+      // Calculate coverage date range
+      let start = memberInfo.paidUntil ? new Date(memberInfo.paidUntil) : new Date();
+      if (!memberInfo.paidUntil) {
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+      } else {
+        start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+      }
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + monthsCount);
+      end.setDate(0);
+
+      const periodLabel = paymentFrequency === 'monthly' ? 'Monthly'
+        : paymentFrequency === 'quarterly' ? 'Quarterly'
+        : paymentFrequency === 'half_yearly' ? 'Half-Yearly'
+        : paymentFrequency === 'annual' ? 'Annual'
+        : `Custom (${monthsCount} Months)`;
+
+      await axios.post('/payments/razorpay/test-payment-done', {
+        amount: final,
+        periodLabel,
+        paidMonths: monthsCount,
+        coverageStartDate: start.toISOString(),
+        coverageEndDate: end.toISOString(),
+        memberId: memberInfo.id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      showToast("✅ Payment recorded successfully! Treasurer has been notified.", "success");
+
+      // Refresh member profile data
+      const profileRes = await axios.get('/members/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMemberInfo(profileRes.data);
+      setManualAmount('');
+      setShowPaymentModal(false);
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.response?.data?.message || "Error recording test payment", "error");
+    } finally {
+      setIsTestPaymentProcessing(false);
+    }
   };
 
   const handleOnlinePayment = async () => {
@@ -1654,6 +1717,28 @@ const MemberPortal = () => {
               )}
             </div>
 
+            {/* Manual Amount Input */}
+            <div>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <CreditCard size={14} style={{ color: 'var(--primary)' }} />
+                Enter Custom Amount (Optional)
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-secondary)', fontSize: '1rem' }}>₹</span>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Leave blank to use calculated amount"
+                  value={manualAmount}
+                  onChange={(e) => setManualAmount(e.target.value)}
+                  style={{ width: '100%', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.6rem', paddingBottom: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                />
+              </div>
+              {manualAmount && parseFloat(manualAmount) > 0 && (
+                <p style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.3rem', fontWeight: 500 }}>✓ Using custom amount: ₹{parseFloat(manualAmount).toLocaleString()}</p>
+              )}
+            </div>
+
             <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', padding: '1rem', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Payment Summary</div>
               
@@ -1703,9 +1788,43 @@ const MemberPortal = () => {
               })()}
             </div>
 
+            {/* Test Payment Done Button - for testing purposes only */}
+            <div style={{ padding: '0.75rem', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px dashed #d97706', borderRadius: '0.75rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span>⚠️</span> Test Mode Only
+              </div>
+              <button
+                onClick={handleTestPaymentDone}
+                disabled={isTestPaymentProcessing || isProcessingPayment}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  borderRadius: '0.5rem',
+                  border: '1.5px solid #d97706',
+                  backgroundColor: isTestPaymentProcessing ? '#fef3c7' : '#fffbeb',
+                  color: '#92400e',
+                  cursor: isTestPaymentProcessing ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { if (!isTestPaymentProcessing) { e.currentTarget.style.backgroundColor = '#fef3c7'; e.currentTarget.style.borderColor = '#b45309'; } }}
+                onMouseLeave={(e) => { if (!isTestPaymentProcessing) { e.currentTarget.style.backgroundColor = '#fffbeb'; e.currentTarget.style.borderColor = '#d97706'; } }}
+              >
+                {isTestPaymentProcessing ? '⏳ Recording Payment...' : '✅ Payment Done (Test Mode)'}
+              </button>
+              <p style={{ fontSize: '0.7rem', color: '#92400e', marginTop: '0.4rem', textAlign: 'center' }}>
+                Skips Razorpay — directly records payment &amp; notifies treasurer
+              </p>
+            </div>
+
             <button
               onClick={handleOnlinePayment}
-              disabled={isProcessingPayment}
+              disabled={isProcessingPayment || isTestPaymentProcessing}
               className="btn btn-primary"
               style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
             >
