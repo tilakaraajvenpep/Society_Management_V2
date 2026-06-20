@@ -1787,93 +1787,97 @@ const MemberPortal = () => {
               {/* Fee Breakdown Card */}
               {(() => {
                 const { base, final, discount, lateFee, monthsCount } = getCalculatedAmount();
+                
                 let start = memberInfo?.paidUntil ? new Date(memberInfo.paidUntil) : new Date();
-                if (!memberInfo?.paidUntil) { start.setDate(1); start.setHours(0,0,0,0); }
-                else { start = new Date(start.getFullYear(), start.getMonth() + 1, 1); }
+                if (isNaN(start.getTime())) {
+                  start = new Date();
+                }
+                if (!memberInfo?.paidUntil) {
+                  start.setDate(1);
+                  start.setHours(0, 0, 0, 0);
+                } else {
+                  start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+                }
+                if (isNaN(start.getTime())) {
+                  start = new Date();
+                  start.setDate(1);
+                  start.setHours(0, 0, 0, 0);
+                }
+
                 const end = new Date(start);
                 end.setMonth(end.getMonth() + monthsCount);
                 end.setDate(0);
-                const fmt = (d: Date) => d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+
+                const fmt = (d: Date) => {
+                  if (!d || isNaN(d.getTime())) return 'N/A';
+                  return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+                };
+
                 const isUsingManual = !!(manualAmount && parseFloat(manualAmount) > 0);
 
                 return (
-                  <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
+                  <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {/* Card Header */}
-                    <div style={{ padding: '0.85rem 1.15rem', borderBottom: '1.5px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Payment Summary</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Payment Summary Details</span>
                       <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6366f1', background: 'rgba(99, 102, 241, 0.08)', padding: '0.25rem 0.6rem', borderRadius: '2rem' }}>{fmt(start)} to {fmt(end)}</span>
                     </div>
 
-                    {/* Line Items */}
-                    <div style={{ background: 'var(--bg-primary)', padding: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-
-                      {/* Maintenance Amount (Base) */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Base Rate:</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>Dues Duration: {monthsCount} Month{monthsCount > 1 ? 's' : ''}</div>
-                        </div>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>₹{base.toLocaleString()}</span>
+                    {/* Text Boxes Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Base Maintenance Rate</label>
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={`₹${base.toLocaleString()}`} 
+                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
+                        />
                       </div>
-
-                      {/* Late Fee */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.65rem', borderTop: '1px dashed var(--border-color)' }}>
-                        <div>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            <span style={{ background: lateFee > 0 && !isUsingManual ? '#fef2f2' : 'var(--bg-secondary)', padding: '0.1rem 0.4rem', borderRadius: '0.35rem', fontSize: '0.65rem', fontWeight: 800, color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-secondary)' }}>LATE FEE</span>
-                            Late Fee:
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-                            {lateFee > 0 && !isUsingManual ? 'Late fee applied' : 'Not applicable'}
-                          </div>
-                        </div>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-secondary)' }}>
-                          {lateFee > 0 && !isUsingManual ? `+₹${lateFee.toLocaleString()}` : '₹0'}
-                        </span>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Late Fee</label>
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={lateFee > 0 && !isUsingManual ? `₹${lateFee.toLocaleString()}` : '₹0'} 
+                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
+                        />
                       </div>
-
-                      {/* Early Bird Discount */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.65rem', borderTop: '1px dashed var(--border-color)' }}>
-                        <div>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            <span style={{ background: discount > 0 && !isUsingManual ? '#ecfdf5' : 'var(--bg-secondary)', padding: '0.1rem 0.4rem', borderRadius: '0.35rem', fontSize: '0.65rem', fontWeight: 800, color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-secondary)' }}>DISCOUNT</span>
-                            Early Bird Discount:
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-                            {discount > 0 && !isUsingManual ? 'Discount applied' : 'Not applicable'}
-                          </div>
-                        </div>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-secondary)' }}>
-                          {discount > 0 && !isUsingManual ? `−₹${discount.toLocaleString()}` : '₹0'}
-                        </span>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Early Bird Discount</label>
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={discount > 0 && !isUsingManual ? `₹${discount.toLocaleString()}` : '₹0'} 
+                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
+                        />
                       </div>
-
-                      {/* Total Row */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.95rem', marginTop: '0.15rem', borderTop: '1.5px solid var(--border-color)' }}>
-                        <div>
-                          <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Amount to Pay:</div>
-                          {isUsingManual && <div style={{ fontSize: '0.7rem', color: '#6366f1', marginTop: '0.15rem' }}>Manual override active</div>}
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '1.65rem', fontWeight: 900, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1 }}>₹{final.toLocaleString()}</div>
-                          {(lateFee > 0 || discount > 0) && !isUsingManual && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'line-through', marginTop: '0.15rem' }}>₹{base.toLocaleString()}</div>
-                          )}
-                        </div>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Total Payable Amount</label>
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={`₹${final.toLocaleString()}`} 
+                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid #6366f1', backgroundColor: 'var(--bg-primary)', color: '#6366f1', fontSize: '0.9rem', fontWeight: 700, outline: 'none', cursor: 'default' }}
+                        />
                       </div>
                     </div>
 
                     {/* Alert banners inside Card */}
                     {lateFee > 0 && !isUsingManual && (
-                      <div style={{ background: '#fef2f2', borderTop: '1px solid #fecaca', padding: '0.65rem 1.15rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                      <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', padding: '0.65rem 1rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginTop: '0.5rem' }}>
                         <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>⚠️</span>
-                        <span style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.4, fontWeight: 500 }}>A late fee of ₹{lateFee.toLocaleString()} has been added because today is past the due date of {new Date(memberInfo?.tenant?.lateFeeDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.</span>
+                        <span style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.4, fontWeight: 500 }}>
+                          A late fee of ₹{lateFee.toLocaleString()} has been added because today is past the due date of {memberInfo?.tenant?.lateFeeDate ? new Date(memberInfo.tenant.lateFeeDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}.
+                        </span>
                       </div>
                     )}
                     {discount > 0 && !isUsingManual && (
-                      <div style={{ background: '#ecfdf5', borderTop: '1px solid #a7f3d0', padding: '0.65rem 1.15rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                      <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.65rem 1rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginTop: '0.5rem' }}>
                         <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>🎉</span>
-                        <span style={{ fontSize: '0.75rem', color: '#065f46', lineHeight: 1.4, fontWeight: 500 }}>Congratulations! You qualify for an early bird discount of ₹{discount.toLocaleString()}! Offer valid till {new Date(memberInfo?.tenant?.discountDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.</span>
+                        <span style={{ fontSize: '0.75rem', color: '#065f46', lineHeight: 1.4, fontWeight: 500 }}>
+                          You qualify for an early bird discount of ₹{discount.toLocaleString()}! Offer valid till {memberInfo?.tenant?.discountDate ? new Date(memberInfo.tenant.discountDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}.
+                        </span>
                       </div>
                     )}
                   </div>
