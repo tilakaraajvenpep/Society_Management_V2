@@ -403,24 +403,9 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
               </div>
 
               {(() => {
-                const tenant = selectedPayment.member?.tenant || memberInfo?.tenant;
-                let lateFee = 0;
-                if (selectedPayment.category === 'Maintenance' && tenant?.lateFeeDate && tenant?.lateFeeAmount && selectedPayment.paymentDate) {
-                  const cutOffDay = new Date(tenant.lateFeeDate).getDate();
-                  const payDay = new Date(selectedPayment.paymentDate).getDate();
-                  if (payDay > cutOffDay) {
-                    const startStr = selectedPayment.coverageStartDate;
-                    const endStr = selectedPayment.coverageEndDate;
-                    if (startStr && endStr) {
-                      const s = new Date(startStr); const e = new Date(endStr);
-                      const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
-                      lateFee = months * tenant.lateFeeAmount;
-                    } else {
-                      lateFee = tenant.lateFeeAmount;
-                    }
-                  }
-                }
-                const amountReceived = Math.max(0, selectedPayment.amount - lateFee);
+                const lateFee = selectedPayment.lateFee || 0;
+                const discount = selectedPayment.discount || 0;
+                const baseAmount = selectedPayment.amount - lateFee + discount;
                 return (
                   <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -432,13 +417,19 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                       <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                      <span style={{ color: '#64748b' }}>Amount Received</span>
-                      <span style={{ fontWeight: 600 }}>₹{amountReceived.toLocaleString()}</span>
+                      <span style={{ color: '#64748b' }}>Base Amount</span>
+                      <span style={{ fontWeight: 600 }}>₹{baseAmount.toLocaleString()}</span>
                     </div>
+                    {discount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#10b981' }}>Early Bird Discount</span>
+                        <span style={{ fontWeight: 600, color: '#10b981' }}>-₹{discount.toLocaleString()}</span>
+                      </div>
+                    )}
                     {lateFee > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                         <span style={{ color: '#dc2626' }}>Late Fee</span>
-                        <span style={{ fontWeight: 600, color: '#dc2626' }}>₹{lateFee.toLocaleString()}</span>
+                        <span style={{ fontWeight: 600, color: '#dc2626' }}>+₹{lateFee.toLocaleString()}</span>
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
@@ -580,24 +571,9 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
               </div>
 
               {(() => {
-                const tenant = memberInfo?.tenant;
-                let lateFee = 0;
-                if (selectedPayment.category === 'Maintenance' && tenant?.lateFeeDate && tenant?.lateFeeAmount && selectedPayment.paymentDate) {
-                  const cutOffDay = new Date(tenant.lateFeeDate).getDate();
-                  const payDay = new Date(selectedPayment.paymentDate).getDate();
-                  if (payDay > cutOffDay) {
-                    const startStr = selectedPayment.coverageStartDate;
-                    const endStr = selectedPayment.coverageEndDate;
-                    if (startStr && endStr) {
-                      const s = new Date(startStr); const e = new Date(endStr);
-                      const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
-                      lateFee = months * tenant.lateFeeAmount;
-                    } else {
-                      lateFee = tenant.lateFeeAmount;
-                    }
-                  }
-                }
-                const amountReceived = Math.max(0, selectedPayment.amount - lateFee);
+                const lateFee = selectedPayment.lateFee || 0;
+                const discount = selectedPayment.discount || 0;
+                const baseAmount = selectedPayment.amount - lateFee + discount;
                 return (
                   <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -609,13 +585,19 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                       <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                      <span style={{ color: '#64748b' }}>Amount Received</span>
-                      <span style={{ fontWeight: 600 }}>₹{amountReceived.toLocaleString()}</span>
+                      <span style={{ color: '#64748b' }}>Base Amount</span>
+                      <span style={{ fontWeight: 600 }}>₹{baseAmount.toLocaleString()}</span>
                     </div>
+                    {discount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <span style={{ color: '#10b981' }}>Early Bird Discount</span>
+                        <span style={{ fontWeight: 600, color: '#10b981' }}>-₹{discount.toLocaleString()}</span>
+                      </div>
+                    )}
                     {lateFee > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                         <span style={{ color: '#dc2626' }}>Late Fee</span>
-                        <span style={{ fontWeight: 600, color: '#dc2626' }}>₹{lateFee.toLocaleString()}</span>
+                        <span style={{ fontWeight: 600, color: '#dc2626' }}>+₹{lateFee.toLocaleString()}</span>
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
