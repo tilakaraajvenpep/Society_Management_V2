@@ -2492,17 +2492,25 @@ const TenantAdminDashboard = () => {
     return baseAmount;
   };
 
-  const getDiscountForPayment = (months: number, selectedCategory: string = 'Maintenance', payDate: string = getTodayDateString(), coverageStart: string = '', coverageEnd: string = '') => {
+  const getDiscountForPayment = (months: number, selectedCategory: string = 'Maintenance', payDate: string = getTodayDateString(), coverageStart: string = '', coverageEnd: string = '', baseAmt: number = 0) => {
     if (selectedCategory !== 'Maintenance') return 0;
-    if (months === 0 && !coverageStart && !coverageEnd) return 0;
     if (!summary.discountDate || !summary.discountAmount || !payDate) return 0;
+
+    let totalMonths = 0;
+    if (months > 0) {
+      totalMonths = getMonthsCount(months, coverageStart, coverageEnd);
+    } else if (coverageStart && coverageEnd) {
+      totalMonths = getMonthsCount(0, coverageStart, coverageEnd);
+    } else if (baseAmt > 0) {
+      totalMonths = Math.max(1, Math.round(baseAmt / (summary.maintenanceAmount || 1)));
+    } else {
+      return 0;
+    }
 
     const discountDeadline = new Date(summary.discountDate);
     const paymentDateVal = new Date(payDate);
     discountDeadline.setHours(23, 59, 59, 999);
     paymentDateVal.setHours(0, 0, 0, 0);
-
-    const totalMonths = getMonthsCount(months || 0, coverageStart, coverageEnd);
 
     // Only apply early bird discount if payment is recorded before late fee cut-off day
     let isBeforeLateFee = false;
@@ -5900,7 +5908,7 @@ const TenantAdminDashboard = () => {
                         <select required value={newPayment.memberId} onChange={(e) => {
                           const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
                           const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', baseAmt);
-                          const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                          const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', newPayment.amount);
                           setNewPayment({ 
                             ...newPayment, 
                             memberId: e.target.value, 
@@ -5922,7 +5930,7 @@ const TenantAdminDashboard = () => {
                           const cat = e.target.value;
                           const baseAmt = getBaseAmount(newPayment.paidMonths, cat, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
                           const fee = getLateFeeForPayment(newPayment.paidMonths, cat, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', baseAmt);
-                          const discountAmt = getDiscountForPayment(newPayment.paidMonths, cat, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                          const discountAmt = getDiscountForPayment(newPayment.paidMonths, cat, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', newPayment.amount);
                           setNewPayment({ 
                             ...newPayment, 
                             category: cat,
@@ -5961,7 +5969,7 @@ const TenantAdminDashboard = () => {
                             
                             const baseAmt = getBaseAmount(months, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', updatedEndDate || '');
                             const fee = getLateFeeForPayment(months, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', updatedEndDate || '', baseAmt);
-                            const discountAmt = getDiscountForPayment(months, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', updatedEndDate || '');
+                            const discountAmt = getDiscountForPayment(months, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', updatedEndDate || '', baseAmt);
                             setNewPayment({ 
                               ...newPayment, 
                               paidMonths: months, 
@@ -6004,7 +6012,7 @@ const TenantAdminDashboard = () => {
                           value={newPayment.paymentDate} 
                           onChange={(e) => {
                             const newDate = e.target.value;
-                            const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                            const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', newPayment.amount);
                             const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', newPayment.baseAmount);
                             
                             let amt = newPayment.amount;
@@ -6040,7 +6048,7 @@ const TenantAdminDashboard = () => {
                             const val = e.target.value;
                             if (/^\d*\.?\d*$/.test(val)) {
                               const amt = val === '' ? 0 : parseFloat(val);
-                              const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                              const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', amt);
                               const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', amt + discountAmt);
                               setNewPayment({ 
                                 ...newPayment, 
@@ -6093,7 +6101,7 @@ const TenantAdminDashboard = () => {
                         <input 
                           type="text" 
                           disabled 
-                          value={newPayment.amount + newPayment.discount - newPayment.lateFee} 
+                          value={newPayment.amount + newPayment.lateFee - newPayment.discount} 
                           style={{
                             backgroundColor: 'var(--bg-secondary)',
                             color: 'var(--text-primary)',
@@ -6144,7 +6152,7 @@ const TenantAdminDashboard = () => {
                               updatedEndDate = end.toISOString().split('T')[0];
                             }
                             
-                            const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate);
+                            const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate, newPayment.amount);
                             const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate, newPayment.baseAmount);
                             
                             let amt = newPayment.amount;
@@ -6171,7 +6179,7 @@ const TenantAdminDashboard = () => {
                           <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage End (Optional)</label>
                           <input type="date" value={newPayment.coverageEndDate || ''} onChange={(e) => {
                             const endDate = e.target.value;
-                            const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate);
+                            const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate, newPayment.amount);
                             const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate, newPayment.baseAmount);
                             
                             let amt = newPayment.amount;
