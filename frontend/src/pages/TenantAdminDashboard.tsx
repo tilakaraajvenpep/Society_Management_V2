@@ -6012,16 +6012,25 @@ const TenantAdminDashboard = () => {
                           value={newPayment.paymentDate} 
                           onChange={(e) => {
                             const newDate = e.target.value;
-                            const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
-                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', baseAmt);
                             const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', newPayment.baseAmount);
+                            
+                            let amt = newPayment.amount;
+                            let baseAmt = newPayment.baseAmount;
+                            if (newPayment.paidMonths > 0) {
+                              baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                              amt = Math.max(0, baseAmt + fee - discountAmt);
+                            } else {
+                              baseAmt = Math.max(0, amt + discountAmt - fee);
+                            }
+
                             setNewPayment({ 
                               ...newPayment, 
                               paymentDate: newDate,
                               baseAmount: newPayment.category === 'Maintenance' ? baseAmt : newPayment.amount,
                               discount: newPayment.category === 'Maintenance' ? discountAmt : 0,
                               lateFee: newPayment.category === 'Maintenance' ? fee : 0,
-                              amount: newPayment.category === 'Maintenance' ? Math.max(0, baseAmt + fee - discountAmt) : newPayment.amount
+                              amount: newPayment.category === 'Maintenance' ? amt : newPayment.amount
                             });
                           }} 
                         />
@@ -6034,26 +6043,28 @@ const TenantAdminDashboard = () => {
                         <input 
                           type="text" 
                           required 
-                          value={newPayment.baseAmount === 0 ? '' : newPayment.baseAmount} 
+                          value={newPayment.amount === 0 ? '' : newPayment.amount} 
                           onChange={(e) => {
                             const val = e.target.value;
                             if (/^\d*\.?\d*$/.test(val)) {
-                              const baseAmt = val === '' ? 0 : parseFloat(val);
-                              const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', baseAmt);
+                              const amt = val === '' ? 0 : parseFloat(val);
                               const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
+                              const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', amt + discountAmt);
                               setNewPayment({ 
                                 ...newPayment, 
-                                baseAmount: baseAmt,
+                                amount: amt,
                                 discount: discountAmt,
                                 lateFee: fee,
-                                amount: Math.max(0, baseAmt + fee - discountAmt)
+                                baseAmount: Math.max(0, amt + discountAmt - fee)
                               });
                             }
                           }} 
                         />
-                        {newPayment.category === 'Maintenance' && newPayment.paidMonths > 0 && newPayment.discount > 0 && (
-                          <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem', fontWeight: 500 }}>
-                            ✓ Early payment discount of ₹{newPayment.discount} applied!
+                        {newPayment.category === 'Maintenance' && (newPayment.paidMonths > 0 || (newPayment.coverageStartDate && newPayment.coverageEndDate)) && (newPayment.discount > 0 || newPayment.lateFee > 0) && (
+                          <div style={{ fontSize: '0.75rem', color: newPayment.discount > 0 ? '#10b981' : '#dc2626', marginTop: '0.25rem', fontWeight: 500 }}>
+                            {newPayment.discount > 0 && `✓ Early payment discount of ₹${newPayment.discount} applied! `}
+                            {newPayment.lateFee > 0 && `⚠️ Late fee of ₹${newPayment.lateFee} charged! `}
+                            (₹{(newPayment.amount + newPayment.discount - newPayment.lateFee).toLocaleString()} dues will be cleared)
                           </div>
                         )}
                       </div>
@@ -6141,9 +6152,18 @@ const TenantAdminDashboard = () => {
                               updatedEndDate = end.toISOString().split('T')[0];
                             }
                             
-                            const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate);
-                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate, baseAmt);
                             const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate);
+                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate, newPayment.baseAmount);
+                            
+                            let amt = newPayment.amount;
+                            let baseAmt = newPayment.baseAmount;
+                            if (newPayment.paidMonths > 0) {
+                              baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, startDate, updatedEndDate);
+                              amt = Math.max(0, baseAmt + fee - discountAmt);
+                            } else {
+                              baseAmt = Math.max(0, amt + discountAmt - fee);
+                            }
+
                             setNewPayment({ 
                               ...newPayment, 
                               coverageStartDate: startDate, 
@@ -6151,7 +6171,7 @@ const TenantAdminDashboard = () => {
                               baseAmount: newPayment.category === 'Maintenance' ? baseAmt : newPayment.amount,
                               discount: newPayment.category === 'Maintenance' ? discountAmt : 0,
                               lateFee: newPayment.category === 'Maintenance' ? fee : 0,
-                              amount: newPayment.category === 'Maintenance' ? Math.max(0, baseAmt + fee - discountAmt) : newPayment.amount
+                              amount: newPayment.category === 'Maintenance' ? amt : newPayment.amount
                             });
                           }} />
                         </div>
@@ -6159,16 +6179,25 @@ const TenantAdminDashboard = () => {
                           <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage End (Optional)</label>
                           <input type="date" value={newPayment.coverageEndDate || ''} onChange={(e) => {
                             const endDate = e.target.value;
-                            const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate);
-                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate, baseAmt);
                             const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate);
+                            const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate, newPayment.baseAmount);
+                            
+                            let amt = newPayment.amount;
+                            let baseAmt = newPayment.baseAmount;
+                            if (newPayment.paidMonths > 0) {
+                              baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate);
+                              amt = Math.max(0, baseAmt + fee - discountAmt);
+                            } else {
+                              baseAmt = Math.max(0, amt + discountAmt - fee);
+                            }
+
                             setNewPayment({ 
                               ...newPayment, 
                               coverageEndDate: endDate,
                               baseAmount: newPayment.category === 'Maintenance' ? baseAmt : newPayment.amount,
                               discount: newPayment.category === 'Maintenance' ? discountAmt : 0,
                               lateFee: newPayment.category === 'Maintenance' ? fee : 0,
-                              amount: newPayment.category === 'Maintenance' ? Math.max(0, baseAmt + fee - discountAmt) : newPayment.amount
+                              amount: newPayment.category === 'Maintenance' ? amt : newPayment.amount
                             });
                           }} />
                         </div>
