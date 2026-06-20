@@ -1816,7 +1816,7 @@ const MemberPortal = () => {
                 const isUsingManual = !!(manualAmount && parseFloat(manualAmount) > 0);
 
                 return (
-                  <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ borderRadius: '1rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', display: 'block', width: '100%', boxSizing: 'border-box' }}>
                     {/* Card Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid var(--border-color)', paddingBottom: '0.75rem' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Payment Summary Details</span>
@@ -1824,7 +1824,7 @@ const MemberPortal = () => {
                     </div>
 
                     {/* Text Boxes Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginTop: '1.25rem' }}>
                       <div>
                         <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Base Maintenance Rate</label>
                         <input 
