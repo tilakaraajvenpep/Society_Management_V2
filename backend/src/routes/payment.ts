@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { memberId, amount, mode, notes, subscriptionId, paidMonths, periodLabel, coverageStartDate, coverageEndDate, paymentDate, ledgerDate, category } = req.body;
+  const { memberId, amount, mode, notes, subscriptionId, paidMonths, periodLabel, coverageStartDate, coverageEndDate, paymentDate, ledgerDate, category, lateFee, discount } = req.body;
   try {
     // Fetch member name and current paidUntil
     const currentMember = await prisma.member.findUnique({ where: { id: memberId }, select: { name: true, flatNo: true, paidUntil: true } });
@@ -27,6 +27,8 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         data: {
           memberId,
           amount: parseFloat(amount.toString()),
+          lateFee: lateFee ? parseFloat(lateFee.toString()) : 0,
+          discount: discount ? parseFloat(discount.toString()) : 0,
           mode: normalizedMode as any,
           notes: notes || null,
           subscriptionId: subscriptionId || undefined,
@@ -69,10 +71,11 @@ router.post("/", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
       }
 
       // Decrease member's outstandingDues and update paidUntil
+      const baseDuesPortion = parseFloat(amount.toString()) - (lateFee ? parseFloat(lateFee.toString()) : 0) + (discount ? parseFloat(discount.toString()) : 0);
       await tx.member.update({
         where: { id: memberId },
         data: { 
-          outstandingDues: { decrement: parseFloat(amount.toString()) },
+          outstandingDues: { decrement: baseDuesPortion },
           paidUntil: newPaidUntil
         }
       });
@@ -285,7 +288,7 @@ router.patch("/:id", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
 
 // TEST ONLY: Simulate a completed Razorpay payment without actual transaction
 router.post("/razorpay/test-payment-done", async (req: any, res) => {
-  const { amount, periodLabel, paidMonths, coverageStartDate, coverageEndDate, memberId } = req.body;
+  const { amount, periodLabel, paidMonths, coverageStartDate, coverageEndDate, memberId, lateFee, discount } = req.body;
 
   try {
     const currentMember = await prisma.member.findUnique({
@@ -318,6 +321,8 @@ router.post("/razorpay/test-payment-done", async (req: any, res) => {
         data: {
           memberId,
           amount: parseFloat(amount.toString()),
+          lateFee: lateFee ? parseFloat(lateFee.toString()) : 0,
+          discount: discount ? parseFloat(discount.toString()) : 0,
           mode: "UPI",
           notes: `[TEST MODE] Payment marked as done manually. Simulated Razorpay payment for testing purposes.`,
           tenantId: currentMember.tenantId,
@@ -350,10 +355,11 @@ router.post("/razorpay/test-payment-done", async (req: any, res) => {
       }
 
       // Decrease member's outstandingDues and update paidUntil
+      const baseDuesPortion = parseFloat(amount.toString()) - (lateFee ? parseFloat(lateFee.toString()) : 0) + (discount ? parseFloat(discount.toString()) : 0);
       await tx.member.update({
         where: { id: memberId },
         data: {
-          outstandingDues: { decrement: parseFloat(amount.toString()) },
+          outstandingDues: { decrement: baseDuesPortion },
           paidUntil: newPaidUntil
         }
       });
@@ -454,7 +460,9 @@ router.post("/razorpay/verify", async (req: any, res) => {
     paidMonths,
     coverageStartDate,
     coverageEndDate,
-    memberId
+    memberId,
+    lateFee,
+    discount
   } = req.body;
 
   try {
@@ -508,6 +516,8 @@ router.post("/razorpay/verify", async (req: any, res) => {
         data: {
           memberId,
           amount: parseFloat(amount.toString()),
+          lateFee: lateFee ? parseFloat(lateFee.toString()) : 0,
+          discount: discount ? parseFloat(discount.toString()) : 0,
           mode: "UPI", // UPI mode is compatible with Enum
           notes: `Paid online via Razorpay. Payment ID: ${razorpay_payment_id}`,
           tenantId: currentMember.tenantId,
@@ -540,10 +550,11 @@ router.post("/razorpay/verify", async (req: any, res) => {
       }
 
       // Decrease member's outstandingDues and update paidUntil
+      const baseDuesPortion = parseFloat(amount.toString()) - (lateFee ? parseFloat(lateFee.toString()) : 0) + (discount ? parseFloat(discount.toString()) : 0);
       await tx.member.update({
         where: { id: memberId },
         data: {
-          outstandingDues: { decrement: parseFloat(amount.toString()) },
+          outstandingDues: { decrement: baseDuesPortion },
           paidUntil: newPaidUntil
         }
       });

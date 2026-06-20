@@ -55,7 +55,7 @@ const recalculateDuesForAllMembers = async (tx: any, tenantId: string) => {
     }
 
     const memberPayments = payments.filter((p: any) => p.memberId === m.id);
-    const totalPaid = memberPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+    const totalPaid = memberPayments.reduce((sum: number, p: any) => sum + (p.amount || 0) - (p.lateFee || 0) + (p.discount || 0), 0);
 
     const correctDues = totalApplicable - totalPaid;
     if (m.outstandingDues !== correctDues) {

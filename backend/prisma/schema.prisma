@@ -136,6 +136,8 @@ model Payment {
   memberId          String
   subscriptionId    String?
   amount            Float
+  lateFee           Float          @default(0)
+  discount          Float          @default(0)
   paymentDate       DateTime       @default(now())
   ledgerDate        DateTime?
   mode              PaymentMode

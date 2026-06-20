@@ -1024,7 +1024,7 @@ const MemberPortal = () => {
   };
 
   const getCalculatedAmount = () => {
-    if (!memberInfo) return { base: 0, final: 0, discount: 0, monthsCount: 1 };
+    if (!memberInfo) return { base: 0, final: 0, discount: 0, lateFee: 0, monthsCount: 1 };
     
     // Find current monthly cost
     const regFY = memberInfo.registrationYear || (memberInfo.createdAt ? getFinancialYear(memberInfo.createdAt) : '');
@@ -1058,7 +1058,7 @@ const MemberPortal = () => {
         break;
     }
 
-    // Check early bird discount
+    // Check early bird discount - applies if today is on or before discountDate
     let discount = 0;
     if (memberInfo.tenant?.discountDate && memberInfo.tenant?.discountAmount) {
       const deadline = new Date(memberInfo.tenant.discountDate);
@@ -1068,17 +1068,27 @@ const MemberPortal = () => {
       }
     }
 
+    // Check late fee - applies if today is past lateFeeDate
+    let lateFee = 0;
+    if (memberInfo.tenant?.lateFeeDate && memberInfo.tenant?.lateFeeAmount) {
+      const deadline = new Date(memberInfo.tenant.lateFeeDate);
+      deadline.setHours(23, 59, 59, 999);
+      if (new Date() > deadline) {
+        lateFee = memberInfo.tenant.lateFeeAmount * monthsCount;
+      }
+    }
+
     // If manual amount is entered, use it as the final amount (override)
     const parsedManual = parseFloat(manualAmount);
     const finalAmount = !isNaN(parsedManual) && parsedManual > 0
       ? parsedManual
-      : Math.max(0, baseAmount - discount);
+      : Math.max(0, baseAmount + lateFee - discount);
 
-    return { base: baseAmount, final: finalAmount, discount, monthsCount };
+    return { base: baseAmount, final: finalAmount, discount, lateFee, monthsCount };
   };
 
   const handleTestPaymentDone = async () => {
-    const { final, monthsCount } = getCalculatedAmount();
+    const { final, discount, lateFee, monthsCount } = getCalculatedAmount();
     if (final <= 0) {
       showToast("Payment amount must be greater than 0", "error");
       return;
@@ -1105,8 +1115,12 @@ const MemberPortal = () => {
         : paymentFrequency === 'annual' ? 'Annual'
         : `Custom (${monthsCount} Months)`;
 
+      const isUsingManual = !!(manualAmount && parseFloat(manualAmount) > 0);
+
       await axios.post('/payments/razorpay/test-payment-done', {
         amount: final,
+        lateFee: isUsingManual ? 0 : lateFee,
+        discount: isUsingManual ? 0 : discount,
         periodLabel,
         paidMonths: monthsCount,
         coverageStartDate: start.toISOString(),
@@ -1134,7 +1148,7 @@ const MemberPortal = () => {
   };
 
   const handleOnlinePayment = async () => {
-    const { final, monthsCount } = getCalculatedAmount();
+    const { final, monthsCount, lateFee, discount } = getCalculatedAmount();
     if (final <= 0) {
       showToast("Payment amount must be greater than 0", "error");
       return;
@@ -1175,6 +1189,8 @@ const MemberPortal = () => {
         : paymentFrequency === 'annual' ? 'Annual'
         : `Custom (${monthsCount} Months)`;
 
+      const isUsingManual = !!(manualAmount && parseFloat(manualAmount) > 0);
+
       const options = {
         key: orderRes.data.key_id,
         amount: orderRes.data.amount,
@@ -1190,6 +1206,8 @@ const MemberPortal = () => {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_signature: response.razorpay_signature,
               amount: final,
+              lateFee: isUsingManual ? 0 : lateFee,
+              discount: isUsingManual ? 0 : discount,
               periodLabel,
               paidMonths: monthsCount,
               coverageStartDate: start.toISOString(),
@@ -1624,214 +1642,313 @@ const MemberPortal = () => {
         <div style={{
           position: 'fixed',
           inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(4px)',
+          backgroundColor: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(8px)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           zIndex: 1000,
           padding: '1rem'
         }}>
-          <div className="card" style={{
+          {/* ===== REDESIGNED PREMIUM PAYMENT MODAL ===== */}
+          <div style={{
             width: '100%',
-            maxWidth: '500px',
-            backgroundColor: 'var(--bg-primary)',
-            color: 'var(--text-primary)',
-            borderRadius: '1rem',
-            boxShadow: 'var(--card-shadow)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
+            maxWidth: '520px',
+            maxHeight: '92vh',
+            borderRadius: '1.5rem',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1.25rem',
-            padding: '1.5rem'
+            overflow: 'hidden',
+            backgroundColor: 'var(--bg-primary)',
+            animation: 'modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CreditCard size={20} style={{ color: 'var(--primary)' }} /> Pay Maintenance Online
-              </h3>
-              <button className="btn btn-secondary" style={{ padding: '0.35rem', borderRadius: '50%' }} onClick={() => setShowPaymentModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
 
-            <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>Select Payment Plan</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                <button
-                  type="button"
-                  className={`btn ${paymentFrequency === 'monthly' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ fontSize: '0.85rem', padding: '0.75rem' }}
-                  onClick={() => setPaymentFrequency('monthly')}
-                >
-                  Monthly (1M)
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${paymentFrequency === 'quarterly' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ fontSize: '0.85rem', padding: '0.75rem' }}
-                  onClick={() => setPaymentFrequency('quarterly')}
-                >
-                  Quarterly (3M)
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${paymentFrequency === 'half_yearly' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ fontSize: '0.85rem', padding: '0.75rem' }}
-                  onClick={() => setPaymentFrequency('half_yearly')}
-                >
-                  Half-Yearly (6M)
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${paymentFrequency === 'annual' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ fontSize: '0.85rem', padding: '0.75rem' }}
-                  onClick={() => setPaymentFrequency('annual')}
-                >
-                  Annual (12M)
-                </button>
-              </div>
-
+            {/* ── Header ── */}
+            <div style={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
+              padding: '1.75rem 1.75rem 1.5rem',
+              position: 'relative',
+              flexShrink: 0
+            }}>
               <button
-                type="button"
-                className={`btn ${paymentFrequency === 'custom' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ width: '100%', fontSize: '0.85rem', padding: '0.75rem', marginBottom: '1rem' }}
-                onClick={() => setPaymentFrequency('custom')}
+                onClick={() => { setShowPaymentModal(false); setManualAmount(''); }}
+                style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(255, 255, 255, 0.15)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', backdropFilter: 'blur(4px)', transition: 'all 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
               >
-                Custom Months Plan
+                <X size={16} />
               </button>
-
-              {paymentFrequency === 'custom' && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Number of Months to Pay</label>
-                  <select
-                    value={customMonths}
-                    onChange={(e) => setCustomMonths(parseInt(e.target.value))}
-                    style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
-                      <option key={n} value={n}>{n} {n === 1 ? 'Month' : 'Months'}</option>
-                    ))}
-                  </select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.18)', borderRadius: '0.75rem', padding: '0.6rem', display: 'flex', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
+                  <CreditCard size={24} color="#fff" />
                 </div>
-              )}
-            </div>
-
-            {/* Manual Amount Input */}
-            <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <CreditCard size={14} style={{ color: 'var(--primary)' }} />
-                Enter Custom Amount (Optional)
-              </label>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-secondary)', fontSize: '1rem' }}>₹</span>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="Leave blank to use calculated amount"
-                  value={manualAmount}
-                  onChange={(e) => setManualAmount(e.target.value)}
-                  style={{ width: '100%', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.6rem', paddingBottom: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem', boxSizing: 'border-box' }}
-                />
+                <div>
+                  <h2 style={{ margin: 0, color: '#fff', fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Pay Maintenance</h2>
+                  <p style={{ margin: '0.15rem 0 0', color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.82rem', fontWeight: 500 }}>{user?.tenantName} · Flat {memberInfo?.flatNo}</p>
+                </div>
               </div>
-              {manualAmount && parseFloat(manualAmount) > 0 && (
-                <p style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.3rem', fontWeight: 500 }}>✓ Using custom amount: ₹{parseFloat(manualAmount).toLocaleString()}</p>
-              )}
             </div>
 
-            <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', padding: '1rem', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Payment Summary</div>
-              
+            {/* ── Body ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.75rem', overflowY: 'auto' }} className="custom-scrollbar">
+
+              {/* Plan Selector */}
+              <div>
+                <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>1. Select Payment Plan</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
+                  {[
+                    { key: 'monthly', label: 'Monthly', sub: '1 Month' },
+                    { key: 'quarterly', label: 'Quarterly', sub: '3 Months' },
+                    { key: 'half_yearly', label: 'Half-Yearly', sub: '6 Months' },
+                    { key: 'annual', label: 'Annual', sub: '12 Months' },
+                  ].map(plan => {
+                    const isActive = paymentFrequency === plan.key;
+                    return (
+                      <button
+                        key={plan.key}
+                        type="button"
+                        onClick={() => setPaymentFrequency(plan.key as any)}
+                        style={{
+                          padding: '0.85rem 0.6rem',
+                          borderRadius: '0.85rem',
+                          border: isActive ? '2px solid #6366f1' : '1.5px solid var(--border-color)',
+                          background: isActive ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-secondary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '0.2rem',
+                          transition: 'all 0.2s',
+                          boxShadow: isActive ? '0 4px 12px rgba(99, 102, 241, 0.08)' : 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: isActive ? '#6366f1' : 'var(--text-primary)' }}>{plan.label}</span>
+                        <span style={{ fontSize: '0.72rem', color: isActive ? '#6366f1' : 'var(--text-secondary)', opacity: 0.85 }}>{plan.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPaymentFrequency('custom')}
+                  style={{
+                    marginTop: '0.65rem',
+                    width: '100%',
+                    padding: '0.8rem',
+                    borderRadius: '0.85rem',
+                    border: paymentFrequency === 'custom' ? '2px solid #6366f1' : '1.5px solid var(--border-color)',
+                    background: paymentFrequency === 'custom' ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    color: paymentFrequency === 'custom' ? '#6366f1' : 'var(--text-primary)',
+                    transition: 'all 0.2s',
+                    boxShadow: paymentFrequency === 'custom' ? '0 4px 12px rgba(99, 102, 241, 0.08)' : 'none'
+                  }}
+                >
+                  Custom Months Plan
+                </button>
+                {paymentFrequency === 'custom' && (
+                  <div style={{ marginTop: '0.75rem', animation: 'fadeIn 0.2s ease' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Number of Months to Pay</label>
+                    <select
+                      value={customMonths}
+                      onChange={(e) => setCustomMonths(parseInt(e.target.value))}
+                      style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }}
+                    >
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                        <option key={n} value={n}>{n} {n === 1 ? 'Month' : 'Months'}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Custom Amount Override */}
+              <div>
+                <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>2. Enter Custom Amount <span style={{ fontWeight: 400, textTransform: 'none', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>(Optional)</span></p>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-secondary)', fontSize: '1.05rem', pointerEvents: 'none' }}>₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Leave blank to use calculated amount"
+                    value={manualAmount}
+                    onChange={(e) => setManualAmount(e.target.value)}
+                    style={{ width: '100%', paddingLeft: '2.2rem', paddingRight: '1rem', paddingTop: '0.75rem', paddingBottom: '0.75rem', borderRadius: '0.75rem', border: `1.5px solid ${manualAmount && parseFloat(manualAmount) > 0 ? '#6366f1' : 'var(--border-color)'}`, backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem', boxSizing: 'border-box', outline: 'none', transition: 'all 0.2s' }}
+                  />
+                </div>
+                {manualAmount && parseFloat(manualAmount) > 0 && (
+                  <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>✓ Custom override active. You will pay ₹{parseFloat(manualAmount).toLocaleString()}</p>
+                )}
+              </div>
+
+              {/* Fee Breakdown Card */}
               {(() => {
-                const { base, final, discount, monthsCount } = getCalculatedAmount();
-                
-                // Calculate estimated coverage details
+                const { base, final, discount, lateFee, monthsCount } = getCalculatedAmount();
                 let start = memberInfo?.paidUntil ? new Date(memberInfo.paidUntil) : new Date();
-                if (!memberInfo?.paidUntil) {
-                  start.setDate(1);
-                  start.setHours(0, 0, 0, 0);
-                } else {
-                  start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-                }
+                if (!memberInfo?.paidUntil) { start.setDate(1); start.setHours(0,0,0,0); }
+                else { start = new Date(start.getFullYear(), start.getMonth() + 1, 1); }
                 const end = new Date(start);
                 end.setMonth(end.getMonth() + monthsCount);
                 end.setDate(0);
-
-                const formatDate = (d: Date) => d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+                const fmt = (d: Date) => d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+                const isUsingManual = !!(manualAmount && parseFloat(manualAmount) > 0);
 
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Dues Duration:</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{monthsCount} {monthsCount === 1 ? 'Month' : 'Months'}</strong>
+                  <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
+                    {/* Card Header */}
+                    <div style={{ padding: '0.85rem 1.15rem', borderBottom: '1.5px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Payment Summary</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6366f1', background: 'rgba(99, 102, 241, 0.08)', padding: '0.25rem 0.6rem', borderRadius: '2rem' }}>{fmt(start)} to {fmt(end)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Estimated Coverage:</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{formatDate(start)} to {formatDate(end)}</strong>
+
+                    {/* Line Items */}
+                    <div style={{ background: 'var(--bg-primary)', padding: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+
+                      {/* Maintenance Amount (Base) */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Base Rate:</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>Dues Duration: {monthsCount} Month{monthsCount > 1 ? 's' : ''}</div>
+                        </div>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>₹{base.toLocaleString()}</span>
+                      </div>
+
+                      {/* Late Fee */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.65rem', borderTop: '1px dashed var(--border-color)' }}>
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span style={{ background: lateFee > 0 && !isUsingManual ? '#fef2f2' : 'var(--bg-secondary)', padding: '0.1rem 0.4rem', borderRadius: '0.35rem', fontSize: '0.65rem', fontWeight: 800, color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-secondary)' }}>LATE FEE</span>
+                            Late Fee:
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                            {lateFee > 0 && !isUsingManual ? 'Late fee applied' : 'Not applicable'}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-secondary)' }}>
+                          {lateFee > 0 && !isUsingManual ? `+₹${lateFee.toLocaleString()}` : '₹0'}
+                        </span>
+                      </div>
+
+                      {/* Early Bird Discount */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.65rem', borderTop: '1px dashed var(--border-color)' }}>
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span style={{ background: discount > 0 && !isUsingManual ? '#ecfdf5' : 'var(--bg-secondary)', padding: '0.1rem 0.4rem', borderRadius: '0.35rem', fontSize: '0.65rem', fontWeight: 800, color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-secondary)' }}>DISCOUNT</span>
+                            Early Bird Discount:
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                            {discount > 0 && !isUsingManual ? 'Discount applied' : 'Not applicable'}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-secondary)' }}>
+                          {discount > 0 && !isUsingManual ? `−₹${discount.toLocaleString()}` : '₹0'}
+                        </span>
+                      </div>
+
+                      {/* Total Row */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.95rem', marginTop: '0.15rem', borderTop: '1.5px solid var(--border-color)' }}>
+                        <div>
+                          <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Amount to Pay:</div>
+                          {isUsingManual && <div style={{ fontSize: '0.7rem', color: '#6366f1', marginTop: '0.15rem' }}>Manual override active</div>}
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '1.65rem', fontWeight: 900, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1 }}>₹{final.toLocaleString()}</div>
+                          {(lateFee > 0 || discount > 0) && !isUsingManual && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textDecoration: 'line-through', marginTop: '0.15rem' }}>₹{base.toLocaleString()}</div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
-                      <span>Base Rate:</span>
-                      <span>₹{base.toLocaleString()}</span>
-                    </div>
-                    {discount > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)' }}>
-                        <span>Early Payment Discount:</span>
-                        <span>-₹{discount.toLocaleString()}</span>
+
+                    {/* Alert banners inside Card */}
+                    {lateFee > 0 && !isUsingManual && (
+                      <div style={{ background: '#fef2f2', borderTop: '1px solid #fecaca', padding: '0.65rem 1.15rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>⚠️</span>
+                        <span style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.4, fontWeight: 500 }}>A late fee of ₹{lateFee.toLocaleString()} has been added because today is past the due date of {new Date(memberInfo?.tenant?.lateFeeDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.</span>
                       </div>
                     )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', fontSize: '1rem', fontWeight: 700 }}>
-                      <span>Amount to Pay:</span>
-                      <span style={{ color: 'var(--primary)' }}>₹{final.toLocaleString()}</span>
-                    </div>
+                    {discount > 0 && !isUsingManual && (
+                      <div style={{ background: '#ecfdf5', borderTop: '1px solid #a7f3d0', padding: '0.65rem 1.15rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>🎉</span>
+                        <span style={{ fontSize: '0.75rem', color: '#065f46', lineHeight: 1.4, fontWeight: 500 }}>Congratulations! You qualify for an early bird discount of ₹{discount.toLocaleString()}! Offer valid till {new Date(memberInfo?.tenant?.discountDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.</span>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
-            </div>
 
-            {/* Test Payment Done Button - for testing purposes only */}
-            <div style={{ padding: '0.75rem', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px dashed #d97706', borderRadius: '0.75rem' }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span>⚠️</span> Test Mode Only
+              {/* ── Test Mode Button ── */}
+              <div style={{ borderRadius: '1rem', border: '1.5px dashed #d97706', background: 'rgba(245, 158, 11, 0.03)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.85rem' }}>⚠️</span> TEST MODE ONLY
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTestPaymentDone}
+                  disabled={isTestPaymentProcessing || isProcessingPayment}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '0.6rem',
+                    border: '1.5px solid #d97706',
+                    background: isTestPaymentProcessing ? '#fef3c7' : '#fffbeb',
+                    color: '#b45309',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    cursor: isTestPaymentProcessing ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { if (!isTestPaymentProcessing) e.currentTarget.style.background = '#fef3c7'; }}
+                  onMouseLeave={e => { if (!isTestPaymentProcessing) e.currentTarget.style.background = '#fffbeb'; }}
+                >
+                  {isTestPaymentProcessing ? '⏳ Recording test payment...' : '✓ Payment Done (Test Mode)'}
+                </button>
+                <p style={{ margin: 0, fontSize: '0.7rem', color: '#b45309', opacity: 0.8, textAlign: 'center' }}>Skips Razorpay — directly records payment &amp; notifies treasurer</p>
               </div>
+
+              {/* ── Razorpay Button ── */}
               <button
-                onClick={handleTestPaymentDone}
-                disabled={isTestPaymentProcessing || isProcessingPayment}
+                type="button"
+                onClick={handleOnlinePayment}
+                disabled={isProcessingPayment || isTestPaymentProcessing}
                 style={{
                   width: '100%',
-                  padding: '0.65rem',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
+                  padding: '0.95rem',
+                  borderRadius: '0.9rem',
+                  border: 'none',
+                  background: isProcessingPayment ? 'linear-gradient(135deg, #9ca3af, #d1d5db)' : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: '1rem',
+                  cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
                   display: 'flex',
-                  justifyContent: 'center',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  borderRadius: '0.5rem',
-                  border: '1.5px solid #d97706',
-                  backgroundColor: isTestPaymentProcessing ? '#fef3c7' : '#fffbeb',
-                  color: '#92400e',
-                  cursor: isTestPaymentProcessing ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s'
+                  justifyContent: 'center',
+                  gap: '0.65rem',
+                  boxShadow: isProcessingPayment ? 'none' : '0 10px 25px -5px rgba(99, 102, 241, 0.45)',
+                  transition: 'all 0.2s',
+                  letterSpacing: '-0.01em'
                 }}
-                onMouseEnter={(e) => { if (!isTestPaymentProcessing) { e.currentTarget.style.backgroundColor = '#fef3c7'; e.currentTarget.style.borderColor = '#b45309'; } }}
-                onMouseLeave={(e) => { if (!isTestPaymentProcessing) { e.currentTarget.style.backgroundColor = '#fffbeb'; e.currentTarget.style.borderColor = '#d97706'; } }}
+                onMouseEnter={e => { if (!isProcessingPayment) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 12px 28px -5px rgba(99, 102, 241, 0.55)'; } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = isProcessingPayment ? 'none' : '0 10px 25px -5px rgba(99, 102, 241, 0.45)'; }}
               >
-                {isTestPaymentProcessing ? '⏳ Recording Payment...' : '✅ Payment Done (Test Mode)'}
+                <CreditCard size={20} />
+                {isProcessingPayment ? 'Processing Securely...' : 'Pay Online with Razorpay'}
               </button>
-              <p style={{ fontSize: '0.7rem', color: '#92400e', marginTop: '0.4rem', textAlign: 'center' }}>
-                Skips Razorpay — directly records payment &amp; notifies treasurer
-              </p>
-            </div>
 
-            <button
-              onClick={handleOnlinePayment}
-              disabled={isProcessingPayment || isTestPaymentProcessing}
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
-            >
-              <CreditCard size={18} />
-              {isProcessingPayment ? 'Processing Securely...' : 'Pay Online with Razorpay'}
-            </button>
-          </div>
+              <p style={{ margin: 0, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', opacity: 0.85 }}>
+                <span>🔒</span> Secured by Razorpay · 256-bit SSL Encryption
+              </p>
+
+            </div>{/* end body */}
+          </div>{/* end modal card */}
         </div>
       )}
     </div>
