@@ -2515,11 +2515,14 @@ const TenantAdminDashboard = () => {
     }
 
     // Special rule: if coverage is for exactly 3 months and recorded before late fee, calculate early fee for 3 months
-    if (totalMonths === 3 && isBeforeLateFee) {
-      return 3 * summary.discountAmount;
+    if (totalMonths === 3) {
+      if (isBeforeLateFee) {
+        return 3 * summary.discountAmount;
+      }
+      return 0;
     }
 
-    if (paymentDateVal <= discountDeadline && isBeforeLateFee) {
+    if (paymentDateVal <= discountDeadline) {
       return totalMonths * summary.discountAmount;
     }
     return 0;
