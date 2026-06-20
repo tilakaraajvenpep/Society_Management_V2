@@ -2505,24 +2505,16 @@ const TenantAdminDashboard = () => {
     const totalMonths = getMonthsCount(months || 0, coverageStart, coverageEnd);
 
     // Only apply early bird discount if payment is recorded before late fee cut-off day
-    let isBeforeLateFee = true;
+    let isBeforeLateFee = false;
     if (summary.lateFeeDate) {
       const cutOffDay = getDayFromDateString(summary.lateFeeDate);
       const paymentDay = getDayFromDateString(payDate);
-      if (paymentDay > cutOffDay) {
-        isBeforeLateFee = false;
+      if (paymentDay <= cutOffDay) {
+        isBeforeLateFee = true;
       }
     }
 
-    // Special rule: if coverage is for exactly 3 months and recorded before late fee, calculate early fee for 3 months
-    if (totalMonths === 3) {
-      if (isBeforeLateFee) {
-        return 3 * summary.discountAmount;
-      }
-      return 0;
-    }
-
-    if (paymentDateVal <= discountDeadline) {
+    if (isBeforeLateFee || (paymentDateVal <= discountDeadline)) {
       return totalMonths * summary.discountAmount;
     }
     return 0;
@@ -6101,7 +6093,7 @@ const TenantAdminDashboard = () => {
                         <input 
                           type="text" 
                           disabled 
-                          value={newPayment.amount} 
+                          value={newPayment.amount + newPayment.discount - newPayment.lateFee} 
                           style={{
                             backgroundColor: 'var(--bg-secondary)',
                             color: 'var(--text-primary)',
