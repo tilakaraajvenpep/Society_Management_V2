@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { TenantProvider } from './context/TenantContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { ToastProvider } from './components/Toast';
 import { ConfirmProvider } from './components/ConfirmModal';
 import LoginPage from './pages/LoginPage';
@@ -51,49 +52,51 @@ const RoleThemeSelector = () => {
 
 function App() {
   return (
-    <TenantProvider>
-      <AuthProvider>
-        <ThemeProvider>
-          <ToastProvider>
-            <ConfirmProvider>
-              <Router>
-                <RoleThemeSelector />
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/:tenantSlug" element={<LoginPage />} />
-                <Route 
-                  path="/super-admin" 
-                  element={
-                    <ProtectedRoute roles={['SUPER_ADMIN']}>
-                      <SuperAdminDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/tenant-admin" 
-                  element={
-                    <ProtectedRoute roles={['TENANT_ADMIN']}>
-                      <TenantAdminDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/member" 
-                  element={
-                    <ProtectedRoute roles={['MEMBER']}>
-                      <MemberPortal />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route path="/" element={<RootRedirect />} />
-              </Routes>
-              <ThemeToggle />
-            </Router>
-            </ConfirmProvider>
-          </ToastProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </TenantProvider>
+    <LanguageProvider>
+      <TenantProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <ConfirmProvider>
+                <Router>
+                  <RoleThemeSelector />
+                  <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/:tenantSlug" element={<LoginPage />} />
+                  <Route 
+                    path="/super-admin" 
+                    element={
+                      <ProtectedRoute roles={['SUPER_ADMIN']}>
+                        <SuperAdminDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/tenant-admin" 
+                    element={
+                      <ProtectedRoute roles={['TENANT_ADMIN']}>
+                        <TenantAdminDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/member" 
+                    element={
+                      <ProtectedRoute roles={['MEMBER']}>
+                        <MemberPortal />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route path="/" element={<RootRedirect />} />
+                </Routes>
+                <ThemeToggle />
+              </Router>
+              </ConfirmProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </TenantProvider>
+    </LanguageProvider>
   );
 }
 

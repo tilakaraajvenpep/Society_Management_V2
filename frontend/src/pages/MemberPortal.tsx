@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import NotificationPanel from '../components/NotificationPanel';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useToast } from '../components/Toast';
 
 const MemberHelpdesk = ({ token }: { token: string | null }) => {
@@ -1538,6 +1539,7 @@ const MemberPortal = () => {
           <span style={{ fontWeight: 700 }}>{user?.tenantName}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <LanguageSwitcher />
           <NotificationPanel token={token} />
           <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}>
             <Menu size={24} />
@@ -1596,6 +1598,7 @@ const MemberPortal = () => {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{user?.tenantName} • Flat {memberInfo?.flatNo}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <LanguageSwitcher />
             <NotificationPanel token={token} />
             <div 
               onClick={() => setActiveTab('profile')} 
