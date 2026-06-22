@@ -29,6 +29,7 @@ const exportTableToCSV = (filename: string, headers: string[], rows: (string|num
   window.URL.revokeObjectURL(url);
 };
 const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh }: { token: string | null, currentUserId?: string, designations: string[], staff: any[], onRefresh: () => void }) => {
+  const { t } = useLanguage();
   const [showForm, setShowForm] = useState(false);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -43,20 +44,20 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
   const handleSubmit = async () => {
     setError('');
     if (!form.name.trim()) {
-      showToast("Full Name is required", 'error');
+      showToast(t('staff.error_name'), 'error');
       return;
     }
     if (!form.email.trim()) {
-      showToast("Email is required", 'error');
+      showToast(t('staff.error_email'), 'error');
       return;
     }
     if (!form.mobile.trim()) {
-      showToast("Mobile number is required", 'error');
+      showToast(t('staff.error_mobile'), 'error');
       return;
     }
     const cleanMobile = form.mobile.trim();
     if (!/^\d{10}$/.test(cleanMobile)) {
-      showToast("Mobile number must be exactly 10 digits", 'error');
+      showToast(t('staff.error_mobile_digits'), 'error');
       return;
     }
     setLoading(true);
@@ -66,7 +67,7 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
         : (form.bhk === 'other' ? form.customBhk.trim() : form.bhk);
 
       if (form.alsoAddMember && form.residenceType !== 'COMMON' && !finalBhk) {
-        showToast("Please enter BHK value", 'error');
+        showToast(t('staff.error_bhk'), 'error');
         setLoading(false);
         return;
       }
@@ -94,11 +95,11 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
 
   const handleDelete = async (id: string, name: string) => {
     if (!await confirm({
-      title: 'Remove Office Bearer',
-      message: `Are you sure you want to remove "${name}" from office bearers?`,
+      title: t('staff.confirm_delete_title'),
+      message: t('staff.confirm_delete_msg').replace('{name}', name),
       danger: true,
-      confirmLabel: 'Remove',
-      cancelLabel: 'Cancel'
+      confirmLabel: t('action.remove'),
+      cancelLabel: t('action.cancel')
     })) return;
 
     const s = staff.find(x => x.id === id);
@@ -107,13 +108,10 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
     let removeMember = false;
     if (hasMember) {
       removeMember = await confirm({
-        title: 'Remove Linked Member Profile',
-        message: `"${name}" is also registered as a member.\n\n` +
-          `Do you want to remove them from the Members list as well?\n` +
-          `• Click OK to remove from BOTH (Office Bearer & Member)\n` +
-          `• Click Cancel to remove ONLY as Office Bearer (keeps them as Member)`,
-        confirmLabel: 'Remove from BOTH',
-        cancelLabel: 'Remove ONLY as Office Bearer',
+        title: t('staff.confirm_linked_title'),
+        message: t('staff.confirm_linked_msg').replace('{name}', name),
+        confirmLabel: t('staff.remove_both'),
+        cancelLabel: t('staff.remove_only_staff'),
         danger: true
       });
     }
@@ -130,8 +128,8 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
     <div className="card">
       <div className="section-header-row">
         <div>
-          <h3 style={{ marginBottom: '0.25rem' }}>Office Bearers & Staff</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Manage treasurers, secretaries, and committee members who can log in to this portal.</p>
+          <h3 style={{ marginBottom: '0.25rem' }}>{t('staff.title')}</h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{t('staff.manage_desc')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => { 
           setEditingStaff(null); 
@@ -141,38 +139,38 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
           }); 
           setShowForm(true); 
         }}>
-          <Plus size={18} /> Add Office Bearer
+          <Plus size={18} /> {t('staff.add_bearer')}
         </button>
       </div>
 
       {showForm && (
         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid var(--border-color)' }}>
-          <h4 style={{ marginBottom: '1rem' }}>{editingStaff ? 'Edit Office Bearer' : 'Add New Office Bearer'}</h4>
+          <h4 style={{ marginBottom: '1rem' }}>{editingStaff ? t('staff.edit_bearer') : t('staff.add_new_bearer')}</h4>
           <div className="responsive-form-grid" style={{ gap: '1.25rem' }}>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Full Name *</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('staff.full_name')}</label>
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Ramesh Kumar" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Designation *</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('staff.designation')}</label>
               <select value={form.designation} onChange={e => setForm({ ...form, designation: e.target.value })} style={{ width: '100%', padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)' }}>
                 {designations.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Email *</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('staff.email')}</label>
               <input type="email" required value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Mobile *</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('staff.mobile')}</label>
               <input type="text" required value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} placeholder="9876543210" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{editingStaff ? 'New Password (leave blank to keep)' : 'Password *'}</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{editingStaff ? t('staff.password_label_edit') : t('staff.password_label_new')}</label>
               <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min 6 characters" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Flat Number (Optional)</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('staff.flat_no_optional')}</label>
               <input value={form.flatNo} onChange={e => setForm({ ...form, flatNo: e.target.value })} placeholder="e.g. A-402" />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', gridColumn: 'span 2', marginTop: '0.5rem' }}>
@@ -185,17 +183,17 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
                 style={{ width: 'auto', margin: 0 }}
               />
               <label htmlFor="alsoAddMember" style={{ fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', color: 'var(--text-primary)' }}>
-                Also add this office bearer as a society member (displays in member list)
+                {t('staff.also_add_member')}
               </label>
             </div>
 
             {form.alsoAddMember && (
               <div style={{ gridColumn: 'span 2', backgroundColor: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h5 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: 'var(--primary)' }}>Associated Member Profile Details</h5>
+                <h5 style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: 'var(--primary)' }}>{t('staff.associated_details')}</h5>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
                   <div>
-                    <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Residence Type *</label>
+                    <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('staff.residence_type')}</label>
                     <select 
                       value={form.residenceType} 
                       onChange={(e) => {
@@ -208,15 +206,15 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
                       }}
                       style={{ width: '100%', padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)' }}
                     >
-                      <option value="COMMON">Common</option>
-                      <option value="FLAT">Flat</option>
-                      <option value="VILLA">Villa</option>
+                      <option value="COMMON">{t('settings.residence_common')}</option>
+                      <option value="FLAT">{t('settings.residence_flat')}</option>
+                      <option value="VILLA">{t('settings.residence_villa')}</option>
                     </select>
                   </div>
 
                   {form.residenceType !== 'COMMON' ? (
                     <div>
-                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>BHK Option *</label>
+                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('staff.bhk_option')}</label>
                       <div style={{ display: 'flex', gap: '0.4rem' }}>
                         <select 
                           value={form.bhk} 
@@ -233,7 +231,7 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
                           <input 
                             type="text" 
                             required
-                            placeholder="Specify BHK" 
+                            placeholder={t('staff.bhk_specify')} 
                             value={form.customBhk} 
                             onChange={(e) => setForm({ ...form, customBhk: e.target.value })}
                             style={{ width: '120px', padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)' }}
@@ -243,7 +241,7 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
                     </div>
                   ) : (
                     <div>
-                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>BHK Option</label>
+                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('staff.bhk_option_label')}</label>
                       <input type="text" disabled value="COMMON" style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed', padding: '0.625rem 0.875rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-muted)', width: '100%' }} />
                     </div>
                   )}
@@ -257,7 +255,7 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
                       style={{ width: '1rem', height: '1rem', margin: 0, cursor: 'pointer' }}
                     />
                     <label htmlFor="staffUseCommonMaintenance" style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                      Enable common maintenance (if checked, charges the common value instead of BHK value)
+                      {t('staff.enable_common_maintenance')}
                     </label>
                   </div>
                 </div>
@@ -266,8 +264,8 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
           </div>
           {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
-            <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>{loading ? 'Saving...' : (editingStaff ? 'Update' : 'Add Office Bearer')}</button>
-            <button className="btn btn-secondary" onClick={() => { setShowForm(false); setEditingStaff(null); }}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>{loading ? t('action.saving') : (editingStaff ? t('action.update') : t('staff.add_bearer'))}</button>
+            <button className="btn btn-secondary" onClick={() => { setShowForm(false); setEditingStaff(null); }}>{t('action.cancel')}</button>
           </div>
         </div>
       )}
@@ -283,16 +281,16 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
           </colgroup>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Designation</th>
-              <th>Email</th>
-              <th>Mobile</th>
-              <th style={{ textAlign: 'right' }}>Action</th>
+              <th>{t('members.name')}</th>
+              <th>{t('staff.designation')}</th>
+              <th>{t('members.email')}</th>
+              <th>{t('members.mobile')}</th>
+              <th style={{ textAlign: 'right' }}>{t('members.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {staff.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>No office bearers added yet. Add your first treasurer or secretary.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>{t('staff.no_bearers')}</td></tr>
             ) : staff.map((s: any) => (
               <tr key={s.id}>
                 <td>
@@ -341,8 +339,6 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
           </tbody>
         </table>
       </div>
-
-
     </div>
   );
 };
@@ -350,6 +346,7 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
 const SERVICE_TYPES_DEFAULT = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Security', 'Other'];
 
 const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: string | null, vendors: any[], onRefresh: () => void, serviceTypes: string[] }) => {
+  const { t } = useLanguage();
   const [vendorForm, setVendorForm] = useState({ name: '', serviceType: serviceTypes[0] || 'Plumbing', contact: '', email: '', address: '', notes: '' });
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -361,11 +358,11 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
 
   const handleSave = async () => {
     setVendorError('');
-    if (!vendorForm.name.trim()) { setVendorError('Vendor name is required'); return; }
+    if (!vendorForm.name.trim()) { setVendorError(t('vendors.error_name')); return; }
     if (vendorForm.contact) {
       const cleanContact = vendorForm.contact.trim();
       if (cleanContact !== "" && !/^\d{10}$/.test(cleanContact)) {
-        setVendorError('Contact/Mobile number must be exactly 10 digits');
+        setVendorError(t('vendors.error_phone'));
         return;
       }
     }
@@ -382,11 +379,11 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
 
   const handleDelete = async (id: string, name: string) => {
     if (!await confirm({
-      title: 'Delete Vendor',
-      message: `Delete vendor "${name}"? This may affect linked expenses.`,
+      title: t('vendors.confirm_delete_title'),
+      message: t('vendors.confirm_delete_msg').replace('{name}', name),
       danger: true,
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel'
+      confirmLabel: t('action.delete'),
+      cancelLabel: t('action.cancel')
     })) return;
     try {
       await axios.delete(`/vendors/${id}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -395,7 +392,7 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
   };
 
   const exportVendors = () => {
-    const headers = ['Name', 'Service Type', 'Mobile', 'Email', 'Status'];
+    const headers = [t('members.name'), t('vendors.service_type'), t('members.mobile'), t('members.email'), t('members.status')];
     const rows = vendors.map((v: any) => [v.name, v.serviceType, v.mobile, v.email || '', v.status]);
     exportTableToCSV(`vendors_${new Date().toISOString().split('T')[0]}.csv`, headers, rows);
   };
@@ -404,54 +401,58 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
     <div className="card">
       <div className="section-header-row">
         <div>
-          <h3 style={{ marginBottom: '0.25rem' }}>Vendors & Service Providers</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{vendors.length} vendor{vendors.length !== 1 ? 's' : ''} registered</p>
+          <h3 style={{ marginBottom: '0.25rem' }}>{t('vendors.title')}</h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            {t('vendors.registered')
+              .replace('{count}', String(vendors.length))
+              .replace('{suffix}', vendors.length !== 1 ? 's' : '')}
+          </p>
         </div>
         <div className="action-button-group">
           <button className="btn btn-secondary" onClick={exportVendors}>
-            <Download size={18} /> Export Excel
+            <Download size={18} /> {t('action.export')}
           </button>
           <button className="btn btn-primary" onClick={() => { setEditingVendor(null); resetForm(); setShowVendorModal(true); }}>
-            <Plus size={18} /> Add Vendor
+            <Plus size={18} /> {t('vendors.add_new')}
           </button>
         </div>
       </div>
 
       {showVendorModal && (
         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid var(--border-color)' }}>
-          <h4 style={{ marginBottom: '1rem' }}>{editingVendor ? 'Edit Vendor' : 'Add New Vendor'}</h4>
+          <h4 style={{ marginBottom: '1rem' }}>{editingVendor ? t('vendors.edit') : t('vendors.add_new')}</h4>
           <div className="responsive-form-grid">
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Vendor / Company Name *</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('vendors.name_label')}</label>
               <input value={vendorForm.name} onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })} placeholder="e.g. Ravi Electricals" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Service Type *</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('vendors.service_type')}</label>
               <select value={vendorForm.serviceType} onChange={e => setVendorForm({ ...vendorForm, serviceType: e.target.value })} style={{ width: '100%', padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)' }}>
                 {serviceTypes.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Phone / Mobile</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('vendors.phone_label')}</label>
               <input value={vendorForm.contact} onChange={e => setVendorForm({ ...vendorForm, contact: e.target.value })} placeholder="9876543210" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Email</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('vendors.email_label')}</label>
               <input type="email" value={vendorForm.email} onChange={e => setVendorForm({ ...vendorForm, email: e.target.value })} placeholder="vendor@example.com" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Address</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('vendors.address_label')}</label>
               <input value={vendorForm.address} onChange={e => setVendorForm({ ...vendorForm, address: e.target.value })} placeholder="Street, Area, City" />
             </div>
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Notes</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('vendors.notes_label')}</label>
               <input value={vendorForm.notes} onChange={e => setVendorForm({ ...vendorForm, notes: e.target.value })} placeholder="Contract details, warranty, etc." />
             </div>
           </div>
           {vendorError && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem' }}>{vendorError}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
-            <button className="btn btn-primary" onClick={handleSave}>{editingVendor ? 'Update Vendor' : 'Add Vendor'}</button>
-            <button className="btn btn-secondary" onClick={() => { setShowVendorModal(false); setEditingVendor(null); }}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSave}>{editingVendor ? t('action.update') : t('action.add')}</button>
+            <button className="btn btn-secondary" onClick={() => { setShowVendorModal(false); setEditingVendor(null); }}>{t('action.cancel')}</button>
           </div>
         </div>
       )}
@@ -459,7 +460,7 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
       {vendors.length === 0 && !showVendorModal ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
           <Users2 size={48} style={{ marginBottom: '1rem', opacity: 0.4 }} />
-          <p>No vendors added yet. Add your plumbers, electricians, and other service providers.</p>
+          <p>{t('vendors.no_vendors')}</p>
         </div>
       ) : (
         <div className="table-container">
@@ -470,8 +471,8 @@ const VendorManagement = ({ token, vendors, onRefresh, serviceTypes }: { token: 
             </colgroup>
             <thead>
               <tr>
-                <th>Name</th><th>Service Type</th><th>Phone</th><th>Email</th><th>Notes</th>
-                <th style={{ textAlign: 'right' }}>Action</th>
+                <th>{t('members.name')}</th><th>{t('vendors.service_type')}</th><th>{t('vendors.phone')}</th><th>{t('members.email')}</th><th>{t('vendors.notes')}</th>
+                <th style={{ textAlign: 'right' }}>{t('members.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -503,6 +504,7 @@ const ExpenseManagement = ({
 }: {
   token: string | null; expenses: any[]; vendors: any[]; expenseCategories: string[]; members: any[]; onRefresh: () => void;
 }) => {
+  const { t } = useLanguage();
   const blankForm = { title: '', category: expenseCategories[0] || 'Maintenance', amount: 0, date: new Date().toISOString().split('T')[0], vendorId: '', notes: '', isRecurring: false, paidByMemberId: '', reimbursementType: 'OFFSET_DUES', paymentMode: 'CASH' };
   const [showModal, setShowModal] = useState(false);
   const { showToast } = useToast();
@@ -517,8 +519,8 @@ const ExpenseManagement = ({
 
   const handleSave = async () => {
     setError('');
-    if (!form.title.trim()) { setError('Title is required'); return; }
-    if (!form.amount || form.amount <= 0) { setError('Enter a valid amount'); return; }
+    if (!form.title.trim()) { setError(t('expenses.error_title')); return; }
+    if (!form.amount || form.amount <= 0) { setError(t('expenses.error_amount')); return; }
     try {
       const headers = { Authorization: `Bearer ${token}` };
       if (editingExpense) {
@@ -531,7 +533,7 @@ const ExpenseManagement = ({
   };
 
   const exportExpenses = () => {
-    const headers = ['Title', 'Category', 'Amount', 'Date', 'Vendor', 'Recurring', 'Paid By'];
+    const headers = [t('expenses.title_label'), t('expenses.category_label'), t('expenses.amount_label'), t('expenses.date_label'), t('expenses.vendor_label'), t('expenses.mark_recurring'), t('payments.received_from')];
     const rows = expenses.map((e: any) => [
       e.title, e.category, e.amount, new Date(e.date).toLocaleDateString(),
       e.vendor?.name || '', e.isRecurring ? 'Yes' : 'No', e.paidByMemberId ? 'Member' : 'Society'
@@ -541,16 +543,16 @@ const ExpenseManagement = ({
 
   const handleDelete = async (id: string) => {
     if (!await confirm({
-      title: 'Delete Expense',
-      message: 'Delete this expense?',
+      title: t('expenses.confirm_delete_title'),
+      message: t('expenses.confirm_delete_msg'),
       danger: true,
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel'
+      confirmLabel: t('action.delete'),
+      cancelLabel: t('action.cancel')
     })) return;
     try {
       await axios.delete(`/expenses/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       onRefresh();
-    } catch { showToast('Error deleting expense', 'error'); }
+    } catch { showToast(t('expenses.error_delete'), 'error'); }
   };
 
   const totalAmt = expenses.reduce((s, e) => s + e.amount, 0);
@@ -572,7 +574,7 @@ const ExpenseManagement = ({
           }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ margin: 0 }}>{editingExpense ? '✏️ Edit Expense' : '➕ New Expense'}</h3>
+              <h3 style={{ margin: 0 }}>{editingExpense ? `✏️ ${t('expenses.edit')}` : `➕ ${t('expenses.new')}`}</h3>
               <button onClick={closeModal} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1 }}>×</button>
             </div>
 
@@ -580,61 +582,61 @@ const ExpenseManagement = ({
             <div className="responsive-form-grid">
               {/* Title */}
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Title *</label>
+                <label style={labelStyle}>{t('expenses.title_label')}</label>
                 <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Generator repair, Lift servicing" autoFocus />
               </div>
               {/* Category */}
               <div>
-                <label style={labelStyle}>Category *</label>
+                <label style={labelStyle}>{t('expenses.category_label')}</label>
                 <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={selectStyle}>
                   {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               {/* Amount */}
               <div>
-                <label style={labelStyle}>Amount (₹) *</label>
+                <label style={labelStyle}>{t('expenses.amount_label')}</label>
                 <input type="number" min="0" step="1" value={form.amount || ''} onChange={e => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })} placeholder="0" />
               </div>
               {/* Date */}
               <div>
-                <label style={labelStyle}>Date *</label>
+                <label style={labelStyle}>{t('expenses.date_label')}</label>
                 <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
               </div>
               {/* Payment Mode */}
               {!form.paidByMemberId && (
                 <div>
-                  <label style={labelStyle}>Payment Mode *</label>
+                  <label style={labelStyle}>{t('expenses.payment_mode_label')}</label>
                   <select value={form.paymentMode} onChange={e => setForm({ ...form, paymentMode: e.target.value })} style={selectStyle}>
-                    <option value="CASH">Cash (deducts from Cash in Hand)</option>
-                    <option value="BANK">Bank Transfer</option>
+                    <option value="CASH">{t('expenses.payment_mode_cash')}</option>
+                    <option value="BANK">{t('expenses.payment_mode_bank')}</option>
                   </select>
                 </div>
               )}
               {/* Vendor */}
               <div>
-                <label style={labelStyle}>Vendor (optional)</label>
+                <label style={labelStyle}>{t('expenses.vendor_label')}</label>
                 <select value={form.vendorId} onChange={e => setForm({ ...form, vendorId: e.target.value })} style={selectStyle}>
-                  <option value="">— No Vendor —</option>
+                  <option value="">{t('expenses.no_vendor')}</option>
                   {vendors.map((v: any) => <option key={v.id} value={v.id}>{v.name} ({v.serviceType})</option>)}
                 </select>
               </div>
               
               <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px dashed var(--border-color)' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block', color: 'var(--primary)' }}>Paid By Member (Reimbursement Claim)</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block', color: 'var(--primary)' }}>{t('expenses.paid_by_member')}</label>
                 <div className="responsive-form-grid">
                   <div>
-                    <label style={labelStyle}>Select Member</label>
+                    <label style={labelStyle}>{t('expenses.select_member')}</label>
                     <select value={form.paidByMemberId} onChange={e => setForm({ ...form, paidByMemberId: e.target.value })} style={selectStyle} disabled={!!editingExpense}>
-                      <option value="">— No (Paid by Society) —</option>
+                      <option value="">{t('expenses.no_member_society')}</option>
                       {members.map((m: any) => <option key={m.id} value={m.id}>{m.flatNo} - {m.name}</option>)}
                     </select>
                   </div>
                   {form.paidByMemberId && !editingExpense && (
                     <div>
-                      <label style={labelStyle}>Reimbursement Method</label>
+                      <label style={labelStyle}>{t('expenses.reimbursement_method')}</label>
                       <select value={form.reimbursementType} onChange={e => setForm({ ...form, reimbursementType: e.target.value })} style={selectStyle}>
-                        <option value="OFFSET_DUES">Offset Dues (Advance Paid-Until)</option>
-                        <option value="CASH">Cash Refund (Deduct Society Cash)</option>
+                        <option value="OFFSET_DUES">{t('expenses.offset_dues')}</option>
+                        <option value="CASH">{t('expenses.cash_refund')}</option>
                       </select>
                     </div>
                   )}
@@ -643,7 +645,7 @@ const ExpenseManagement = ({
 
               {/* Notes */}
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Notes (optional)</label>
+                <label style={labelStyle}>{t('expenses.notes_optional')}</label>
                 <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Additional details..." />
               </div>
             </div>
@@ -651,15 +653,15 @@ const ExpenseManagement = ({
             {/* Recurring */}
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '1rem', cursor: 'pointer', fontSize: '0.875rem' }}>
               <input type="checkbox" checked={form.isRecurring} onChange={e => setForm({ ...form, isRecurring: e.target.checked })} />
-              <span>Mark as recurring expense (monthly)</span>
+              <span>{t('expenses.mark_recurring')}</span>
             </label>
 
             {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem', padding: '0.6rem', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: '0.4rem' }}>{error}</div>}
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-              <button className="btn btn-primary" onClick={handleSave} style={{ flex: 1 }}>{editingExpense ? 'Update Expense' : 'Add Expense'}</button>
-              <button className="btn btn-secondary" onClick={closeModal}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} style={{ flex: 1 }}>{editingExpense ? t('action.update') : t('expenses.add')}</button>
+              <button className="btn btn-secondary" onClick={closeModal} style={{ flex: 1 }}>{t('action.cancel')}</button>
             </div>
           </div>
         </div>
@@ -669,17 +671,17 @@ const ExpenseManagement = ({
       <div className="card">
         <div className="section-header-row">
           <div>
-            <h3 style={{ marginBottom: '0.25rem' }}>Expense Ledger</h3>
+            <h3 style={{ marginBottom: '0.25rem' }}>{t('expenses.title')}</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-              {expenses.length} record{expenses.length !== 1 ? 's' : ''} · Total: <strong style={{ color: 'var(--error)' }}>₹{totalAmt.toLocaleString()}</strong>
+              {expenses.length} record{expenses.length !== 1 ? 's' : ''} · {t('expenses.total_amount')}<strong style={{ color: 'var(--error)' }}>₹{totalAmt.toLocaleString()}</strong>
             </p>
           </div>
           <div className="action-button-group">
             <button className="btn btn-secondary" onClick={exportExpenses}>
-              <Download size={18} /> Export Excel
+              <Download size={18} /> {t('action.export')}
             </button>
             <button className="btn btn-primary" onClick={openAdd}>
-              <Plus size={18} /> Add Expense
+              <Plus size={18} /> {t('expenses.add')}
             </button>
           </div>
         </div>
@@ -691,16 +693,16 @@ const ExpenseManagement = ({
               <col style={{ width: '13%' }} /><col style={{ width: '20%' }} /><col style={{ width: '15%' }} />
             </colgroup>
             <thead>
-              <tr><th>Title</th><th>Category</th><th>Amount</th><th>Date</th><th>Vendor</th><th style={{ textAlign: 'right' }}>Action</th></tr>
+              <tr><th>{t('expenses.title_label')}</th><th>{t('expenses.category_label')}</th><th>{t('expenses.amount_label')}</th><th>{t('expenses.date_label')}</th><th>{t('expenses.vendor_label')}</th><th style={{ textAlign: 'right' }}>{t('members.actions')}</th></tr>
             </thead>
             <tbody>
               {expenses.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem' }}>No expenses recorded yet. Click "Add Expense" to get started.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem' }}>{t('expenses.no_records_desc')}</td></tr>
               ) : expenses.map((e: any) => (
                 <tr key={e.id}>
                   <td>
                     <strong>{e.title}</strong>
-                    {e.isRecurring && <span className="badge badge-success" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>Recurring</span>}
+                    {e.isRecurring && <span className="badge badge-success" style={{ marginLeft: '0.5rem', fontSize: '0.65rem' }}>{t('expenses.recurring')}</span>}
                     {e.notes && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>{e.notes}</div>}
                   </td>
                   <td><span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>{e.category}</span></td>
@@ -730,6 +732,7 @@ const MASTER_CATEGORIES = [
 ];
 
 const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
+  const { t } = useLanguage();
   const [startYear, setStartYear] = useState(2026);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -797,13 +800,13 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFY) { showToast('Please select a financial year', 'error'); return; }
+    if (!selectedFY) { showToast(t('settings.select_fy_error'), 'error'); return; }
     
     setLoading(true);
     try {
       if (residenceType === 'COMMON') {
         if (!costAmount || parseFloat(costAmount) <= 0) {
-          showToast('Please enter a valid amount', 'error');
+          showToast(t('settings.invalid_amount_error'), 'error');
           setLoading(false);
           return;
         }
@@ -831,7 +834,7 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
         }
 
         if (configsToSave.length === 0) {
-          showToast('Please specify fee amount for at least one BHK type', 'error');
+          showToast(t('settings.specify_bhk_error'), 'error');
           setLoading(false);
           return;
         }
@@ -850,7 +853,7 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
       setResidenceType('COMMON');
 
       fetchConfigs();
-      showToast('Maintenance cost(s) configured successfully', 'success');
+      showToast(t('settings.config_success'), 'success');
     } catch (err: any) {
       showToast(err.response?.data?.message || 'Error saving configuration', 'error');
     } finally {
@@ -860,15 +863,15 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 
   const handleDelete = async (id: string) => {
     if (!await confirm({
-      title: 'Delete Pricing Configuration',
-      message: 'Are you sure you want to delete this configuration?',
+      title: t('settings.delete_config_title'),
+      message: t('settings.delete_config_msg'),
       danger: true,
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel'
+      confirmLabel: t('action.delete'),
+      cancelLabel: t('action.cancel')
     })) return;
     try {
       await axios.delete(`/maintenance-costs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      fetchConfigs(); showToast('Configuration deleted successfully', 'success');
+      fetchConfigs(); showToast(t('settings.config_deleted_success'), 'success');
     } catch (err: any) { showToast(err.response?.data?.message || 'Error deleting configuration', 'error'); }
   };
 
@@ -887,38 +890,38 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 
   return (
     <div className="card" style={{ maxWidth: '860px' }}>
-      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.4rem' }}>Financial Year - Annual Fee Setup</h3>
+      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.4rem' }}>{t('settings.fy_cost_setup')}</h3>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        Set different annual fees per BHK type for Flat and Villa. Each combination (Residence Type + BHK) can have its own fee.
+        {t('settings.fy_cost_desc')}
       </p>
 
       <form onSubmit={handleSubmit} style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '1.5rem' }}>
         <div className="responsive-form-grid" style={{ gap: '1.25rem', marginBottom: '1.25rem' }}>
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Financial Year</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('settings.financial_year')}</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
-              <button type="button" className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }} onClick={() => setStartYear(p => p - 5)}>Prev</button>
+              <button type="button" className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }} onClick={() => setStartYear(p => p - 5)}>{t('action.prev', 'Prev')}</button>
               <span style={{ fontSize: '0.75rem', fontWeight: 500, flex: 1, textAlign: 'center', backgroundColor: 'var(--bg-secondary)', padding: '0.35rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{rangeLabel}</span>
-              <button type="button" className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }} onClick={() => setStartYear(p => p + 5)}>Next</button>
+              <button type="button" className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }} onClick={() => setStartYear(p => p + 5)}>{t('action.next', 'Next')}</button>
             </div>
             <select value={selectedFY} onChange={e => setSelectedFY(e.target.value)} style={{ width: '100%' }}>
-              <option value="">-- Choose Financial Year --</option>
+              <option value="">{t('settings.choose_fy', '-- Choose Financial Year --')}</option>
               {fyRangeList.map(fy => <option key={fy} value={fy}>{fy}</option>)}
             </select>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Residence Type</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('settings.residence_type')}</label>
             <select value={residenceType} onChange={e => setResidenceType(e.target.value)} style={{ width: '100%' }}>
-              <option value="COMMON">Common (all members)</option>
-              <option value="FLAT">Flat</option>
-              <option value="VILLA">Villa</option>
+              <option value="COMMON">{t('settings.residence_common')}</option>
+              <option value="FLAT">{t('settings.residence_flat')}</option>
+              <option value="VILLA">{t('settings.residence_villa')}</option>
             </select>
           </div>
 
           {residenceType === 'COMMON' && (
             <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Annual Fee (Rs.)</label>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('settings.annual_fee')}</label>
               <input
                 type="text"
                 required
@@ -934,21 +937,21 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
         {residenceType !== 'COMMON' && (
           <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
             <label style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', display: 'block' }}>
-              Set Annual Fees for {residenceType === 'FLAT' ? 'Flat' : 'Villa'} by BHK Type
+              {t('settings.set_bhk_fees').replace('{residenceType}', residenceType === 'FLAT' ? t('settings.residence_flat') : t('settings.residence_villa'))}
             </label>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-              Specify the annual fee for each BHK type. Empty or 0 values will not be updated/configured.
+              {t('settings.bhk_fees_desc')}
             </p>
 
             <div className="responsive-form-grid" style={{ gap: '1.25rem', marginBottom: '1.25rem' }}>
               {['1', '2', '3', '4'].map(b => (
                 <div key={b}>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
-                    {b} BHK Fee (Rs.)
+                    {t('settings.bhk_fee_label').replace('{bhk}', b)}
                   </label>
                   <input
                     type="text"
-                    placeholder={`Fee for ${b} BHK`}
+                    placeholder={t('settings.bhk_fee_placeholder', 'Fee for {bhk} BHK').replace('{bhk}', b)}
                     value={bhkFees[b] || ''}
                     onChange={e => setBhkFees({ ...bhkFees, [b]: e.target.value.replace(/[^0-9]/g, '') })}
                     style={{ width: '100%' }}
@@ -959,14 +962,14 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>Custom BHK Fees (optional)</span>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t('settings.custom_bhk_fees')}</span>
                 <button
                   type="button"
                   className="btn btn-secondary"
                   style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                   onClick={() => setCustomBhkFees([...customBhkFees, { bhk: '', amount: '' }])}
                 >
-                  + Add Custom BHK
+                  {t('settings.add_custom_bhk')}
                 </button>
               </div>
 
@@ -1007,7 +1010,7 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
                           setCustomBhkFees(updated);
                         }}
                       >
-                        Remove
+                        {t('action.remove')}
                       </button>
                     </div>
                   ))}
@@ -1019,18 +1022,18 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : 'Set Annual Fees'}
+            {loading ? t('action.saving') : t('settings.set_annual_fees')}
           </button>
         </div>
       </form>
 
-      <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>Configured Annual Fees</h4>
+      <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>{t('settings.configured_annual_fees')}</h4>
       {(() => {
         const fys = [...new Set(configs.map((c: any) => c.financialYear))].sort().reverse();
         if (fys.length === 0) return (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', border: '1px dashed var(--border-color)', borderRadius: '0.5rem' }}>
             <Calendar size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
-            <p style={{ fontSize: '0.875rem' }}>No fees configured yet. Use the form above to get started.</p>
+            <p style={{ fontSize: '0.875rem' }}>{t('settings.no_fees_configured')}</p>
           </div>
         );
         return fys.map(fy => {
@@ -1042,13 +1045,13 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.75rem',
               backgroundColor: accent + '14', border: '1px solid ' + accent + '35', borderRadius: '0.5rem' }}>
               <span style={{ fontSize: '0.72rem', fontWeight: 700, color: accent, minWidth: '3.5rem' }}>
-                {c.residenceType === 'COMMON' ? 'Common' : (c.bhk === 'COMMON' ? 'Common' : c.bhk + ' BHK')}
+                {c.residenceType === 'COMMON' ? t('settings.common') : (c.bhk === 'COMMON' ? t('settings.common') : c.bhk + ' BHK')}
               </span>
               <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>Rs.{Number(c.amount).toLocaleString()}<span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 400 }}>/yr</span></span>
               <button type="button" onClick={() => handleEdit(c)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.72rem', padding: '0.1rem 0.3rem' }} title="Edit">Edit</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.72rem', padding: '0.1rem 0.3rem' }} title={t('action.edit')}>{t('action.edit')}</button>
               <button type="button" onClick={() => handleDelete(c.id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '0.72rem', padding: '0.1rem 0.3rem' }} title="Delete">x</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontSize: '0.72rem', padding: '0.1rem 0.3rem' }} title={t('action.delete')}>x</button>
             </div>
           );
           return (
@@ -1056,24 +1059,24 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
               <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '0.65rem 1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Calendar size={15} style={{ color: 'var(--primary)' }} />
                 <span style={{ fontWeight: 700, fontSize: '0.9375rem' }}>FY {fy}</span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>{fyc.length} entry/entries</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>{fyc.length} {t('settings.entries_count', 'entry/entries')}</span>
               </div>
               <div style={{ padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
                 {common.length > 0 && (
                   <div>
-                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Common</p>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>{t('settings.common')}</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{common.map((c: any) => <Chip key={c.id} c={c} accent="#10b981" />)}</div>
                   </div>
                 )}
                 {flats.length > 0 && (
                   <div>
-                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Flat - by BHK</p>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>{t('settings.flat_by_bhk')}</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{flats.map((c: any) => <Chip key={c.id} c={c} accent="#6366f1" />)}</div>
                   </div>
                 )}
                 {villas.length > 0 && (
                   <div>
-                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Villa - by BHK</p>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>{t('settings.villa_by_bhk')}</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>{villas.map((c: any) => <Chip key={c.id} c={c} accent="#f59e0b" />)}</div>
                   </div>
                 )}
@@ -1087,6 +1090,7 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
 };;
 
 const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefresh: () => void }) => {
+  const { t } = useLanguage();
   const { confirm } = useConfirm();
   const [activeCategory, setActiveCategory] = useState('SERVICE_TYPE');
   const [items, setItems] = useState<any[]>([]);
@@ -1101,7 +1105,7 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
     try {
       const res = await axios.get(`/master-data/${category}`, { headers: { Authorization: `Bearer ${token}` } });
       setItems(res.data);
-    } catch { setError('Failed to load items'); }
+    } catch { setError(t('masters.error_load', 'Failed to load items')); }
     finally { setLoadingItems(false); }
   };
 
@@ -1127,11 +1131,11 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
 
   const handleDelete = async (id: string, value: string) => {
     if (!await confirm({
-      title: 'Remove Master Item',
-      message: `Remove "${value}" from the list?`,
+      title: t('masters.delete_title'),
+      message: t('masters.delete_msg').replace('{value}', value),
       danger: true,
-      confirmLabel: 'Remove',
-      cancelLabel: 'Cancel'
+      confirmLabel: t('action.remove'),
+      cancelLabel: t('action.cancel')
     })) return;
     try {
       await axios.delete(`/master-data/${id}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -1139,13 +1143,29 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
     } catch (err: any) { setError(err.response?.data?.message || 'Error deleting item'); }
   };
 
-  const activeCat = MASTER_CATEGORIES.find(c => c.key === activeCategory)!;
+  const getCategoryLabel = (key: string) => {
+    switch (key) {
+      case 'SERVICE_TYPE': return t('masters.service_types');
+      case 'DESIGNATION': return t('masters.designations');
+      case 'EXPENSE_CATEGORY': return t('masters.expense_categories');
+      default: return '';
+    }
+  };
+
+  const getCategoryDescription = (key: string) => {
+    switch (key) {
+      case 'SERVICE_TYPE': return t('masters.service_types_desc');
+      case 'DESIGNATION': return t('masters.designations_desc');
+      case 'EXPENSE_CATEGORY': return t('masters.expense_categories_desc');
+      default: return '';
+    }
+  };
 
   return (
     <div className="card">
-      <h3 style={{ marginBottom: '0.5rem' }}>Data Masters</h3>
+      <h3 style={{ marginBottom: '0.5rem' }}>{t('masters.title')}</h3>
       <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-        Manage the dropdown values used across the system.
+        {t('masters.desc')}
       </p>
 
       {/* Category Tabs */}
@@ -1158,20 +1178,20 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
               color: activeCategory === cat.key ? '#fff' : 'var(--text-secondary)',
               borderBottom: activeCategory === cat.key ? '2px solid var(--primary)' : 'none',
             }}>
-            {cat.label}
+            {getCategoryLabel(cat.key)}
           </button>
         ))}
       </div>
 
-      <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{activeCat.description}</p>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{getCategoryDescription(activeCategory)}</p>
 
       {/* Add new item */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}>
         <input value={newValue} onChange={e => setNewValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAdd()}
-          placeholder={`Add new ${activeCat.label.toLowerCase().replace('vendor ', '').replace(' types', ' type').replace(' categories', ' category').replace('staff ', '')}...`}
+          placeholder={`${t('action.add')}...`}
           style={{ flex: 1 }} />
         <button className="btn btn-primary" style={{ whiteSpace: 'nowrap' }} onClick={handleAdd}>
-          <Plus size={16} /> Add
+          <Plus size={16} /> {t('action.add')}
         </button>
       </div>
 
@@ -1179,7 +1199,7 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
 
       {/* Items list */}
       {loadingItems ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Loading...</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('action.loading')}</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {items.map((item: any) => (
@@ -1187,18 +1207,18 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
               {editingId === item.id ? (
                 <>
                   <input value={editingValue} onChange={e => setEditingValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleUpdate(item.id); if (e.key === 'Escape') setEditingId(null); }}
-                    style={{ flex: 1, padding: '0.35rem 0.6rem', fontSize: '0.875rem' }} autoFocus />
-                  <button className="btn btn-primary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => handleUpdate(item.id)}>Save</button>
-                  <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => setEditingId(null)}>Cancel</button>
+                    style={{ flex: 1, padding: '0.35rem 0.65rem', fontSize: '0.875rem' }} autoFocus />
+                  <button className="btn btn-primary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => handleUpdate(item.id)}>{t('action.save')}</button>
+                  <button className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => setEditingId(null)}>{t('action.cancel')}</button>
                 </>
               ) : (
                 <>
                   <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 500 }}>{item.value}</span>
-                  <button className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem' }} title="Edit"
+                  <button className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem' }} title={t('action.edit')}
                     onClick={() => { setEditingId(item.id); setEditingValue(item.value); }}>
                     <Edit size={14} />
                   </button>
-                  <button className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem', color: 'var(--error)' }} title="Remove"
+                  <button className="btn btn-secondary" style={{ padding: '0.35rem 0.65rem', color: 'var(--error)' }} title={t('action.remove')}
                     onClick={() => handleDelete(item.id, item.value)}>
                     <Trash2 size={14} />
                   </button>
@@ -1206,7 +1226,7 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
               )}
             </div>
           ))}
-          {items.length === 0 && <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No items yet. Add your first one above.</p>}
+          {items.length === 0 && <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('masters.no_items')}</p>}
         </div>
       )}
     </div>
@@ -1214,6 +1234,7 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
 };
 
 const Helpdesk = ({ token }: { token: string | null }) => {
+  const { t } = useLanguage();
   const [tickets, setTickets] = useState<any[]>([]);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -1257,11 +1278,11 @@ const Helpdesk = ({ token }: { token: string | null }) => {
 
   const handleDeleteTicket = async (ticketId: string) => {
     if (!await confirm({
-      title: 'Delete Helpdesk Ticket',
-      message: 'Are you sure you want to permanently delete this ticket and all its discussions?',
+      title: t('helpdesk.delete_ticket_title'),
+      message: t('helpdesk.delete_ticket_msg'),
       danger: true,
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel'
+      confirmLabel: t('action.delete'),
+      cancelLabel: t('action.cancel')
     })) return;
     try {
       await axios.delete(`/tickets/${ticketId}`, {
@@ -1313,11 +1334,11 @@ const Helpdesk = ({ token }: { token: string | null }) => {
 
   const getStatusBadge = (s: string) => {
     switch(s) {
-      case 'OPEN': return <span className="badge badge-error">Open</span>;
-      case 'IN_PROGRESS': return <span className="badge" style={{ backgroundColor: '#f59e0b', color: '#fff' }}>In Progress</span>;
-      case 'RESOLVED': return <span className="badge badge-success">Resolved</span>;
-      case 'CLOSED': return <span className="badge" style={{ backgroundColor: 'var(--text-secondary)', color: '#fff' }}>Closed</span>;
-      case 'ARCHIVED': return <span className="badge" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>Archived</span>;
+      case 'OPEN': return <span className="badge badge-error">{t('helpdesk.status_open')}</span>;
+      case 'IN_PROGRESS': return <span className="badge" style={{ backgroundColor: '#f59e0b', color: '#fff' }}>{t('helpdesk.status_in_progress')}</span>;
+      case 'RESOLVED': return <span className="badge badge-success">{t('helpdesk.status_resolved')}</span>;
+      case 'CLOSED': return <span className="badge" style={{ backgroundColor: 'var(--text-secondary)', color: '#fff' }}>{t('helpdesk.status_closed')}</span>;
+      case 'ARCHIVED': return <span className="badge" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>{t('helpdesk.status_archived')}</span>;
       default: return null;
     }
   };
@@ -1329,27 +1350,27 @@ const Helpdesk = ({ token }: { token: string | null }) => {
         <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h3 style={{ fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <LifeBuoy size={20} /> Helpdesk
+              <LifeBuoy size={20} /> {t('helpdesk.my_tickets')}
             </h3>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{tickets.length} Tickets</div>
           </div>
           <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: '100%', padding: '0.5rem' }}>
-            <option value="ALL">All Status</option>
-            <option value="OPEN">Open</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="RESOLVED">Resolved</option>
-            <option value="CLOSED">Closed</option>
-            <option value="ARCHIVED">Archived</option>
+            <option value="ALL">{t('helpdesk.all_status')}</option>
+            <option value="OPEN">{t('helpdesk.status_open')}</option>
+            <option value="IN_PROGRESS">{t('helpdesk.status_in_progress')}</option>
+            <option value="RESOLVED">{t('helpdesk.status_resolved')}</option>
+            <option value="CLOSED">{t('helpdesk.status_closed')}</option>
+            <option value="ARCHIVED">{t('helpdesk.status_archived')}</option>
           </select>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading...</div>
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{t('action.loading')}</div>
           ) : tickets.length === 0 ? (
             <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <MessageSquare size={40} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
-              <p>No tickets found</p>
+              <p>{t('helpdesk.no_tickets')}</p>
             </div>
           ) : (
             tickets.map((t) => (
@@ -1392,7 +1413,7 @@ const Helpdesk = ({ token }: { token: string | null }) => {
               <div>
                 <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{selectedTicket.subject}</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  <span>Raised by: <strong>{selectedTicket.member?.name} (Flat {selectedTicket.member?.flatNo})</strong></span>
+                  <span>{t('helpdesk.raised_by')} <strong>{selectedTicket.member?.name} (Flat {selectedTicket.member?.flatNo})</strong></span>
                   <span>•</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={14} /> {new Date(selectedTicket.createdAt).toLocaleString()}</span>
                 </div>
@@ -1404,11 +1425,11 @@ const Helpdesk = ({ token }: { token: string | null }) => {
                 onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value)}
                 style={{ padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
               >
-                <option value="OPEN">Open</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="CLOSED">Closed</option>
-                <option value="ARCHIVED">Archived</option>
+                <option value="OPEN">{t('helpdesk.status_open')}</option>
+                <option value="IN_PROGRESS">{t('helpdesk.status_in_progress')}</option>
+                <option value="RESOLVED">{t('helpdesk.status_resolved')}</option>
+                <option value="CLOSED">{t('helpdesk.status_closed')}</option>
+                <option value="ARCHIVED">{t('helpdesk.status_archived')}</option>
               </select>
               <button className="btn btn-secondary" style={{ padding: '0.4rem', color: 'var(--error)' }} title="Delete Ticket" onClick={() => handleDeleteTicket(selectedTicket.id)}>
                 <Trash2 size={18} />
@@ -1418,11 +1439,11 @@ const Helpdesk = ({ token }: { token: string | null }) => {
 
           {/* Description Area */}
           <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }}>
-            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</div>
+            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('helpdesk.description')}</div>
             <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', marginBottom: selectedTicket.imageUrl ? '1rem' : 0 }}>{selectedTicket.description}</div>
             {selectedTicket.imageUrl && (
               <div style={{ marginTop: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Attached Image</div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('helpdesk.attached_image')}</div>
                 <a href={selectedTicket.imageUrl} target="_blank" rel="noopener noreferrer">
                   <img 
                     src={selectedTicket.imageUrl} 
@@ -1437,7 +1458,7 @@ const Helpdesk = ({ token }: { token: string | null }) => {
           {/* Comments Thread */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', backgroundColor: 'var(--bg-secondary)' }}>
             {(selectedTicket.comments || []).length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>No discussions yet. Start the conversation below.</div>
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>{t('helpdesk.no_discussions')}</div>
             ) : (
               selectedTicket.comments.map((c: any) => {
                 const isAdmin = !!c.userId;
@@ -1479,11 +1500,11 @@ const Helpdesk = ({ token }: { token: string | null }) => {
               <input 
                 value={comment} 
                 onChange={(e) => setComment(e.target.value)} 
-                placeholder="Type your response here..." 
+                placeholder={t('helpdesk.type_response')} 
                 style={{ flex: 1 }}
               />
               <button type="submit" className="btn btn-primary" disabled={!comment.trim()}>
-                <Send size={18} /> Reply
+                <Send size={18} /> {t('helpdesk.reply')}
               </button>
             </form>
           </div>
@@ -1492,8 +1513,8 @@ const Helpdesk = ({ token }: { token: string | null }) => {
         <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)' }}>
           <div style={{ textAlign: 'center' }}>
             <LifeBuoy size={60} style={{ opacity: 0.1, marginBottom: '1.5rem' }} />
-            <h3>Select a ticket to view conversation</h3>
-            <p style={{ fontSize: '0.875rem' }}>Manage society concerns and member requests from this portal.</p>
+            <h3>{t('helpdesk.select_ticket', 'Select a ticket to view conversation')}</h3>
+            <p style={{ fontSize: '0.875rem' }}>{t('helpdesk.manage_desc')}</p>
           </div>
         </div>
       )}
@@ -1502,6 +1523,7 @@ const Helpdesk = ({ token }: { token: string | null }) => {
 };
 
 const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, user: any, updateUser: (userData: any, newToken?: string) => void }) => {
+  const { t } = useLanguage();
   const [name, setName] = useState(user?.name || '');
   const { showToast } = useToast();
   const [email, setEmail] = useState(user?.email || '');
@@ -1513,13 +1535,13 @@ const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, u
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password && password !== confirmPassword) {
-      showToast("Passwords do not match", 'error');
+      showToast(t('profile.error_password_match', 'Passwords do not match'), 'error');
       return;
     }
     if (mobile) {
       const cleanMobile = mobile.trim();
       if (cleanMobile !== "" && !/^\d{10}$/.test(cleanMobile)) {
-        showToast("Mobile number must be exactly 10 digits", 'error');
+        showToast(t('profile.error_mobile_digits', 'Mobile number must be exactly 10 digits'), 'error');
         return;
       }
     }
@@ -1535,12 +1557,12 @@ const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, u
       });
       
       updateUser(res.data.user, res.data.token);
-      showToast("Profile and password updated successfully!", 'success');
+      showToast(t('profile.success_update', 'Profile and password updated successfully!'), 'success');
       setPassword('');
       setConfirmPassword('');
     } catch (err: any) {
       console.error(err);
-      showToast(err.response?.data?.message || "Failed to update profile", 'error');
+      showToast(err.response?.data?.message || t('profile.error_update', 'Failed to update profile'), 'error');
     } finally {
       setLoading(false);
     }
@@ -1548,37 +1570,37 @@ const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, u
 
   return (
     <div className="card" style={{ maxWidth: '800px' }}>
-      <h3 style={{ marginBottom: '1.5rem' }}>My Profile & Password</h3>
+      <h3 style={{ marginBottom: '1.5rem' }}>{t('profile.my_profile')}</h3>
       <form onSubmit={handleSubmit}>
         <div className="responsive-form-grid">
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Name</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('profile.name')}</label>
             <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="form-control" />
           </div>
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Designation</label>
-            <input type="text" disabled value={user?.designation || 'Primary Admin'} style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }} className="form-control" />
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('profile.designation')}</label>
+            <input type="text" disabled value={user?.designation || t('profile.primary_admin')} style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }} className="form-control" />
           </div>
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Email Address</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('profile.email')}</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="form-control" />
           </div>
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Mobile Number</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('profile.mobile')}</label>
             <input type="text" value={mobile} onChange={(e) => setMobile(e.target.value)} className="form-control" />
           </div>
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>New Password</label>
-            <input type="password" placeholder="Leave blank to keep current" value={password} onChange={(e) => setPassword(e.target.value)} className="form-control" />
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('profile.new_password')}</label>
+            <input type="password" placeholder={t('profile.leave_blank', 'Leave blank to keep current')} value={password} onChange={(e) => setPassword(e.target.value)} className="form-control" />
           </div>
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>Confirm New Password</label>
-            <input type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="form-control" />
+            <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>{t('profile.confirm_password')}</label>
+            <input type="password" placeholder={t('profile.confirm_password')} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="form-control" />
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : 'Save Profile & Password'}
+            {loading ? t('action.saving') : t('profile.save_btn')}
           </button>
         </div>
       </form>
@@ -1653,6 +1675,7 @@ const formatLocalDate = (dateInput: any) => {
 };
 
 const EventManagement = ({ token }: { token: string | null }) => {
+  const { t } = useLanguage();
   const [events, setEvents] = useState<any[]>([]);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -1684,7 +1707,7 @@ const EventManagement = ({ token }: { token: string | null }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.description || !form.eventDate) {
-      setError("Title, description, and date are required.");
+      setError(t('events.error_required'));
       return;
     }
     setError('');
@@ -1694,19 +1717,19 @@ const EventManagement = ({ token }: { token: string | null }) => {
         await axios.put(`/events/${editingEvent.id}`, form, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        showToast("Event updated successfully!", 'success');
+        showToast(t('events.success_update'), 'success');
       } else {
         await axios.post('/events', form, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        showToast("Event created and members notified successfully!", 'success');
+        showToast(t('events.success_create'), 'success');
       }
       setShowForm(false);
       setEditingEvent(null);
       setForm({ title: '', description: '', eventDate: '', location: '' });
       fetchEvents();
     } catch (err: any) {
-      setError(err.response?.data?.message || "Error saving event");
+      setError(err.response?.data?.message || t('events.error_delete'));
     } finally {
       setSubmitting(false);
     }
@@ -1728,20 +1751,20 @@ const EventManagement = ({ token }: { token: string | null }) => {
 
   const handleDelete = async (id: string, title: string) => {
     if (!await confirm({
-      title: 'Delete Event',
-      message: `Are you sure you want to delete the event "${title}"?`,
+      title: t('events.delete_title'),
+      message: t('events.delete_msg').replace('{title}', title),
       danger: true,
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel'
+      confirmLabel: t('action.delete'),
+      cancelLabel: t('action.cancel')
     })) return;
     try {
       await axios.delete(`/events/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      showToast("Event deleted successfully!", 'success');
+      showToast(t('events.success_delete'), 'success');
       fetchEvents();
     } catch (err: any) {
-      showToast(err.response?.data?.message || "Error deleting event", 'error');
+      showToast(err.response?.data?.message || t('events.error_delete'), 'error');
     }
   };
 
@@ -1749,47 +1772,47 @@ const EventManagement = ({ token }: { token: string | null }) => {
     <div className="card">
       <div className="section-header-row">
         <div>
-          <h3 style={{ marginBottom: '0.25rem' }}>Society Events</h3>
+          <h3 style={{ marginBottom: '0.25rem' }}>{t('events.title')}</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            Schedule and manage events/meetings in the society. Creating an event automatically sends a notification to all members.
+            {t('events.desc')}
           </p>
         </div>
         {!showForm && (
           <button className="btn btn-primary" onClick={() => { setEditingEvent(null); setForm({ title: '', description: '', eventDate: '', location: '' }); setShowForm(true); }}>
-            <Plus size={18} /> Add Event
+            <Plus size={18} /> {t('events.add')}
           </button>
         )}
       </div>
 
       {showForm && (
         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid var(--border-color)' }}>
-          <h4 style={{ marginBottom: '1rem' }}>{editingEvent ? 'Edit Event' : 'Create New Event'}</h4>
+          <h4 style={{ marginBottom: '1rem' }}>{editingEvent ? t('events.edit') : t('events.create_new')}</h4>
           <form onSubmit={handleSubmit}>
             <div className="responsive-form-grid">
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Event Title *</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('events.title_label')}</label>
                 <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Annual General Body Meeting" />
               </div>
               <div>
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Event Date & Time *</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('events.date_label')}</label>
                 <input type="datetime-local" required value={form.eventDate} onChange={e => setForm({ ...form, eventDate: e.target.value })} />
               </div>
               <div>
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Location / Venue</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('events.location_label')}</label>
                 <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. Clubhouse Hall, Block A Lobby" />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Event Description *</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('events.desc_label')}</label>
                 <textarea required rows={4} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Provide event details, agenda, rules, etc." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
               </div>
             </div>
             {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
               <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {submitting ? 'Saving...' : (editingEvent ? 'Update Event' : 'Create Event')}
+                {submitting ? t('action.saving') : (editingEvent ? t('action.update') : t('action.add'))}
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setEditingEvent(null); }}>
-                Cancel
+                {t('action.cancel')}
               </button>
             </div>
           </form>
@@ -1797,10 +1820,10 @@ const EventManagement = ({ token }: { token: string | null }) => {
       )}
 
       {loading ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1rem' }}>Loading events...</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1rem' }}>{t('action.loading')}</p>
       ) : events.length === 0 ? (
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1.5rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', marginTop: '1rem' }}>
-          No upcoming events scheduled yet. Click "Add Event" to create one.
+          {t('events.no_events_desc')}
         </p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
@@ -1813,10 +1836,10 @@ const EventManagement = ({ token }: { token: string | null }) => {
                     {dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <div style={{ display: 'flex', gap: '0.35rem' }}>
-                    <button className="btn btn-secondary" style={{ padding: '0.3rem', borderRadius: '0.35rem' }} onClick={() => handleEdit(event)} title="Edit Event">
+                    <button className="btn btn-secondary" style={{ padding: '0.3rem', borderRadius: '0.35rem' }} onClick={() => handleEdit(event)} title={t('events.edit')}>
                       <Edit size={14} />
                     </button>
-                    <button className="btn btn-secondary" style={{ padding: '0.3rem', borderRadius: '0.35rem', color: 'var(--error)' }} onClick={() => handleDelete(event.id, event.title)} title="Delete Event">
+                    <button className="btn btn-secondary" style={{ padding: '0.3rem', borderRadius: '0.35rem', color: 'var(--error)' }} onClick={() => handleDelete(event.id, event.title)} title={t('events.delete_title')}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -1824,7 +1847,7 @@ const EventManagement = ({ token }: { token: string | null }) => {
                 <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>{event.title}</h4>
                 {event.location && (
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.75rem' }}>
-                    <strong>📍 Venue:</strong> {event.location}
+                    <strong>📍 {t('events.venue')}:</strong> {event.location}
                   </div>
                 )}
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', flexGrow: 1 }}>{event.description}</p>
@@ -1840,6 +1863,7 @@ const EventManagement = ({ token }: { token: string | null }) => {
 const DUES_KEYWORDS = ['due', 'dues', 'pending', 'payment', 'maintenance', 'arrear', 'outstanding', 'unpaid', 'overdue'];
 
 const NotificationManagement = ({ token, members }: { token: string | null; members: any[] }) => {
+  const { t } = useLanguage();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [recipient, setRecipient] = useState<'ALL' | 'MEMBER'>('ALL');
@@ -1859,8 +1883,8 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
 
   const checkDuesAndSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !message.trim()) { setError("Title and description are required."); return; }
-    if (recipient === 'MEMBER' && !selectedMemberId) { setError("Please select a member to send the notification to."); return; }
+    if (!title.trim() || !message.trim()) { setError(t('notify.error_required', "Title and description are required.")); return; }
+    if (recipient === 'MEMBER' && !selectedMemberId) { setError(t('notify.error_select_member', "Please select a member to send the notification to.")); return; }
     setError(''); setSuccess('');
 
     // If sending to a specific member and the title suggests dues — check their dues status
@@ -1902,12 +1926,12 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
       const memberName = members.find(m => m.id === selectedMemberId)?.name;
       setSuccess(
         recipient === 'ALL'
-          ? "Notification broadcasted successfully to all members!"
-          : `Notification sent successfully to ${memberName || 'selected member'}!`
+          ? t('notify.success_broadcast', "Notification broadcasted successfully to all members!")
+          : t('notify.success_sent', "Notification sent successfully to {memberName}!").replace('{memberName}', memberName || 'selected member')
       );
       setTitle(''); setMessage(''); setSelectedMemberId(''); setRecipient('ALL');
     } catch (err: any) {
-      setError(err.response?.data?.message || "Error sending notification");
+      setError(err.response?.data?.message || t('notify.error_sending', "Error sending notification"));
     } finally {
       setSubmitting(false);
     }
@@ -1943,10 +1967,10 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Member May Have Paid Already
+                  {t('notify.paid_warning_title')}
                 </h3>
                 <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  You are sending a dues-related notification to <strong>{duesWarning.memberName}</strong> (Flat {duesWarning.flatNo}).
+                  {t('notify.warning_desc', 'You are sending a dues-related notification to {memberName} (Flat {flatNo}).').replace('{memberName}', duesWarning.memberName).replace('{flatNo}', duesWarning.flatNo)}
                 </p>
               </div>
             </div>
@@ -1954,26 +1978,25 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
             <div style={{ backgroundColor: duesWarning.isPaidUpToDate ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${duesWarning.isPaidUpToDate ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`, borderRadius: '0.5rem', padding: '0.875rem', marginBottom: '1.25rem' }}>
               {duesWarning.isPaidUpToDate ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10b981', fontWeight: 600, fontSize: '0.9rem' }}>
-                  ✅ This member appears to be <strong>paid up for the current month</strong>.
+                  ✅ {t('notify.member_paid_up', 'This member appears to be paid up for the current month.')}
                 </div>
               ) : (
                 <div style={{ color: '#f59e0b', fontWeight: 600, fontSize: '0.9rem' }}>
-                  ⚠️ Outstanding dues: <strong>₹{duesWarning.outstandingDues.toLocaleString('en-IN')}</strong>
-                  {duesWarning.outstandingDues === 0 && ' — Member has no outstanding dues recorded.'}
+                  ⚠️ {t('notify.outstanding_dues', 'Outstanding dues: ₹{dues}').replace('{dues}', duesWarning.outstandingDues.toLocaleString('en-IN'))}
+                  {duesWarning.outstandingDues === 0 && t('notify.no_outstanding_dues', ' — Member has no outstanding dues recorded.')}
                 </div>
               )}
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                Sending a dues-pending notification to a member who has already paid may cause confusion.
-                Do you still want to proceed?
+                {t('notify.warning_confusion', 'Sending a dues-pending notification to a member who has already paid may cause confusion. Do you still want to proceed?')}
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => { setDuesWarning(null); }}>
-                Cancel — Don't Send
+                {t('notify.cancel_dont_send')}
               </button>
               <button className="btn btn-primary" onClick={doSend} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Send size={15} /> {submitting ? 'Sending...' : 'Send Anyway'}
+                <Send size={15} /> {submitting ? t('action.sending') : t('notify.send_anyway')}
               </button>
             </div>
           </div>
@@ -1984,10 +2007,10 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
       <div className="card">
         <div style={{ marginBottom: '1.5rem' }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <Bell size={20} style={{ color: 'var(--primary)' }} /> Send Manual Notification
+            <Bell size={20} style={{ color: 'var(--primary)' }} /> {t('notify.send_manual')}
           </h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            Send a targeted notification to a specific member or broadcast to all society members.
+            {t('notify.manual_desc')}
           </p>
         </div>
 
@@ -1996,10 +2019,10 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
           {/* Recipient Selector */}
           <div>
             <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.6rem', display: 'block', color: 'var(--text-primary)' }}>
-              Send To *
+              {t('notify.send_to')}
             </label>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: recipient === 'MEMBER' ? '0.75rem' : 0 }}>
-              {[{ val: 'ALL', label: '📢 All Members (Broadcast)' }, { val: 'MEMBER', label: '👤 Specific Member' }].map(opt => (
+              {[{ val: 'ALL', label: t('notify.all_members') }, { val: 'MEMBER', label: t('notify.specific_member') }].map(opt => (
                 <button
                   key={opt.val}
                   type="button"
@@ -2018,7 +2041,7 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
             {recipient === 'MEMBER' && (
               <div>
                 <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
-                  Select Member *
+                  {t('notify.select_member_label')}
                 </label>
                 <select
                   required
@@ -2026,7 +2049,7 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
                   onChange={(e) => setSelectedMemberId(e.target.value)}
                   style={{ width: '100%', padding: '0.625rem 0.875rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)', fontSize: '0.875rem' }}
                 >
-                  <option value="">— Select a Member —</option>
+                  <option value="">{t('notify.select_member_placeholder', '— Select a Member —')}</option>
                   {activeMembers.map((m: any) => (
                     <option key={m.id} value={m.id}>
                       {m.flatNo} — {m.name}{m.outstandingDues > 0 ? ` (Dues: ₹${Number(m.outstandingDues).toLocaleString('en-IN')})` : ' ✓ Paid'}
@@ -2035,7 +2058,7 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
                 </select>
                 {selectedMemberId && !members.find(m => m.id === selectedMemberId)?.userId && (
                   <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    ⚠️ This member has no portal account. Notifications require an active member login.
+                    ⚠️ {t('notify.warning_no_account', 'This member has no portal account. Notifications require an active member login.')}
                   </div>
                 )}
               </div>
@@ -2044,18 +2067,18 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
 
           {/* Title */}
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Notification Title *</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('notify.title_label')}</label>
             <input required type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Water Supply Interruption / Dues Pending Reminder" />
             {recipient === 'MEMBER' && selectedMemberId && isDuesRelated(title) && (
               <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.3rem', fontStyle: 'italic' }}>
-                💡 Dues-related title detected — we'll verify payment status before sending.
+                💡 {t('notify.dues_detected_tip', "Dues-related title detected — we'll verify payment status before sending.")}
               </div>
             )}
           </div>
 
           {/* Message */}
           <div>
-            <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Description / Message *</label>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('notify.message_label')}</label>
             <textarea required rows={5} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Enter the detailed description of the notification..." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
           </div>
 
@@ -2064,7 +2087,7 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn btn-primary" disabled={submitting || (recipient === 'MEMBER' && !selectedMemberId)} style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Send size={16} /> {submitting ? 'Sending...' : (recipient === 'ALL' ? 'Broadcast Notification' : 'Send to Member')}
+              <Send size={16} /> {submitting ? t('action.sending') : (recipient === 'ALL' ? t('notify.broadcast') : t('notify.send'))}
             </button>
           </div>
         </form>
@@ -2078,10 +2101,10 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
           </div>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Monthly Dues Reminders
+              {t('notify.monthly_reminders')}
             </h3>
             <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              Automatically runs on the <strong>1st of every month</strong>. You can also trigger it manually now — only members with outstanding dues will be notified.
+              {t('notify.monthly_reminders_desc')}
             </p>
           </div>
         </div>
@@ -2110,7 +2133,7 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-            Members with <strong>₹0 dues</strong> or who are <strong>fully paid</strong> will <strong>not</strong> receive a reminder.
+            {t('notify.reminders_help', 'Members with ₹0 dues or who are fully paid will not receive a reminder.')}
           </div>
           <button
             className="btn btn-secondary"
@@ -2118,7 +2141,7 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
             disabled={sendingReminder}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap', borderColor: '#f59e0b', color: '#f59e0b' }}
           >
-            <Bell size={16} /> {sendingReminder ? 'Sending Reminders...' : 'Send Dues Reminders Now'}
+            <Bell size={16} /> {sendingReminder ? t('notify.sending_reminders', 'Sending Reminders...') : t('notify.send_now')}
           </button>
         </div>
       </div>

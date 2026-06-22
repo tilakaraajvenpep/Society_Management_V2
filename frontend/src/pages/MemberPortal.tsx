@@ -14,6 +14,7 @@ import { useToast } from '../components/Toast';
 
 const MemberHelpdesk = ({ token }: { token: string | null }) => {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -115,10 +116,10 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
       <div className="card ticket-list-panel" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <MessageSquare size={18} /> My Tickets
+            <MessageSquare size={18} /> {t('helpdesk.my_tickets')}
           </h3>
           <button className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setShowNewModal(true)}>
-            <Plus size={16} /> New Ticket
+            <Plus size={16} /> {t('helpdesk.new_ticket')}
           </button>
         </div>
 
@@ -128,8 +129,8 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
           ) : tickets.length === 0 ? (
             <div style={{ padding: '4rem 1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <LifeBuoy size={40} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
-              <p>No tickets raised yet.</p>
-              <button className="btn btn-secondary" style={{ marginTop: '1rem' }} onClick={() => setShowNewModal(true)}>Raise your first ticket</button>
+              <p>{t('helpdesk.no_tickets')}</p>
+              <button className="btn btn-secondary" style={{ marginTop: '1rem' }} onClick={() => setShowNewModal(true)}>{t('helpdesk.raise_ticket')}</button>
             </div>
           ) : (
             tickets.map((t) => (
@@ -180,7 +181,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
 
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Description</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>{t('helpdesk.description')}</div>
               <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.925rem', marginBottom: selectedTicket.imageUrl ? '1rem' : 0 }}>{selectedTicket.description}</p>
               {selectedTicket.imageUrl && (
                 <div style={{ marginTop: '1rem' }}>
@@ -231,7 +232,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
           {selectedTicket.status !== 'CLOSED' && selectedTicket.status !== 'ARCHIVED' && (
             <div style={{ padding: '1.25rem 1.5rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--card-bg)' }}>
               <form onSubmit={handleAddComment} style={{ display: 'flex', gap: '0.75rem' }}>
-                <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a reply..." style={{ flex: 1 }} />
+                <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('helpdesk.add_reply')} style={{ flex: 1 }} />
                 <button type="submit" className="btn btn-primary" disabled={!comment.trim()}><Send size={18} /></button>
               </form>
             </div>
@@ -240,7 +241,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
       ) : (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
           <MessageSquare size={48} style={{ opacity: 0.1, marginBottom: '1rem' }} />
-          <p>Select a ticket to view conversation</p>
+          <p>{t('helpdesk.select_ticket')}</p>
         </div>
       )}
 
@@ -249,16 +250,16 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
           <div className="card" style={{ width: '100%', maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3>Raise New Ticket</h3>
+              <h3>{t('helpdesk.raise_ticket')}</h3>
               <button onClick={() => setShowNewModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem' }} disabled={uploadingImage}>&times;</button>
             </div>
             <form onSubmit={handleCreateTicket}>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Subject</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('helpdesk.subject')}</label>
                 <input required value={newTicket.subject} onChange={(e) => setNewTicket({...newTicket, subject: e.target.value})} placeholder="Brief title of the issue" disabled={uploadingImage} />
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Priority</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('helpdesk.priority')}</label>
                 <select value={newTicket.priority} onChange={(e) => setNewTicket({...newTicket, priority: e.target.value})} disabled={uploadingImage}>
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
@@ -267,7 +268,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
                 </select>
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Description</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('helpdesk.description')}</label>
                 <textarea 
                   required 
                   value={newTicket.description} 
@@ -279,7 +280,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
                 />
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Attachment (Optional Image)</label>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('helpdesk.attachment')}</label>
                 <input 
                   type="file" 
                   accept="image/*" 
@@ -289,9 +290,9 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
                 />
               </div>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowNewModal(false)} disabled={uploadingImage}>Cancel</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowNewModal(false)} disabled={uploadingImage}>{t('action.cancel')}</button>
                 <button type="submit" className="btn btn-primary" disabled={uploadingImage}>
-                  {uploadingImage ? 'Uploading & Submitting...' : 'Submit Ticket'}
+                  {uploadingImage ? `${t('action.loading')}` : t('helpdesk.submit')}
                 </button>
               </div>
             </form>
@@ -304,6 +305,7 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
 
 
 const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) => {
+  const { t } = useLanguage();
   const [showReceipt, setShowReceipt] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
 
@@ -323,24 +325,24 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div className="card">
         <h3 style={{ fontSize: '1.125rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <History size={20} /> Payment History
+          <History size={20} /> {t('payments.history')}
         </h3>
         
         {!memberInfo?.payments || memberInfo.payments.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
             <CreditCard size={40} style={{ margin: '0 auto 1rem', opacity: 0.1 }} />
-            <p>No payment records found.</p>
+            <p>{t('payments.no_records')}</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>DATE</th>
-                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>RECEIPT #</th>
-                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>PERIOD</th>
-                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>AMOUNT</th>
-                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>ACTIONS</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('payments.date').toUpperCase()}</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('payments.receipt_no').toUpperCase()}</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('payments.period').toUpperCase()}</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('payments.amount').toUpperCase()}</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('members.actions').toUpperCase()}</th>
                 </tr>
               </thead>
               <tbody>
@@ -352,7 +354,7 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                     <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 700 }}>₹{p.amount.toLocaleString()}</td>
                     <td style={{ padding: '1rem' }}>
                       <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={() => viewReceipt(p)}>
-                        <FileText size={14} /> View Receipt
+                        <FileText size={14} /> {t('action.view')} {t('payments.receipt')}
                       </button>
                     </td>
                   </tr>
@@ -367,7 +369,7 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
           <div className="card" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem' }}>Payment Receipt</h2>
+              <h2 style={{ fontSize: '1.25rem' }}>{t('payments.receipt')}</h2>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button className="btn btn-secondary" onClick={() => window.print()} style={{ padding: '0.5rem' }}><Printer size={18} /></button>
                 <button onClick={() => setShowReceipt(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
@@ -384,16 +386,16 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
             }}>
               <div style={{ textAlign: 'center', marginBottom: '2rem', borderBottom: '2px solid var(--primary)', paddingBottom: '1rem' }}>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>{user?.tenantName}</div>
-                <div style={{ fontSize: '0.875rem', color: '#64748b' }}>Maintenance Fee Receipt</div>
+                <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{t('payments.receipt')} - {user?.tenantName}</div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Receipt Number</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('payments.receipt_no')}</div>
                   <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{selectedPayment.receiptNumber || `RCP-${selectedPayment.id.slice(-6).toUpperCase()}`}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('payments.date')}</div>
                   <div style={{ fontWeight: 700 }}>{new Date(selectedPayment.paymentDate).toLocaleDateString()}</div>
                 </div>
               </div>
@@ -411,31 +413,31 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                 return (
                   <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                      <span style={{ color: '#64748b' }}>Payment Period</span>
+                      <span style={{ color: '#64748b' }}>{t('payments.period')}</span>
                       <span style={{ fontWeight: 600 }}>{selectedPayment.periodLabel || `${selectedPayment.paidMonths} Month(s)`}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                      <span style={{ color: '#64748b' }}>Payment Mode</span>
+                      <span style={{ color: '#64748b' }}>{t('payments.mode')}</span>
                       <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                      <span style={{ color: '#64748b' }}>Base Amount</span>
+                      <span style={{ color: '#64748b' }}>{t('payments.base_amount')}</span>
                       <span style={{ fontWeight: 600 }}>₹{baseAmount.toLocaleString()}</span>
                     </div>
                     {discount > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                        <span style={{ color: '#10b981' }}>Early Bird Discount</span>
+                        <span style={{ color: '#10b981' }}>{t('payments.early_discount')}</span>
                         <span style={{ fontWeight: 600, color: '#10b981' }}>-₹{discount.toLocaleString()}</span>
                       </div>
                     )}
                     {lateFee > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                        <span style={{ color: '#dc2626' }}>Late Fee</span>
+                        <span style={{ color: '#dc2626' }}>{t('payments.late_fee')}</span>
                         <span style={{ fontWeight: 600, color: '#dc2626' }}>+₹{lateFee.toLocaleString()}</span>
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
-                      <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
+                      <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>{t('payments.total')}</span>
                       <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>₹{selectedPayment.amount.toLocaleString()}</span>
                     </div>
                   </div>
@@ -457,6 +459,7 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
 };
 
 const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) => {
+  const { t } = useLanguage();
   const [showReceipt, setShowReceipt] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
 
@@ -475,8 +478,8 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>My Payment Receipts</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>View, download or print all your society payment receipts.</p>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{t('nav.receipts')}</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>{t('action.view')} & {t('action.print')} {t('payments.receipt').toLowerCase()}.</p>
         </div>
       </div>
 
@@ -503,27 +506,27 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', fontWeight: 600 }}>{receiptNo}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '2rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontWeight: 600 }}>Paid</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '2rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontWeight: 600 }}>{t('status.paid')}</span>
                   </div>
                   <h4 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>₹{p.amount.toLocaleString()}</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Period:</span>
+                      <span>{t('payments.period')}:</span>
                       <strong style={{ color: 'var(--text-primary)' }}>{p.periodLabel || `${p.paidMonths} Month(s)`}</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Payment Date:</span>
+                      <span>{t('payments.date')}:</span>
                       <strong style={{ color: 'var(--text-primary)' }}>{new Date(p.paymentDate).toLocaleDateString()}</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Mode:</span>
+                      <span>{t('payments.mode')}:</span>
                       <strong style={{ color: 'var(--text-primary)' }}>{p.mode}</strong>
                     </div>
                   </div>
                 </div>
                 
                 <button className="btn btn-secondary" style={{ width: '100%', padding: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.8125rem', fontWeight: 600 }} onClick={() => viewReceipt(p)}>
-                  <Printer size={16} /> View & Print Receipt
+                  <Printer size={16} /> {t('action.view')} & {t('action.print')} {t('payments.receipt')}
                 </button>
               </div>
             );
@@ -627,6 +630,7 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
 const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: any, setMemberInfo: any, token: string | null }) => {
   const { updateUser } = useAuth();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const isSecondary = !!memberInfo?.isSecondaryUser;
   const [name, setName] = useState(memberInfo?.name || '');
   const [email, setEmail] = useState(isSecondary ? (memberInfo?.secondaryEmail || '') : (memberInfo?.email || ''));
@@ -725,7 +729,7 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
     <div style={{ maxWidth: '650px', margin: '0 auto' }}>
       <form onSubmit={handleSubmit} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.75rem' }}>
         <h3 style={{ fontSize: '1.125rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <User size={18} /> Edit Profile
+          <User size={18} /> {t('profile.edit')}
         </h3>
 
         {/* Photo Upload */}
@@ -746,7 +750,7 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <label className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', padding: '0.4rem 0.8rem', fontSize: '0.8125rem' }}>
-              <Camera size={14} /> {photoUrl ? 'Change Photo' : 'Upload Photo'}
+              <Camera size={14} /> {photoUrl ? t('profile.change_photo') : t('profile.upload_photo')}
               <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} disabled={uploading} />
             </label>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>PNG, JPG or JPEG. Max 5MB.</span>
@@ -756,8 +760,8 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
         {/* Info Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem' }}>
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Full Name</label>
-            <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" />
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('profile.full_name')}</label>
+            <input required value={name} onChange={(e) => setName(e.target.value)} placeholder={t('profile.full_name')} />
           </div>
           <div>
             <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>
@@ -766,24 +770,24 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isSecondary ? 'Secondary Email (Optional)' : 'Email Address (Optional)'} />
           </div>
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>Flat Number</label>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>{t('profile.flat_no')}</label>
             <input value={memberInfo?.flatNo || ''} disabled style={{ backgroundColor: 'var(--bg-tertiary)', cursor: 'not-allowed' }} />
           </div>
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>Billing Cycle</label>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>{t('profile.billing_cycle')}</label>
             <input value={memberInfo?.defaultTenure || ''} disabled style={{ backgroundColor: 'var(--bg-tertiary)', cursor: 'not-allowed' }} />
           </div>
         </div>
 
         <div>
-          <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>Address</label>
+          <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block', color: 'var(--text-secondary)' }}>{t('profile.address')}</label>
           <textarea value={memberInfo?.address || ''} disabled rows={2} style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'not-allowed', fontSize: '0.875rem' }} />
         </div>
 
         {/* Changeable fields */}
         <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <h4 style={{ fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)' }}>
-            <Lock size={14} /> Security & Contact Info
+            <Lock size={14} /> {t('profile.security')}
             {isSecondary && <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>(Secondary Account)</span>}
           </h4>
           
@@ -796,12 +800,12 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.25rem' }}>
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>New Password</label>
+              <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('profile.new_password')}</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'block' }}>Leave blank to keep current password</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'block' }}>{t('profile.leave_blank')}</span>
             </div>
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Confirm New Password</label>
+              <label style={{ fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('profile.confirm_password')}</label>
               <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
             </div>
           </div>
@@ -809,7 +813,7 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
           <button type="submit" className="btn btn-primary" disabled={saving || uploading} style={{ padding: '0.5rem 1.25rem' }}>
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? t('action.saving') : t('profile.save_changes')}
           </button>
         </div>
       </form>
