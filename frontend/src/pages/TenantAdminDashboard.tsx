@@ -5923,7 +5923,7 @@ const TenantAdminDashboard = () => {
             {showModal === 'payment' && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem' }}>Record Payment</h2>
+                  <h2 style={{ fontSize: '1.25rem' }}>{t('payments.record_payment')}</h2>
                   <button onClick={() => setShowModal(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
                 </div>
                 <form onSubmit={handleSubmitPayment}>
@@ -5931,7 +5931,7 @@ const TenantAdminDashboard = () => {
                     
                     <div className="grid-2">
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Select Member</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.select_member')}</label>
                         <select required value={newPayment.memberId} onChange={(e) => {
                           const baseAmt = getBaseAmount(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
                           const fee = getLateFeeForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '', baseAmt);
@@ -5945,14 +5945,14 @@ const TenantAdminDashboard = () => {
                             amount: newPayment.category === 'Maintenance' ? Math.max(0, baseAmt + fee - discountAmt) : 0
                           });
                         }}>
-                          <option value="">-- Choose Member --</option>
+                          <option value="">{t('payments.choose_member')}</option>
                           {members.map((m: any) => (
-                            <option key={m.id} value={m.id}>{m.flatNo} - {m.name} (Due: ₹{m.outstandingDues})</option>
+                            <option key={m.id} value={m.id}>{m.flatNo} - {m.name} ({t('members.outstanding_dues')}: ₹{m.outstandingDues})</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Category</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.category')}</label>
                         <select required value={newPayment.category} onChange={(e) => {
                           const cat = e.target.value;
                           const baseAmt = getBaseAmount(newPayment.paidMonths, cat, newPayment.paymentDate, newPayment.coverageStartDate || '', newPayment.coverageEndDate || '');
@@ -5967,11 +5967,11 @@ const TenantAdminDashboard = () => {
                             amount: cat === 'Maintenance' ? Math.max(0, baseAmt + fee - discountAmt) : 0
                           });
                         }}>
-                          <option value="Maintenance">Maintenance</option>
-                          <option value="Event Fee">Event Fee</option>
-                          <option value="Corpus Fund">Corpus Fund</option>
-                          <option value="Water Dues">Water Dues</option>
-                          <option value="Other">Other</option>
+                          <option value="Maintenance">{t('payments.category_maintenance')}</option>
+                          <option value="Event Fee">{t('payments.category_event')}</option>
+                          <option value="Corpus Fund">{t('payments.category_corpus')}</option>
+                          <option value="Water Dues">{t('payments.category_water')}</option>
+                          <option value="Other">{t('payments.category_other')}</option>
                         </select>
                       </div>
                     </div>
@@ -5979,7 +5979,7 @@ const TenantAdminDashboard = () => {
                     <div className="grid-2">
                       {newPayment.category === 'Maintenance' ? (
                         <div>
-                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Period</label>
+                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.period')}</label>
                           <select required value={newPayment.paidMonths} onChange={(e) => {
                             const months = parseInt(e.target.value);
                             const label = e.target.options[e.target.selectedIndex].text;
@@ -6008,11 +6008,11 @@ const TenantAdminDashboard = () => {
                               coverageEndDate: updatedEndDate
                             });
                           }}>
-                            <option value={0}>Click to select</option>
-                            <option value={1}>Monthly</option>
-                            <option value={3}>Quarterly</option>
-                            <option value={6}>Half-Yearly</option>
-                            <option value={12}>Annual</option>
+                            <option value={0}>{t('payments.click_select')}</option>
+                            <option value={1}>{t('payments.monthly')}</option>
+                            <option value={3}>{t('payments.quarterly')}</option>
+                            <option value={6}>{t('payments.half_yearly')}</option>
+                            <option value={12}>{t('payments.annual')}</option>
                           </select>
                         </div>
                       ) : (
@@ -6020,19 +6020,19 @@ const TenantAdminDashboard = () => {
                         </div>
                       )}
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Mode</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.mode')}</label>
                         <select value={newPayment.mode} onChange={(e) => setNewPayment({ ...newPayment, mode: e.target.value })}>
-                          <option value="CASH">Cash</option>
-                          <option value="BANK_TRANSFER">Bank Transfer</option>
-                          <option value="UPI">UPI / QR</option>
-                          <option value="CHEQUE">Cheque</option>
+                          <option value="CASH">{t('payments.mode_cash')}</option>
+                          <option value="BANK_TRANSFER">{t('payments.mode_bank')}</option>
+                          <option value="UPI">{t('payments.mode_upi')}</option>
+                          <option value="CHEQUE">{t('payments.mode_cheque')}</option>
                         </select>
                       </div>
                     </div>
 
                     <div className="grid-2">
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Received from Member</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.received_date')}</label>
                         <input 
                           type="date" 
                           required 
@@ -6066,7 +6066,7 @@ const TenantAdminDashboard = () => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Amount Received (₹)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.amount_received')}</label>
                         <input 
                           type="text" 
                           required 
@@ -6089,14 +6089,14 @@ const TenantAdminDashboard = () => {
                         />
                         {newPayment.category === 'Maintenance' && (newPayment.paidMonths > 0 || (newPayment.coverageStartDate && newPayment.coverageEndDate)) && (newPayment.discount > 0 || newPayment.lateFee > 0) && (
                           <div style={{ fontSize: '0.75rem', color: newPayment.discount > 0 ? '#10b981' : '#dc2626', marginTop: '0.25rem', fontWeight: 500 }}>
-                            {newPayment.discount > 0 && `✓ Early payment discount of ₹${newPayment.discount} applied! `}
-                            {newPayment.lateFee > 0 && `⚠️ Late fee of ₹${newPayment.lateFee} charged! `}
-                            (₹{(newPayment.amount + newPayment.discount - newPayment.lateFee).toLocaleString()} dues will be cleared)
+                            {newPayment.discount > 0 && t('payments.early_discount_applied').replace('{discount}', newPayment.discount.toString())}
+                            {newPayment.lateFee > 0 && t('payments.late_fee_charged').replace('{fee}', newPayment.lateFee.toString())}
+                            {' '}{t('payments.dues_cleared_msg').replace('{amount}', `₹${(newPayment.amount + newPayment.discount - newPayment.lateFee).toLocaleString()}`)}
                           </div>
                         )}
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Early Bird Discount (₹)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.early_discount_label')}</label>
                         <input 
                           type="text" 
                           disabled 
@@ -6110,7 +6110,7 @@ const TenantAdminDashboard = () => {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Late Fee (₹)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.late_fee_label')}</label>
                         <input 
                           type="text" 
                           disabled 
@@ -6124,7 +6124,7 @@ const TenantAdminDashboard = () => {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Total Amount (₹)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.total_amount_label')}</label>
                         <input 
                           type="text" 
                           disabled 
@@ -6141,7 +6141,7 @@ const TenantAdminDashboard = () => {
 
                     <div className="grid-2">
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Recorded in Ledger</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.ledger_date')}</label>
                         <input 
                           type="date" 
                           required 
@@ -6155,19 +6155,19 @@ const TenantAdminDashboard = () => {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Reference / Notes</label>
-                        <input type="text" placeholder="e.g. Receipt No, Transaction ID" value={newPayment.notes} onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })} />
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.notes')}</label>
+                        <input type="text" placeholder={t('payments.notes_placeholder')} value={newPayment.notes} onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })} />
                       </div>
                     </div>
 
                     {newPayment.category === 'Maintenance' && (
                       <div className="grid-2" style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px dashed var(--border-color)' }}>
                         <div style={{ gridColumn: 'span 2' }}>
-                          <h4 style={{ fontSize: '0.875rem', marginBottom: '0.2rem', color: 'var(--primary)' }}>Advanced: Custom Coverage Dates</h4>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Leave blank to auto-calculate based on current paid-until date.</p>
+                          <h4 style={{ fontSize: '0.875rem', marginBottom: '0.2rem', color: 'var(--primary)' }}>{t('payments.custom_coverage')}</h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t('payments.coverage_desc')}</p>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage Start (Optional)</label>
+                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.coverage_start')}</label>
                           <input type="date" value={newPayment.coverageStartDate || ''} onChange={(e) => {
                             const startDate = e.target.value;
                             let updatedEndDate = newPayment.coverageEndDate;
@@ -6203,7 +6203,7 @@ const TenantAdminDashboard = () => {
                           }} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage End (Optional)</label>
+                          <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.coverage_end')}</label>
                           <input type="date" value={newPayment.coverageEndDate || ''} onChange={(e) => {
                             const endDate = e.target.value;
                             const discountAmt = getDiscountForPayment(newPayment.paidMonths, newPayment.category, newPayment.paymentDate, newPayment.coverageStartDate || '', endDate, newPayment.amount);
@@ -6232,8 +6232,8 @@ const TenantAdminDashboard = () => {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary">Record Payment</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>{t('action.cancel')}</button>
+                    <button type="submit" className="btn btn-primary">{t('payments.record_payment')}</button>
                   </div>
                 </form>
               </>
@@ -6241,27 +6241,27 @@ const TenantAdminDashboard = () => {
             {showModal === 'editPayment' && editingPayment && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem' }}>Edit Payment — {editingPayment.receiptNumber}</h2>
+                  <h2 style={{ fontSize: '1.25rem' }}>{t('payments.edit_payment')} — {editingPayment.receiptNumber}</h2>
                   <button onClick={() => { setShowModal(null); setEditingPayment(null); }} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
                 </div>
                 <form onSubmit={handleUpdatePayment}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div>
-                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Member</label>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.member')}</label>
                       <input type="text" disabled value={`${editingPayment.memberFlatNo} - ${editingPayment.memberName}`} style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }} />
                     </div>
                     <div className="grid-2">
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Mode</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.mode')}</label>
                         <select value={editingPayment.mode} onChange={(e) => setEditingPayment({ ...editingPayment, mode: e.target.value })}>
-                          <option value="CASH">Cash</option>
-                          <option value="BANK_TRANSFER">Bank Transfer</option>
-                          <option value="UPI">UPI / QR</option>
-                          <option value="CHEQUE">Cheque</option>
+                          <option value="CASH">{t('payments.mode_cash')}</option>
+                          <option value="BANK_TRANSFER">{t('payments.mode_bank')}</option>
+                          <option value="UPI">{t('payments.mode_upi')}</option>
+                          <option value="CHEQUE">{t('payments.mode_cheque')}</option>
                         </select>
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Received from Member</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.received_date')}</label>
                         <input 
                           type="date" 
                           required 
@@ -6283,7 +6283,7 @@ const TenantAdminDashboard = () => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Amount Received (₹)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.amount_received')}</label>
                         <input 
                           type="text" 
                           required 
@@ -6308,9 +6308,12 @@ const TenantAdminDashboard = () => {
                           if (paymentDay > cutOffDay) {
                             const hasCoverage = editingPayment.coverageStartDate && editingPayment.coverageEndDate;
                             const charge = getLateFeeForPayment(editingPayment.paidMonths, editingPayment.category, editingPayment.paymentDate, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '', editingPayment.baseAmount);
+                            const detail = hasCoverage
+                              ? t('payments.months_count_detail').replace('{count}', getMonthsCount(editingPayment.paidMonths, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '').toString()).replace('{amount}', summary.lateFeeAmount.toString())
+                              : t('payments.flat_default');
                             return (
                               <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.25rem', fontWeight: 500 }}>
-                                ⚠️ Late fee of ₹{charge} charged {hasCoverage ? `(${getMonthsCount(editingPayment.paidMonths, editingPayment.coverageStartDate || '', editingPayment.coverageEndDate || '')} months * ₹${summary.lateFeeAmount}/month default)` : '(flat default)'}
+                                {t('payments.late_fee_charged_detail').replace('{charge}', charge.toString()).replace('{detail}', detail)}
                               </div>
                             );
                           }
@@ -6318,7 +6321,7 @@ const TenantAdminDashboard = () => {
                         })()}
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Late Fee (₹)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.late_fee_label')}</label>
                         <input 
                           type="text" 
                           disabled 
@@ -6331,7 +6334,7 @@ const TenantAdminDashboard = () => {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Total Amount (₹)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.total_amount_label')}</label>
                         <input 
                           type="text" 
                           disabled 
@@ -6348,20 +6351,20 @@ const TenantAdminDashboard = () => {
 
                     <div className="grid-2">
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Payment Date Recorded in Ledger</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.date_recorded')}</label>
                         <input type="date" required value={editingPayment.ledgerDate || ''} onChange={(e) => setEditingPayment({ ...editingPayment, ledgerDate: e.target.value })} />
                       </div>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Reference / Notes</label>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.notes')}</label>
                       <input type="text" value={editingPayment.notes} onChange={(e) => setEditingPayment({ ...editingPayment, notes: e.target.value })} />
                     </div>
                     <div className="grid-2" style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px dashed var(--border-color)' }}>
                       <div style={{ gridColumn: 'span 2' }}>
-                        <h4 style={{ fontSize: '0.875rem', marginBottom: '0.2rem', color: 'var(--primary)' }}>Custom Coverage Dates</h4>
+                        <h4 style={{ fontSize: '0.875rem', marginBottom: '0.2rem', color: 'var(--primary)' }}>{t('payments.custom_coverage')}</h4>
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage Start (Optional)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.coverage_start')}</label>
                         <input 
                           type="date" 
                           value={editingPayment.coverageStartDate} 
@@ -6379,7 +6382,7 @@ const TenantAdminDashboard = () => {
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Coverage End (Optional)</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('payments.coverage_end')}</label>
                         <input 
                           type="date" 
                           value={editingPayment.coverageEndDate} 
@@ -6399,8 +6402,8 @@ const TenantAdminDashboard = () => {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(null); setEditingPayment(null); }}>Cancel</button>
-                    <button type="submit" className="btn btn-primary">Save Changes</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => { setShowModal(null); setEditingPayment(null); }}>{t('action.cancel')}</button>
+                    <button type="submit" className="btn btn-primary">{t('profile.save_changes')}</button>
                   </div>
                 </form>
               </>
