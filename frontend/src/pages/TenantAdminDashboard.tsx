@@ -3676,13 +3676,105 @@ const TenantAdminDashboard = () => {
         const totalIncome = financials?.profitAndLoss?.totalIncome || 0;
         const totalExpenses = financials?.profitAndLoss?.totalExpenses || 0;
         const netProfit = financials?.profitAndLoss?.netProfit || 0;
-
+ 
+        const getTranslatedMonthName = (monthIndex: number) => {
+          const monthKeys = [
+            'reports.months.january',
+            'reports.months.february',
+            'reports.months.march',
+            'reports.months.april',
+            'reports.months.may',
+            'reports.months.june',
+            'reports.months.july',
+            'reports.months.august',
+            'reports.months.september',
+            'reports.months.october',
+            'reports.months.november',
+            'reports.months.december'
+          ];
+          return t(monthKeys[monthIndex]);
+        };
+ 
+        const translateLabel = (label: string) => {
+          if (!label) return '';
+          
+          // P&L expenditure labels
+          if (label === 'To Consumable Materials') return t('reports.item.to_consumable_materials', label);
+          if (label === 'To Honorarium') return t('reports.item.to_honorarium', label);
+          if (label === 'To Salary and Wages') return t('reports.item.to_salary_wages', label);
+          if (label === 'To Repairs') return t('reports.item.to_repairs', label);
+          if (label === 'To Expenses Paid on Specific Show (Any cultural events)') return t('reports.item.to_specific_show', label);
+          if (label === 'To Entertainment Expenses') return t('reports.item.to_entertainment', label);
+          if (label === 'To Printing and Stationery') return t('reports.item.to_printing_stationery', label);
+          if (label === 'To News Papers and Periodicals') return t('reports.item.to_newspapers_periodicals', label);
+          if (label === 'To Postage') return t('reports.item.to_postage', label);
+          if (label === 'To Upkeep of Lawns') return t('reports.item.to_upkeep_lawns', label);
+          if (label === 'To Rent') return t('reports.item.to_rent', label);
+          if (label === 'To Municipal Taxes') return t('reports.item.to_municipal_taxes', label);
+          if (label === 'To Insurance') return t('reports.item.to_insurance', label);
+          if (label === 'To Loss on sale of Fixed Asset') return t('reports.item.to_loss_on_sale', label);
+          if (label === 'To Depreciation on Fixed Assets') return t('reports.item.to_depreciation', label);
+          if (label === 'To Audit Fees') return t('reports.item.to_audit_fees', label);
+          if (label === 'To Miscellaneous Expenses') return t('reports.item.to_misc', label);
+          if (label === 'To Surplus * (Excess of Income over Expenditure)') return t('reports.item.to_surplus', label);
+          
+          // P&L income labels
+          if (label === 'By Subscriptions') return t('reports.item.by_subscriptions', label);
+          if (label === 'By Grants Received (for General Purposes)') return t('reports.item.by_grants', label);
+          if (label === 'By Entrance Fees (To the extent not capitalized)') return t('reports.item.by_entrance_fees', label);
+          if (label === 'By General Donations') return t('reports.item.by_donations', label);
+          if (label === 'By Interest on deposits') return t('reports.item.by_interest', label);
+          if (label === 'By Dividends') return t('reports.item.by_dividends', label);
+          if (label === 'By Collection for Specific Show (Any Cultural events)') return t('reports.item.by_specific_show', label);
+          if (label === 'By Profit on Sale of Fixed Assets') return t('reports.item.by_profit_on_sale', label);
+          if (label === 'By Locker\'s Rent') return t('reports.item.by_locker_rent', label);
+          if (label === 'By Cloak Room Rent Received') return t('reports.item.by_cloak_room_rent', label);
+          if (label === 'By Hall Rent Received') return t('reports.item.by_hall_rent', label);
+          if (label === 'By Receipts from Sale of Newspapers and Magazines') return t('reports.item.by_newspapers_sale', label);
+          if (label === 'By Miscellaneous Incomes') return t('reports.item.by_misc', label);
+          if (label === 'By Deficit * (Excess of Expenditure over Income)') return t('reports.item.by_deficit', label);
+          
+          // Balance Sheet - Liabilities
+          if (label === 'Capital:') return t('reports.item.capital', label);
+          if (label === '  Opening Balance') return t('reports.item.opening_balance', label);
+          if (label === '  Add: Net Profit') return t('reports.item.add_net_profit', label);
+          if (label === '  (Less: Net Loss)') return t('reports.item.less_net_loss', label);
+          if (label === '  Less: Drawings') return t('reports.item.less_drawings', label);
+          if (label === 'Long-term Liabilities:') return t('reports.item.long_term_liabilities', label);
+          if (label === '  Loan') return t('reports.item.loan', label);
+          if (label === 'Current liabilities:') return t('reports.item.current_liabilities', label);
+          if (label === '  Income received-in-advance') return t('reports.item.income_in_advance', label);
+          if (label === '  Sundry Creditors') return t('reports.item.sundry_creditors', label);
+          if (label === '  Outstanding Expenses') return t('reports.item.outstanding_expenses', label);
+          if (label === '  Bills Payable') return t('reports.item.bills_payable', label);
+          if (label === '  Bank Overdraft') return t('reports.item.bank_overdraft', label);
+          
+          // Balance Sheet - Assets
+          if (label === 'Fixed Assets:') return t('reports.item.fixed_assets', label);
+          if (label === '  Good will') return t('reports.item.goodwill', label);
+          if (label === '  Land') return t('reports.item.land', label);
+          if (label === '  Building') return t('reports.item.building', label);
+          if (label === '  Plant & Machinery') return t('reports.item.plant_machinery', label);
+          if (label === '  Furniture & Fixtures') return t('reports.item.furniture_fixtures', label);
+          if (label === 'Investment:') return t('reports.item.investment', label);
+          if (label === 'Current Assets:') return t('reports.item.current_assets', label);
+          if (label === '  Closing stock') return t('reports.item.closing_stock', label);
+          if (label === '  Accrued income') return t('reports.item.accrued_income', label);
+          if (label === '  Prepaid expenses') return t('reports.item.prepaid_expenses', label);
+          if (label === '  Sundry Debtors') return t('reports.item.sundry_debtors', label);
+          if (label === '  Bills Receivable') return t('reports.item.bills_receivable', label);
+          if (label === '  Cash at Bank') return t('reports.item.cash_at_bank', label);
+          if (label === '  Cash in Hand') return t('reports.item.cash_in_hand', label);
+          
+          return label;
+        };
+ 
         const dateRangeStr = (reportFilters.startDate && reportFilters.endDate)
-          ? `${new Date(reportFilters.startDate).toLocaleDateString('en-GB')} to ${new Date(reportFilters.endDate).toLocaleDateString('en-GB')}`
+          ? `${new Date(reportFilters.startDate).toLocaleDateString('en-GB')} ${t('reports.to_label', 'to')} ${new Date(reportFilters.endDate).toLocaleDateString('en-GB')}`
           : (reportFilters.month && reportFilters.year)
-          ? `${new Date(parseInt(reportFilters.year), parseInt(reportFilters.month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`
-          : reportFilters.year ? `1-Jan-${reportFilters.year} to 31-Dec-${reportFilters.year}` : `1-Apr-${new Date().getFullYear()-1} to 31-Mar-${new Date().getFullYear()}`;
-
+          ? `${getTranslatedMonthName(parseInt(reportFilters.month) - 1)} ${reportFilters.year}`
+          : reportFilters.year ? `1-${t('reports.months.january', 'Jan').substring(0,3)}-${reportFilters.year} ${t('reports.to_label', 'to')} 31-${t('reports.months.december', 'Dec').substring(0,3)}-${reportFilters.year}` : `1-${t('reports.months.april', 'Apr').substring(0,3)}-${new Date().getFullYear()-1} ${t('reports.to_label', 'to')} 31-${t('reports.months.march', 'Mar').substring(0,3)}-${new Date().getFullYear()}`;
+ 
         const asAtDate = reportFilters.endDate ? new Date(reportFilters.endDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB');
 
         // Custom mapping functions
@@ -3894,76 +3986,76 @@ const TenantAdminDashboard = () => {
             <div className="card" style={{ padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border-color)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Financial Reports</h3>
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Generate and analyze financial statements</span>
+                  <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('reports.financial_reports', 'Financial Reports')}</h3>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{t('reports.generate_analyze', 'Generate and analyze financial statements')}</span>
                 </div>
                 <button className="btn btn-secondary" onClick={exportFinancialsAsCSV} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '0.5rem' }}>
-                  <Download size={16} /> Export as Excel
+                  <Download size={16} /> {t('reports.export_excel', 'Export as Excel')}
                 </button>
               </div>
               
               {/* Filter controls */}
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid var(--border-color)' }}>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>Month</label>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>{t('reports.month', 'Month')}</label>
                   <select value={reportFilters.month} onChange={e => setReportFilters({...reportFilters, month: e.target.value, startDate: '', endDate: ''})} style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', minWidth: '130px', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-                    <option value="">All Months</option>
-                    <option value="1">January</option>
-                    <option value="2">February</option>
-                    <option value="3">March</option>
-                    <option value="4">April</option>
-                    <option value="5">May</option>
-                    <option value="6">June</option>
-                    <option value="7">July</option>
-                    <option value="8">August</option>
-                    <option value="9">September</option>
-                    <option value="10">October</option>
-                    <option value="11">November</option>
-                    <option value="12">December</option>
+                    <option value="">{t('reports.all_months', 'All Months')}</option>
+                    <option value="1">{t('reports.months.january', 'January')}</option>
+                    <option value="2">{t('reports.months.february', 'February')}</option>
+                    <option value="3">{t('reports.months.march', 'March')}</option>
+                    <option value="4">{t('reports.months.april', 'April')}</option>
+                    <option value="5">{t('reports.months.may', 'May')}</option>
+                    <option value="6">{t('reports.months.june', 'June')}</option>
+                    <option value="7">{t('reports.months.july', 'July')}</option>
+                    <option value="8">{t('reports.months.august', 'August')}</option>
+                    <option value="9">{t('reports.months.september', 'September')}</option>
+                    <option value="10">{t('reports.months.october', 'October')}</option>
+                    <option value="11">{t('reports.months.november', 'November')}</option>
+                    <option value="12">{t('reports.months.december', 'December')}</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>Year</label>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>{t('reports.year', 'Year')}</label>
                   <input type="number" value={reportFilters.year} onChange={e => setReportFilters({...reportFilters, year: e.target.value, startDate: '', endDate: ''})} style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', width: '90px', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
                 </div>
-                <div style={{ padding: '0 0.5rem 0.5rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>OR</div>
+                <div style={{ padding: '0 0.5rem 0.5rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{t('reports.or_label', 'OR')}</div>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>Start Date</label>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>{t('reports.start_date', 'Start Date')}</label>
                   <input type="date" value={reportFilters.startDate} onChange={e => setReportFilters({...reportFilters, startDate: e.target.value, month: '', year: ''})} style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>End Date</label>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>{t('reports.end_date', 'End Date')}</label>
                   <input type="date" value={reportFilters.endDate} onChange={e => setReportFilters({...reportFilters, endDate: e.target.value, month: '', year: ''})} style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
                 </div>
-                <button className="btn btn-primary" onClick={fetchFinancials} style={{ padding: '0.5rem 1.25rem', borderRadius: '0.375rem', fontWeight: 600 }}>Apply Filter</button>
+                <button className="btn btn-primary" onClick={fetchFinancials} style={{ padding: '0.5rem 1.25rem', borderRadius: '0.375rem', fontWeight: 600 }}>{t('reports.apply_filter', 'Apply Filter')}</button>
               </div>
-
+ 
               {/* Quick Metrics Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
                 <div style={{ padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Period Income</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('reports.period_income', 'Period Income')}</span>
                   <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981' }}>₹{totalIncome.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
                 <div style={{ padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Period Expenses</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('reports.period_expenses', 'Period Expenses')}</span>
                   <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ef4444' }}>₹{totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
                 <div style={{ padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Period Surplus / Deficit</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('reports.period_surplus_deficit', 'Period Surplus / Deficit')}</span>
                   <span style={{ fontSize: '1.25rem', fontWeight: 700, color: netProfit >= 0 ? '#10b981' : '#ef4444' }}>
                     {netProfit >= 0 ? '₹' : '-₹'}{Math.abs(netProfit).toLocaleString(undefined, {minimumFractionDigits: 2})}
                   </span>
                 </div>
                 <div style={{ padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Balance Sheet Status</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('reports.balance_sheet_status', 'Balance Sheet Status')}</span>
                   <div>
                     {isBalanced ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem', fontWeight: 700, color: '#10b981', padding: '0.25rem 0.5rem', borderRadius: '0.375rem', backgroundColor: 'rgba(16, 185, 129, 0.1)' }}>
-                        ✔️ Balanced
+                        ✔️ {t('reports.balanced', 'Balanced')}
                       </span>
                     ) : (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.875rem', fontWeight: 700, color: '#f59e0b', padding: '0.25rem 0.5rem', borderRadius: '0.375rem', backgroundColor: 'rgba(245, 158, 11, 0.1)' }}>
-                        ⚠️ Diff: ₹{Math.abs(totalLiabs - totalAssets).toLocaleString()}
+                        ⚠️ {t('reports.diff', 'Diff: ₹{amount}').replace('{amount}', Math.abs(totalLiabs - totalAssets).toLocaleString())}
                       </span>
                     )}
                   </div>
@@ -3987,7 +4079,7 @@ const TenantAdminDashboard = () => {
                   transition: 'all 0.2s'
                 }}
               >
-                Income & Expenditure Statement
+                {t('reports.income_expenditure_stmt', 'Income & Expenditure Statement')}
               </button>
               <button 
                 onClick={() => setActiveReportTab('balanceSheet')}
@@ -4003,10 +4095,10 @@ const TenantAdminDashboard = () => {
                   transition: 'all 0.2s'
                 }}
               >
-                Balance Sheet
+                {t('reports.balance_sheet', 'Balance Sheet')}
               </button>
             </div>
-
+ 
             {/* Report Content */}
             {activeReportTab === 'pnl' ? (
               isPeriodEmpty ? (
@@ -4015,9 +4107,9 @@ const TenantAdminDashboard = () => {
                   <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', marginBottom: '0.5rem' }}>
                     <FileText size={30} />
                   </div>
-                  <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)' }}>No Transactions Found</h4>
+                  <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t('reports.no_transactions', 'No Transactions Found')}</h4>
                   <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: '360px' }}>
-                    There are no recorded incomes or expenses for the selected period: <strong>{dateRangeStr}</strong>.
+                    {t('reports.no_transactions_desc', 'There are no recorded incomes or expenses for the selected period: {period}').replace('{period}', dateRangeStr)}
                   </p>
                 </div>
               ) : (
@@ -4030,23 +4122,23 @@ const TenantAdminDashboard = () => {
                     </div>
                     {user?.tenantAddress && <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', maxWidth: '400px', margin: '0 auto' }}>{user.tenantAddress}</div>}
                     <div style={{ display: 'inline-block', padding: '0.35rem 1rem', backgroundColor: 'var(--primary)', color: '#fff', borderRadius: '2rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.75rem', marginBottom: '0.5rem' }}>
-                      Income & Expenditure Statement
+                      {t('reports.income_expenditure_stmt', 'Income & Expenditure Statement')}
                     </div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>For the Period: {dateRangeStr}</div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{t('reports.for_period', 'For the Period: {period}').replace('{period}', dateRangeStr)}</div>
                   </div>
-
+ 
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem', padding: '0 0.5rem', color: 'var(--text-primary)' }}>
-                    <span>Dr.</span>
-                    <span>Cr.</span>
+                    <span>{t('reports.dr', 'Dr.')}</span>
+                    <span>{t('reports.cr', 'Cr.')}</span>
                   </div>
-
+ 
                   <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '0.75rem', overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'transparent' }}>
                       <thead>
                         <tr style={{ borderBottom: '2px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-                          <th style={{ width: '35%', textAlign: 'left', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Expenditure</th>
+                          <th style={{ width: '35%', textAlign: 'left', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>{t('reports.expenditure', 'Expenditure')}</th>
                           <th style={{ width: '15%', textAlign: 'right', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', borderRight: '1px solid var(--border-color)' }}>₹</th>
-                          <th style={{ width: '35%', textAlign: 'left', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', paddingLeft: '1.5rem' }}>Income</th>
+                          <th style={{ width: '35%', textAlign: 'left', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', paddingLeft: '1.5rem' }}>{t('reports.income', 'Income')}</th>
                           <th style={{ width: '15%', textAlign: 'right', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>₹</th>
                         </tr>
                       </thead>
@@ -4057,7 +4149,7 @@ const TenantAdminDashboard = () => {
                             <tr key={`row-${idx}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
                               {/* Expenditure */}
                               <td style={{ padding: '0.65rem 1rem', fontSize: '0.85rem', color: 'var(--text-primary)', fontStyle: expRow.label.includes('*') ? 'italic' : 'normal' }}>
-                                {expRow.label}
+                                {translateLabel(expRow.label)}
                               </td>
                               <td style={{ padding: '0.65rem 1rem', textAlign: 'right', fontSize: '0.85rem', color: 'var(--text-primary)', borderRight: '1px solid var(--border-color)', fontWeight: expRow.amount ? 500 : 'normal' }}>
                                 {expRow.amount !== null && expRow.amount !== undefined && (expRow.amount > 0 || !expRow.label.includes('*')) ? `₹${expRow.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : ''}
@@ -4065,7 +4157,7 @@ const TenantAdminDashboard = () => {
                               
                               {/* Income */}
                               <td style={{ padding: '0.65rem 1rem', fontSize: '0.85rem', color: 'var(--text-primary)', paddingLeft: '1.5rem', fontStyle: incRow.label.includes('*') ? 'italic' : 'normal' }}>
-                                {incRow.label}
+                                {translateLabel(incRow.label)}
                               </td>
                               <td style={{ padding: '0.65rem 1rem', textAlign: 'right', fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: incRow.amount ? 500 : 'normal' }}>
                                 {incRow.amount !== null && incRow.amount !== undefined && (incRow.amount > 0 || !incRow.label.includes('*')) ? `₹${incRow.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : ''}
@@ -4076,9 +4168,9 @@ const TenantAdminDashboard = () => {
                       </tbody>
                       <tfoot>
                         <tr style={{ borderTop: '2px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', fontWeight: 700, borderBottom: '4px double var(--text-primary)' }}>
-                          <td style={{ padding: '1.25rem 1rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Total</td>
+                          <td style={{ padding: '1.25rem 1rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>{t('reports.total', 'Total')}</td>
                           <td style={{ padding: '1.25rem 1rem', textAlign: 'right', borderRight: '1px solid var(--border-color)', fontSize: '0.9rem', color: 'var(--text-primary)' }}>₹{pnlTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                          <td style={{ padding: '1.25rem 1rem', paddingLeft: '1.5rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Total</td>
+                          <td style={{ padding: '1.25rem 1rem', paddingLeft: '1.5rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>{t('reports.total', 'Total')}</td>
                           <td style={{ padding: '1.25rem 1rem', textAlign: 'right', fontSize: '0.9rem', color: 'var(--text-primary)' }}>₹{pnlTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                         </tr>
                       </tfoot>
@@ -4096,19 +4188,19 @@ const TenantAdminDashboard = () => {
                   </div>
                   {user?.tenantAddress && <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', maxWidth: '400px', margin: '0 auto' }}>{user.tenantAddress}</div>}
                   <div style={{ display: 'inline-block', padding: '0.35rem 1rem', backgroundColor: 'var(--accent)', color: '#fff', borderRadius: '2rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.75rem', marginBottom: '0.5rem' }}>
-                    Balance Sheet
+                    {t('reports.balance_sheet', 'Balance Sheet')}
                   </div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>As At: {asAtDate}</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{t('reports.as_at', 'As At: {date}').replace('{date}', asAtDate)}</div>
                 </div>
-
+ 
                 <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: '0.75rem', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'transparent' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-                        <th style={{ width: '35%', textAlign: 'left', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Liabilities</th>
-                        <th style={{ width: '15%', textAlign: 'right', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', borderRight: '1px solid var(--border-color)' }}>Rs.</th>
-                        <th style={{ width: '35%', textAlign: 'left', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', paddingLeft: '1.5rem' }}>Assets</th>
-                        <th style={{ width: '15%', textAlign: 'right', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Rs.</th>
+                        <th style={{ width: '35%', textAlign: 'left', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>{t('reports.liabilities', 'Liabilities')}</th>
+                        <th style={{ width: '15%', textAlign: 'right', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', borderRight: '1px solid var(--border-color)' }}>{t('reports.rs', 'Rs.')}</th>
+                        <th style={{ width: '35%', textAlign: 'left', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', paddingLeft: '1.5rem' }}>{t('reports.assets', 'Assets')}</th>
+                        <th style={{ width: '15%', textAlign: 'right', padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>{t('reports.rs', 'Rs.')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -4118,7 +4210,7 @@ const TenantAdminDashboard = () => {
                           <tr key={`bs-row-${idx}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
                             {/* Liability */}
                             <td style={{ padding: '0.65rem 1rem', fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: liabRow.isHeader ? 700 : 'normal' }}>
-                              {liabRow.label}
+                              {translateLabel(liabRow.label)}
                             </td>
                             <td style={{ padding: '0.65rem 1rem', textAlign: 'right', fontSize: '0.85rem', color: 'var(--text-primary)', borderRight: '1px solid var(--border-color)', fontWeight: liabRow.amount ? 500 : 'normal' }}>
                               {liabRow.amount !== null && liabRow.amount !== undefined ? `₹${liabRow.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : ''}
@@ -4126,7 +4218,7 @@ const TenantAdminDashboard = () => {
                             
                             {/* Asset */}
                             <td style={{ padding: '0.65rem 1rem', fontSize: '0.85rem', color: 'var(--text-primary)', paddingLeft: '1.5rem', fontWeight: assetRow.isHeader ? 700 : 'normal' }}>
-                              {assetRow.label}
+                              {translateLabel(assetRow.label)}
                             </td>
                             <td style={{ padding: '0.65rem 1rem', textAlign: 'right', fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: assetRow.amount ? 500 : 'normal' }}>
                               {assetRow.amount !== null && assetRow.amount !== undefined ? `₹${assetRow.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : ''}
@@ -4137,9 +4229,9 @@ const TenantAdminDashboard = () => {
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop: '2px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', fontWeight: 700, borderBottom: '4px double var(--text-primary)' }}>
-                        <td style={{ padding: '1.25rem 1rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Total</td>
+                        <td style={{ padding: '1.25rem 1rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>{t('reports.total', 'Total')}</td>
                         <td style={{ padding: '1.25rem 1rem', textAlign: 'right', borderRight: '1px solid var(--border-color)', fontSize: '0.9rem', color: 'var(--text-primary)' }}>₹{bsTotalVal.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                        <td style={{ padding: '1.25rem 1rem', paddingLeft: '1.5rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Total</td>
+                        <td style={{ padding: '1.25rem 1rem', paddingLeft: '1.5rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>{t('reports.total', 'Total')}</td>
                         <td style={{ padding: '1.25rem 1rem', textAlign: 'right', fontSize: '0.9rem', color: 'var(--text-primary)' }}>₹{bsTotalVal.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                       </tr>
                     </tfoot>
@@ -5167,8 +5259,8 @@ const TenantAdminDashboard = () => {
                       <Users size={22} />
                     </div>
                     <div>
-                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Add New Member</h2>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>Register a new resident and set up their portal access</p>
+                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('members.add_new_member', 'Add New Member')}</h2>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>{t('members.register_new_desc', 'Register a new resident and set up their portal access')}</p>
                     </div>
                   </div>
                   <button type="button" onClick={() => setShowModal(null)} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.4rem', borderRadius: '50%', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
@@ -5182,20 +5274,20 @@ const TenantAdminDashboard = () => {
                     {/* Section 1: Member Personal Details */}
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>01. General Details</span>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>{t('members.general_details_section', '01. General Details')}</span>
                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
                       </div>
                       <div className="responsive-form-grid">
                         <div style={{ gridColumn: 'span 2' }}>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Full Name *</label>
-                          <input type="text" required value={newMember.name} onChange={(e) => setNewMember({ ...newMember, name: e.target.value })} placeholder="e.g. Ramesh Kumar" style={{ width: '100%' }} />
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.full_name', 'Full Name *')}</label>
+                          <input type="text" required value={newMember.name} onChange={(e) => setNewMember({ ...newMember, name: e.target.value })} placeholder={t('members.full_name_placeholder', 'e.g. Ramesh Kumar')} style={{ width: '100%' }} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Flat / Unit No *</label>
-                          <input type="text" required value={newMember.flatNo} onChange={(e) => setNewMember({ ...newMember, flatNo: e.target.value })} placeholder="e.g. A-402" />
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.flat_unit_no', 'Flat / Unit No *')}</label>
+                          <input type="text" required value={newMember.flatNo} onChange={(e) => setNewMember({ ...newMember, flatNo: e.target.value })} placeholder={t('members.flat_unit_placeholder', 'e.g. A-402')} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Residence Type *</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.residence_type', 'Residence Type *')}</label>
                           <select 
                             value={newMember.residenceType} 
                             onChange={(e) => {
@@ -5207,33 +5299,33 @@ const TenantAdminDashboard = () => {
                               });
                             }}
                           >
-                            <option value="COMMON">Common Value</option>
-                            <option value="FLAT">Flat</option>
-                            <option value="VILLA">Villa</option>
+                            <option value="COMMON">{t('members.common_value', 'Common Value')}</option>
+                            <option value="FLAT">{t('members.flat', 'Flat')}</option>
+                            <option value="VILLA">{t('members.villa', 'Villa')}</option>
                           </select>
                         </div>
                         {newMember.residenceType !== 'COMMON' && (
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>BHK *</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.bhk', 'BHK *')}</label>
                             <select 
                               value={newMember.bhk} 
                               onChange={(e) => setNewMember({ ...newMember, bhk: e.target.value })}
                             >
-                              <option value="1">1 BHK</option>
-                              <option value="2">2 BHK</option>
-                              <option value="3">3 BHK</option>
-                              <option value="4">4 BHK</option>
-                              <option value="other">Other / Custom</option>
+                              <option value="1">{t('members.1bhk', '1 BHK')}</option>
+                              <option value="2">{t('members.2bhk', '2 BHK')}</option>
+                              <option value="3">{t('members.3bhk', '3 BHK')}</option>
+                              <option value="4">{t('members.4bhk', '4 BHK')}</option>
+                              <option value="other">{t('members.other_custom', 'Other / Custom')}</option>
                             </select>
                           </div>
                         )}
                         {newMember.residenceType !== 'COMMON' && newMember.bhk === 'other' && (
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Custom BHK *</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.custom_bhk_label', 'Custom BHK *')}</label>
                             <input 
                               type="text" 
                               required 
-                              placeholder="e.g. 5, Duplex" 
+                              placeholder={t('members.custom_bhk_placeholder', 'e.g. 5, Duplex')}
                               value={newMember.customBhk} 
                               onChange={(e) => setNewMember({ ...newMember, customBhk: e.target.value })} 
                             />
@@ -5248,29 +5340,29 @@ const TenantAdminDashboard = () => {
                             style={{ width: 'auto', margin: 0 }}
                           />
                           <label htmlFor="newUseCommonMaintenance" style={{ fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>
-                            Enable Common Maintenance
+                            {t('members.enable_common_maintenance', 'Enable Common Maintenance')}
                           </label>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Default Payment Tenure *</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.default_payment_tenure', 'Default Payment Tenure *')}</label>
                           <select value={newMember.defaultTenure} onChange={(e) => setNewMember({ ...newMember, defaultTenure: e.target.value })}>
-                            <option value="MONTHLY">Monthly</option>
-                            <option value="QUARTERLY">Quarterly</option>
-                            <option value="HALF_YEARLY">Half-Yearly</option>
-                            <option value="ANNUAL">Annual</option>
+                            <option value="MONTHLY">{t('upcoming.calc_monthly', 'Monthly')}</option>
+                            <option value="QUARTERLY">{t('upcoming.calc_quarterly', 'Quarterly')}</option>
+                            <option value="HALF_YEARLY">{t('upcoming.calc_half_yearly', 'Half-Yearly')}</option>
+                            <option value="ANNUAL">{t('upcoming.calc_annual', 'Annual')}</option>
                           </select>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Membership Active From</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.membership_active_from', 'Membership Active From')}</label>
                           <input type="date" value={newMember.paidUntil} onChange={(e) => setNewMember({ ...newMember, paidUntil: e.target.value })} />
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Next payment cycle will start from this date.</p>
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{t('members.next_cycle_desc', 'Next payment cycle will start from this date.')}</p>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Old Pending Dues (₹)</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.old_pending_dues', 'Old Pending Dues (₹)')}</label>
                           <input type="number" min="0" value={newMember.outstandingDues} onChange={(e) => setNewMember({ ...newMember, outstandingDues: parseFloat(e.target.value) || 0 })} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Registration Year *</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.registration_year', 'Registration Year *')}</label>
                           <select value={newMember.registrationYear} onChange={(e) => setNewMember({ ...newMember, registrationYear: e.target.value })}>
                             {getGroupedFYOptions().map(group => (
                               <optgroup key={group.label} label={group.label}>
@@ -5283,11 +5375,11 @@ const TenantAdminDashboard = () => {
                         </div>
                       </div>
                     </div>
-
+ 
                     {/* Section 2: Contact Info & Credentials */}
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>02. Contact & Access</span>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>{t('members.contact_access_section', '02. Contact & Access')}</span>
                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }} className="member-contact-grid-layout">
@@ -5295,62 +5387,62 @@ const TenantAdminDashboard = () => {
                         {/* Primary Contact Card */}
                         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                           <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <UserCheck size={16} style={{ color: 'var(--primary)' }} /> Primary Contact (Compulsory)
+                            <UserCheck size={16} style={{ color: 'var(--primary)' }} /> {t('members.primary_contact_header', 'Primary Contact (Compulsory)')}
                           </h4>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Primary Number *</label>
-                            <input type="text" required value={newMember.mobile} onChange={(e) => setNewMember({ ...newMember, mobile: e.target.value })} placeholder="10-digit mobile number" style={{ width: '100%' }} />
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.primary_number', 'Primary Number *')}</label>
+                            <input type="text" required value={newMember.mobile} onChange={(e) => setNewMember({ ...newMember, mobile: e.target.value })} placeholder={t('members.primary_number_placeholder', '10-digit mobile number')} style={{ width: '100%' }} />
                           </div>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Primary Email (Optional)</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.primary_email', 'Primary Email (Optional)')}</label>
                             <input type="email" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} placeholder="email@domain.com" style={{ width: '100%' }} />
                           </div>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Set Primary Login Password (Optional)</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.set_password_label', 'Set Primary Login Password (Optional)')}</label>
                             <input
                               type="password"
-                              placeholder="Min 6 characters"
+                              placeholder={t('members.password_placeholder_min', 'Min 6 characters')}
                               value={newMember.password}
                               onChange={(e) => setNewMember({ ...newMember, password: e.target.value })}
                               style={{ width: '100%' }}
                             />
-                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Setting a password enables member portal login for the primary contact via mobile or email.</p>
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{t('members.set_password_desc', 'Setting a password enables member portal login for the primary contact via mobile or email.')}</p>
                           </div>
                         </div>
-
+ 
                         {/* Secondary Contact Card */}
                         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                           <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <User size={16} style={{ color: 'var(--success)' }} /> Secondary Contact (Optional)
+                            <User size={16} style={{ color: 'var(--success)' }} /> {t('members.secondary_contact_header', 'Secondary Contact (Optional)')}
                           </h4>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Secondary Number (Optional)</label>
-                            <input type="text" value={newMember.secondaryMobile || ''} onChange={(e) => setNewMember({ ...newMember, secondaryMobile: e.target.value })} placeholder="10-digit mobile number" style={{ width: '100%' }} />
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.secondary_number', 'Secondary Number (Optional)')}</label>
+                            <input type="text" value={newMember.secondaryMobile || ''} onChange={(e) => setNewMember({ ...newMember, secondaryMobile: e.target.value })} placeholder={t('members.primary_number_placeholder', '10-digit mobile number')} style={{ width: '100%' }} />
                           </div>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Secondary Email (Optional)</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.secondary_email', 'Secondary Email (Optional)')}</label>
                             <input type="email" value={newMember.secondaryEmail || ''} onChange={(e) => setNewMember({ ...newMember, secondaryEmail: e.target.value })} placeholder="email@domain.com" style={{ width: '100%' }} />
                           </div>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Set Secondary Login Password (Optional)</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.set_secondary_password_label', 'Set Secondary Login Password (Optional)')}</label>
                             <input
                               type="password"
-                              placeholder="Min 6 characters"
+                              placeholder={t('members.password_placeholder_min', 'Min 6 characters')}
                               value={newMember.secondaryPassword || ''}
                               onChange={(e) => setNewMember({ ...newMember, secondaryPassword: e.target.value })}
                               style={{ width: '100%' }}
                             />
-                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Setting a password enables member portal login for the secondary contact via mobile or email.</p>
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{t('members.set_secondary_password_desc', 'Setting a password enables member portal login for the secondary contact via mobile or email.')}</p>
                           </div>
                         </div>
-
+ 
                       </div>
                     </div>
-
+ 
                     {/* Section 3: Document Uploads */}
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>03. Document Uploads</span>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>{t('members.documents_section', '03. Document Uploads')}</span>
                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
                       </div>
                       <div style={{ display: 'block' }}>
@@ -5358,26 +5450,26 @@ const TenantAdminDashboard = () => {
                         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                             <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)' }}>
-                              <FileText size={14} style={{ color: 'var(--primary)' }} /> ID Proof (Aadhar/PAN)
+                              <FileText size={14} style={{ color: 'var(--primary)' }} /> {t('members.id_proof_label', 'ID Proof (Aadhar/PAN)')}
                             </label>
                             
                             {/* Type selector toggle */}
                             {!newMember.idProofUrl && (
                               <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-tertiary)', padding: '0.15rem', borderRadius: '0.35rem' }}>
-                                <button type="button" onClick={() => setIdProofType('PHOTO')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: idProofType === 'PHOTO' ? 'var(--bg-primary)' : 'transparent', color: idProofType === 'PHOTO' ? 'var(--primary)' : 'var(--text-secondary)' }}>IMAGE</button>
-                                <button type="button" onClick={() => setIdProofType('PDF')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: idProofType === 'PDF' ? 'var(--bg-primary)' : 'transparent', color: idProofType === 'PDF' ? 'var(--primary)' : 'var(--text-secondary)' }}>PDF</button>
+                                <button type="button" onClick={() => setIdProofType('PHOTO')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: idProofType === 'PHOTO' ? 'var(--bg-primary)' : 'transparent', color: idProofType === 'PHOTO' ? 'var(--primary)' : 'var(--text-secondary)' }}>{t('members.image_mode', 'IMAGE')}</button>
+                                <button type="button" onClick={() => setIdProofType('PDF')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: idProofType === 'PDF' ? 'var(--bg-primary)' : 'transparent', color: idProofType === 'PDF' ? 'var(--primary)' : 'var(--text-secondary)' }}>{t('members.pdf_mode', 'PDF')}</button>
                               </div>
                             )}
                           </div>
-
+ 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
                             {newMember.idProofUrl ? (
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                   {newMember.idProofUrl.toLowerCase().endsWith('.pdf') ? <FileText size={18} style={{ color: '#ef4444' }} /> : <Image size={18} style={{ color: 'var(--primary)' }} />}
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-primary)', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Uploaded ID Document</span>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-primary)', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('members.uploaded_id_doc', 'Uploaded ID Document')}</span>
                                 </div>
-                                <button type="button" onClick={() => setNewMember({...newMember, idProofUrl: ''})} style={{ fontSize: '0.7rem', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Remove</button>
+                                <button type="button" onClick={() => setNewMember({...newMember, idProofUrl: ''})} style={{ fontSize: '0.7rem', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{t('members.remove_doc', 'Remove')}</button>
                               </div>
                             ) : (
                               <div style={{ flex: 1 }}>
@@ -5390,56 +5482,56 @@ const TenantAdminDashboard = () => {
                                   style={{ display: 'none' }}
                                 />
                                 <label htmlFor="id-upload" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.625rem', border: '1px dashed var(--border-color)', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8125rem', backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                                  <Upload size={14} /> Upload {idProofType === 'PHOTO' ? 'Image/Photo' : 'PDF Document'}
+                                  <Upload size={14} /> {idProofType === 'PHOTO' ? t('members.upload_image', 'Upload Image/Photo') : t('members.upload_pdf', 'Upload PDF Document')}
                                 </label>
                               </div>
                             )}
                           </div>
                         </div>
-                        {uploading && <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>⏳ Uploading document, please wait...</div>}
+                        {uploading && <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>{t('members.uploading_msg', '⏳ Uploading document, please wait...')}</div>}
                       </div>
                     </div>
-
+ 
                     {/* Section 4: Initial Payment */}
                     <div style={{ backgroundColor: 'rgba(37, 99, 235, 0.03)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px dashed rgba(37, 99, 235, 0.25)' }}>
                       <div style={{ marginBottom: '0.75rem' }}>
                         <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <Landmark size={15} /> Initial Setup / Corpus Fund
+                          <Landmark size={15} /> {t('members.initial_setup_section', 'Initial Setup / Corpus Fund')}
                         </h4>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>Record any one-time joining fees collected right now.</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>{t('members.initial_setup_desc', 'Record any one-time joining fees collected right now.')}</p>
                       </div>
                       
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Initial Payment (₹)</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.initial_payment', 'Initial Payment (₹)')}</label>
                           <input type="number" min="0" placeholder="Optional" value={newMember.initialPaymentAmount || ''} onChange={(e) => setNewMember({ ...newMember, initialPaymentAmount: parseFloat(e.target.value) || 0 })} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Payment Mode</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.payment_mode', 'Payment Mode')}</label>
                           <select value={newMember.initialPaymentMode} onChange={(e) => setNewMember({ ...newMember, initialPaymentMode: e.target.value })}>
-                            <option value="CASH">Cash</option>
-                            <option value="BANK_TRANSFER">Bank Transfer</option>
-                            <option value="UPI">UPI / QR</option>
-                            <option value="CHEQUE">Cheque</option>
+                            <option value="CASH">{t('payments.mode_cash', 'Cash')}</option>
+                            <option value="BANK_TRANSFER">{t('payments.mode_bank', 'Bank Transfer')}</option>
+                            <option value="UPI">{t('payments.mode_upi', 'UPI / QR')}</option>
+                            <option value="CHEQUE">{t('payments.mode_cheque', 'Cheque')}</option>
                           </select>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Payment Date</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.payment_date', 'Payment Date')}</label>
                           <input type="date" value={newMember.initialPaymentDate} onChange={(e) => setNewMember({ ...newMember, initialPaymentDate: e.target.value })} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Payment Notes</label>
-                          <input type="text" placeholder="e.g. Corpus Fund, Setup Fee" value={newMember.initialPaymentNotes} onChange={(e) => setNewMember({ ...newMember, initialPaymentNotes: e.target.value })} />
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.payment_notes', 'Payment Notes')}</label>
+                          <input type="text" placeholder={t('members.notes_placeholder', 'e.g. Corpus Fund, Setup Fee')} value={newMember.initialPaymentNotes} onChange={(e) => setNewMember({ ...newMember, initialPaymentNotes: e.target.value })} />
                         </div>
                       </div>
                     </div>
-
+ 
                   </div>
                   
                   {/* Modal Footer Actions */}
                   <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" disabled={uploading}>Add Member</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>{t('members.cancel_btn', 'Cancel')}</button>
+                    <button type="submit" className="btn btn-primary" disabled={uploading}>{t('members.add_member_btn', 'Add Member')}</button>
                   </div>
                 </form>
               </>
@@ -5449,20 +5541,20 @@ const TenantAdminDashboard = () => {
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <div>
-                    <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>Payment History</h2>
+                    <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{t('members.payment_history', 'Payment History')}</h2>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                       {selectedMember.name} &mdash; Flat {selectedMember.flatNo}
                     </p>
                   </div>
                   <button onClick={() => setShowModal(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
                 </div>
-
+ 
                 {/* Summary cards */}
                 <div className="responsive-3-grid">
                   {[
-                    { label: 'Total Paid', value: `₹${payments.filter((p: any) => p.memberId === selectedMember.id && p.status === 'PAID').reduce((s: number, p: any) => s + p.amount, 0).toLocaleString()}`, color: 'var(--success)' },
-                    { label: 'Outstanding', value: `₹${selectedMember.outstandingDues?.toLocaleString()}`, color: selectedMember.outstandingDues > 0 ? 'var(--error)' : 'var(--success)' },
-                    { label: 'Receipts', value: payments.filter((p: any) => p.memberId === selectedMember.id).length, color: 'var(--primary)' },
+                    { label: t('members.total_paid', 'Total Paid'), value: `₹${payments.filter((p: any) => p.memberId === selectedMember.id && p.status === 'PAID').reduce((s: number, p: any) => s + p.amount, 0).toLocaleString()}`, color: 'var(--success)' },
+                    { label: t('members.outstanding', 'Outstanding'), value: `₹${selectedMember.outstandingDues?.toLocaleString()}`, color: selectedMember.outstandingDues > 0 ? 'var(--error)' : 'var(--success)' },
+                    { label: t('members.receipts', 'Receipts'), value: payments.filter((p: any) => p.memberId === selectedMember.id).length, color: 'var(--primary)' },
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.75rem', textAlign: 'center' }}>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{label}</div>
@@ -5470,25 +5562,25 @@ const TenantAdminDashboard = () => {
                     </div>
                   ))}
                 </div>
-
+ 
                 {/* Payment history table */}
                 <div className="table-container" style={{ maxHeight: '350px', overflowY: 'auto' }}>
                   <table>
                     <thead>
                       <tr>
-                        <th>Receipt No</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Mode</th>
-                        <th>FY</th>
-                        <th>Coverage</th>
-                        <th>Status</th>
-                        <th style={{ textAlign: 'right' }}>Action</th>
+                        <th>{t('members.receipt_no', 'Receipt No')}</th>
+                        <th>{t('members.date', 'Date')}</th>
+                        <th>{t('members.amount', 'Amount')}</th>
+                        <th>{t('members.mode', 'Mode')}</th>
+                        <th>{t('members.fy', 'FY')}</th>
+                        <th>{t('members.coverage', 'Coverage')}</th>
+                        <th>{t('members.status', 'Status')}</th>
+                        <th style={{ textAlign: 'right' }}>{t('members.action', 'Action')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {payments.filter((p: any) => p.memberId === selectedMember.id).length === 0 ? (
-                        <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>No payment records found</td></tr>
+                        <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>{t('members.no_payment_records', 'No payment records found')}</td></tr>
                       ) : (
                         payments
                           .filter((p: any) => p.memberId === selectedMember.id)
@@ -5497,22 +5589,30 @@ const TenantAdminDashboard = () => {
                               <td><code style={{ fontSize: '0.8125rem' }}>{p.receiptNumber}</code></td>
                               <td style={{ fontSize: '0.875rem' }}>{new Date(p.paymentDate).toLocaleDateString()}</td>
                               <td style={{ fontWeight: 600 }}>₹{p.amount.toLocaleString()}</td>
-                              <td><span className={`badge ${p.mode === 'CASH' ? 'badge-warning' : 'badge-success'}`}>{p.mode}</span></td>
+                              <td>
+                                <span className={`badge ${p.mode === 'CASH' ? 'badge-warning' : 'badge-success'}`}>
+                                  {p.mode === 'CASH' ? t('payments.mode_cash', 'Cash') : p.mode === 'BANK_TRANSFER' ? t('payments.mode_bank', 'Bank Transfer') : p.mode === 'UPI' ? t('payments.mode_upi', 'UPI / QR') : p.mode === 'CHEQUE' ? t('payments.mode_cheque', 'Cheque') : p.mode}
+                                </span>
+                              </td>
                               <td style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                                {p.coverageStartDate ? getFinancialYear(new Date(p.coverageStartDate)) : (p.periodLabel === 'Initial Onboarding Fee' ? 'Onboarding' : getFinancialYear(new Date(p.paymentDate)))}
+                                {p.coverageStartDate ? getFinancialYear(new Date(p.coverageStartDate)) : (p.periodLabel === 'Initial Onboarding Fee' ? t('members.onboarding', 'Onboarding') : getFinancialYear(new Date(p.paymentDate)))}
                               </td>
                               <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                                 {p.coverageStartDate && p.coverageEndDate ? (
                                   `${formatLocalDate(p.coverageStartDate)} - ${formatLocalDate(p.coverageEndDate)}`
                                 ) : (
-                                  p.periodLabel || '-'
+                                  p.periodLabel === 'Initial Onboarding Fee' ? t('members.initial_onboarding_fee', 'Initial Onboarding Fee') : (p.periodLabel || '-')
                                 )}
                               </td>
-                              <td><span className={`badge ${p.status === 'PAID' ? 'badge-success' : 'badge-error'}`}>{p.status}</span></td>
+                              <td>
+                                <span className={`badge ${p.status === 'PAID' ? 'badge-success' : 'badge-error'}`}>
+                                  {p.status === 'PAID' ? t('payments.status_paid', 'Paid') : p.status === 'CANCELLED' ? t('payments.status_cancelled', 'Cancelled') : p.status}
+                                </span>
+                              </td>
                               <td style={{ textAlign: 'right' }}>
                                 <button className="btn btn-secondary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                                   onClick={() => { setSelectedPayment(p); setShowModal('receipt'); }}>
-                                  <Eye size={13} /> View
+                                  <Eye size={13} /> {t('members.view_btn', 'View')}
                                 </button>
                               </td>
                             </tr>
@@ -5527,13 +5627,13 @@ const TenantAdminDashboard = () => {
             {showModal === 'receipt' && selectedPayment && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem' }}>Payment Receipt</h2>
+                  <h2 style={{ fontSize: '1.25rem' }}>{t('receipt.payment_receipt', 'Payment Receipt')}</h2>
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
                     <button className="btn btn-secondary" onClick={() => window.print()} style={{ padding: '0.5rem' }}><Printer size={18} /></button>
                     <button onClick={() => setShowModal(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
                   </div>
                 </div>
-
+ 
                 <div id="receipt-content" style={{
                   backgroundColor: 'white',
                   color: '#1e293b',
@@ -5557,31 +5657,31 @@ const TenantAdminDashboard = () => {
                       border: '8px solid rgba(239, 68, 68, 0.15)',
                       padding: '1rem',
                       borderRadius: '1rem'
-                    }}>CANCELLED</div>
+                    }}>{t('receipt.cancelled', 'CANCELLED')}</div>
                   )}
-
+ 
                   <div style={{ textAlign: 'center', marginBottom: '2rem', borderBottom: '2px solid #3b82f6', paddingBottom: '1rem' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#3b82f6' }}>{user?.tenantName}</div>
-                    <div style={{ fontSize: '0.875rem', color: '#64748b' }}>Maintenance Fee Receipt</div>
+                    <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{t('receipt.maintenance_fee_receipt', 'Maintenance Fee Receipt')}</div>
                   </div>
-
+ 
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
                     <div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Receipt Number</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('receipt.receipt_number', 'Receipt Number')}</div>
                       <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{selectedPayment.receiptNumber}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('receipt.date', 'Date')}</div>
                       <div style={{ fontWeight: 700 }}>{new Date(selectedPayment.paymentDate).toLocaleDateString()}</div>
                     </div>
                   </div>
-
+ 
                   <div style={{ marginBottom: '1.5rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Received From</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{t('receipt.received_from', 'Received From')}</div>
                     <div style={{ fontSize: '1.125rem', fontWeight: 600 }}>{selectedPayment.member?.name}</div>
-                    <div style={{ color: '#475569' }}>Flat No: {selectedPayment.member?.flatNo}</div>
+                    <div style={{ color: '#475569' }}>{t('receipt.flat_no_label', 'Flat No:')} {selectedPayment.member?.flatNo}</div>
                   </div>
-
+ 
                   {(() => {
                     const lateFee = selectedPayment.lateFee || 0;
                     const discount = selectedPayment.discount || 0;
@@ -5589,54 +5689,58 @@ const TenantAdminDashboard = () => {
                     return (
                       <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '2rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                          <span style={{ color: '#64748b' }}>Payment Mode</span>
-                          <span style={{ fontWeight: 600 }}>{selectedPayment.mode}</span>
+                          <span style={{ color: '#64748b' }}>{t('receipt.payment_mode', 'Payment Mode')}</span>
+                          <span style={{ fontWeight: 600 }}>
+                            {selectedPayment.mode === 'CASH' ? t('payments.mode_cash', 'Cash') : selectedPayment.mode === 'BANK_TRANSFER' ? t('payments.mode_bank', 'Bank Transfer') : selectedPayment.mode === 'UPI' ? t('payments.mode_upi', 'UPI / QR') : selectedPayment.mode === 'CHEQUE' ? t('payments.mode_cheque', 'Cheque') : selectedPayment.mode}
+                          </span>
                         </div>
                         {selectedPayment.periodLabel && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                            <span style={{ color: '#64748b' }}>Payment Period</span>
-                            <span style={{ fontWeight: 600 }}>{selectedPayment.periodLabel}</span>
+                            <span style={{ color: '#64748b' }}>{t('receipt.payment_period', 'Payment Period')}</span>
+                            <span style={{ fontWeight: 600 }}>
+                              {selectedPayment.periodLabel === 'Initial Onboarding Fee' ? t('members.initial_onboarding_fee', 'Initial Onboarding Fee') : selectedPayment.periodLabel}
+                            </span>
                           </div>
                         )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                          <span style={{ color: '#64748b' }}>Base Amount</span>
+                          <span style={{ color: '#64748b' }}>{t('receipt.base_amount', 'Base Amount')}</span>
                           <span style={{ fontWeight: 600 }}>₹{baseAmount.toLocaleString()}</span>
                         </div>
                         {discount > 0 && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <span style={{ color: '#10b981' }}>Early Bird Discount</span>
+                            <span style={{ color: '#10b981' }}>{t('receipt.early_bird_discount', 'Early Bird Discount')}</span>
                             <span style={{ fontWeight: 600, color: '#10b981' }}>-₹{discount.toLocaleString()}</span>
                           </div>
                         )}
                         {lateFee > 0 && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <span style={{ color: '#dc2626' }}>Late Fee</span>
+                            <span style={{ color: '#dc2626' }}>{t('receipt.late_fee', 'Late Fee')}</span>
                             <span style={{ fontWeight: 600, color: '#dc2626' }}>+₹{lateFee.toLocaleString()}</span>
                           </div>
                         )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
-                          <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>Total Amount</span>
+                          <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>{t('receipt.total_amount', 'Total Amount')}</span>
                           <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#3b82f6' }}>₹{selectedPayment.amount.toLocaleString()}</span>
                         </div>
                       </div>
                     );
                   })()}
-
+ 
                   {selectedPayment.notes && (
                     <div style={{ marginBottom: '2rem' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Notes</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>{t('receipt.notes', 'Notes')}</div>
                       <div style={{ fontSize: '0.875rem', color: '#475569' }}>{selectedPayment.notes}</div>
                     </div>
                   )}
-
+ 
                   <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                      Generated on {new Date().toLocaleString()}<br />
-                      By {selectedPayment.collectedBy?.name || 'System'}
+                      {t('receipt.generated_on', 'Generated on')} {new Date().toLocaleString()}<br />
+                      {t('receipt.by', 'By')} {selectedPayment.collectedBy?.name || 'System'}
                     </div>
                   </div>
                 </div>
-
+ 
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                   <button className="btn btn-primary" onClick={() => {
                     const content = document.getElementById('receipt-content');
@@ -5649,7 +5753,7 @@ const TenantAdminDashboard = () => {
                       printWindow?.print();
                     }
                   }}>
-                    <Download size={18} /> Download PDF
+                    <Download size={18} /> {t('receipt.download_pdf', 'Download PDF')}
                   </button>
                 </div>
               </>
@@ -5664,8 +5768,8 @@ const TenantAdminDashboard = () => {
                       <Users size={22} />
                     </div>
                     <div>
-                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Edit Member Details</h2>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>Modify flat occupant profile, credentials, and documentation</p>
+                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('members.edit_member_details', 'Edit Member Details')}</h2>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>{t('members.modify_profile_desc', 'Modify flat occupant profile, credentials, and documentation')}</p>
                     </div>
                   </div>
                   <button type="button" onClick={() => setShowModal(null)} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.4rem', borderRadius: '50%', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
@@ -5679,20 +5783,20 @@ const TenantAdminDashboard = () => {
                     {/* Section 1: Member Personal Details */}
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>01. General Details</span>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>{t('members.general_details_section', '01. General Details')}</span>
                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
                       </div>
                       <div className="responsive-form-grid">
                         <div style={{ gridColumn: 'span 2' }}>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Full Name *</label>
-                          <input type="text" required value={editingMember.name} onChange={(e) => setEditingMember({ ...editingMember, name: e.target.value })} placeholder="e.g. Ramesh Kumar" style={{ width: '100%' }} />
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.full_name', 'Full Name *')}</label>
+                          <input type="text" required value={editingMember.name} onChange={(e) => setEditingMember({ ...editingMember, name: e.target.value })} placeholder={t('members.full_name_placeholder', 'e.g. Ramesh Kumar')} style={{ width: '100%' }} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Flat / Unit No *</label>
-                          <input type="text" required value={editingMember.flatNo} onChange={(e) => setEditingMember({ ...editingMember, flatNo: e.target.value })} placeholder="e.g. A-402" />
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.flat_unit_no', 'Flat / Unit No *')}</label>
+                          <input type="text" required value={editingMember.flatNo} onChange={(e) => setEditingMember({ ...editingMember, flatNo: e.target.value })} placeholder={t('members.flat_unit_placeholder', 'e.g. A-402')} />
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Residence Type *</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.residence_type', 'Residence Type *')}</label>
                           <select 
                             value={editingMember.residenceType || 'COMMON'} 
                             onChange={(e) => {
@@ -5704,33 +5808,33 @@ const TenantAdminDashboard = () => {
                               });
                             }}
                           >
-                            <option value="COMMON">Common Value</option>
-                            <option value="FLAT">Flat</option>
-                            <option value="VILLA">Villa</option>
+                            <option value="COMMON">{t('members.common_value', 'Common Value')}</option>
+                            <option value="FLAT">{t('members.flat', 'Flat')}</option>
+                            <option value="VILLA">{t('members.villa', 'Villa')}</option>
                           </select>
                         </div>
                         {(editingMember.residenceType || 'COMMON') !== 'COMMON' && (
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>BHK *</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.bhk', 'BHK *')}</label>
                             <select 
                               value={editingMember.bhk || '1'} 
                               onChange={(e) => setEditingMember({ ...editingMember, bhk: e.target.value })}
                             >
-                              <option value="1">1 BHK</option>
-                              <option value="2">2 BHK</option>
-                              <option value="3">3 BHK</option>
-                              <option value="4">4 BHK</option>
-                              <option value="other">Other / Custom</option>
+                              <option value="1">{t('members.1bhk', '1 BHK')}</option>
+                              <option value="2">{t('members.2bhk', '2 BHK')}</option>
+                              <option value="3">{t('members.3bhk', '3 BHK')}</option>
+                              <option value="4">{t('members.4bhk', '4 BHK')}</option>
+                              <option value="other">{t('members.other_custom', 'Other / Custom')}</option>
                             </select>
                           </div>
                         )}
                         {(editingMember.residenceType || 'COMMON') !== 'COMMON' && editingMember.bhk === 'other' && (
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Custom BHK *</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.custom_bhk_label', 'Custom BHK *')}</label>
                             <input 
                               type="text" 
                               required 
-                              placeholder="e.g. 5, Duplex" 
+                              placeholder={t('members.custom_bhk_placeholder', 'e.g. 5, Duplex')}
                               value={editingMember.customBhk || ''} 
                               onChange={(e) => setEditingMember({ ...editingMember, customBhk: e.target.value })} 
                             />
@@ -5745,30 +5849,30 @@ const TenantAdminDashboard = () => {
                             style={{ width: 'auto', margin: 0 }}
                           />
                           <label htmlFor="editUseCommonMaintenance" style={{ fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>
-                            Enable Common Maintenance
+                            {t('members.enable_common_maintenance', 'Enable Common Maintenance')}
                           </label>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Status *</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.status_label', 'Status *')}</label>
                           <select value={editingMember.status} onChange={(e) => setEditingMember({ ...editingMember, status: e.target.value })}>
-                            <option value="ACTIVE">Active</option>
-                            <option value="INACTIVE">Inactive</option>
+                            <option value="ACTIVE">{t('members.status_active', 'Active')}</option>
+                            <option value="INACTIVE">{t('members.status_inactive', 'Inactive')}</option>
                           </select>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Paid Until (Period Covered)</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.paid_until_label', 'Paid Until (Period Covered)')}</label>
                           <input type="date" value={editingMember.paidUntil || ''} onChange={(e) => setEditingMember({ ...editingMember, paidUntil: e.target.value })} />
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Next payment cycle will start after this date.</p>
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{t('members.next_cycle_after_desc', 'Next payment cycle will start after this date.')}</p>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Outstanding Dues (₹)</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.outstanding_dues_label', 'Outstanding Dues (₹)')}</label>
                           <input type="text" inputMode="numeric" pattern="[0-9]*" value={editingMember.outstandingDues === 0 && editingMember._duesRaw === '' ? '' : (editingMember._duesRaw !== undefined ? editingMember._duesRaw : editingMember.outstandingDues)} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ''); setEditingMember({ ...editingMember, _duesRaw: raw, outstandingDues: raw === '' ? 0 : parseInt(raw, 10) }); }} placeholder="0" />
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Current unpaid balance/dues for this member.</p>
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{t('members.unpaid_balance_desc', 'Current unpaid balance/dues for this member.')}</p>
                         </div>
                         <div>
-                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Registration Year *</label>
+                          <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.registration_year', 'Registration Year *')}</label>
                           <select value={editingMember.registrationYear || ''} onChange={(e) => setEditingMember({ ...editingMember, registrationYear: e.target.value })}>
-                            <option value="">-- Select Financial Year --</option>
+                            <option value="">{t('members.select_fy', '-- Select Financial Year --')}</option>
                             {getGroupedFYOptions().map(group => (
                               <optgroup key={group.label} label={group.label}>
                                 {group.options.map(fy => (
@@ -5780,11 +5884,11 @@ const TenantAdminDashboard = () => {
                         </div>
                       </div>
                     </div>
-
+ 
                     {/* Section 2: Contact Info & Credentials */}
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>02. Contact & Access</span>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>{t('members.contact_access_section', '02. Contact & Access')}</span>
                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }} className="member-contact-grid-layout">
@@ -5792,74 +5896,74 @@ const TenantAdminDashboard = () => {
                         {/* Primary Contact Card */}
                         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                           <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <UserCheck size={16} style={{ color: 'var(--primary)' }} /> Primary Contact (Compulsory)
+                            <UserCheck size={16} style={{ color: 'var(--primary)' }} /> {t('members.primary_contact_header', 'Primary Contact (Compulsory)')}
                           </h4>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Primary Number *</label>
-                            <input type="text" required value={editingMember.mobile} onChange={(e) => setEditingMember({ ...editingMember, mobile: e.target.value })} placeholder="10-digit mobile number" style={{ width: '100%' }} />
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.primary_number', 'Primary Number *')}</label>
+                            <input type="text" required value={editingMember.mobile} onChange={(e) => setEditingMember({ ...editingMember, mobile: e.target.value })} placeholder={t('members.primary_number_placeholder', '10-digit mobile number')} style={{ width: '100%' }} />
                           </div>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Primary Email (Optional)</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.primary_email', 'Primary Email (Optional)')}</label>
                             <input type="email" value={editingMember.email || ''} onChange={(e) => setEditingMember({ ...editingMember, email: e.target.value })} placeholder="email@domain.com" style={{ width: '100%' }} />
                           </div>
                           <div>
                             <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
-                              {editingMember.userId ? 'Change Primary Login Password (Optional)' : 'Set Primary Login Password (Optional)'}
+                              {editingMember.userId ? t('members.change_password_label', 'Change Primary Login Password (Optional)') : t('members.set_password_label', 'Set Primary Login Password (Optional)')}
                             </label>
                             <input
                               type="password"
-                              placeholder={editingMember.userId ? "Leave blank to keep current" : "Min 6 characters"}
+                              placeholder={editingMember.userId ? t('members.password_placeholder_blank', 'Leave blank to keep current') : t('members.password_placeholder_min', 'Min 6 characters')}
                               value={editingMember.password || ''}
                               onChange={(e) => setEditingMember({ ...editingMember, password: e.target.value })}
                               style={{ width: '100%' }}
                             />
                             <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                               {editingMember.userId 
-                                ? 'Password will be updated only if you enter a new one.' 
-                                : 'Setting a password enables portal login for primary contact.'}
+                                ? t('members.password_updated_if_new', 'Password will be updated only if you enter a new one.') 
+                                : t('members.set_password_desc_short', 'Setting a password enables portal login for primary contact.')}
                             </p>
                           </div>
                         </div>
-
+ 
                         {/* Secondary Contact Card */}
                         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                           <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <User size={16} style={{ color: 'var(--success)' }} /> Secondary Contact (Optional)
+                            <User size={16} style={{ color: 'var(--success)' }} /> {t('members.secondary_contact_header', 'Secondary Contact (Optional)')}
                           </h4>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Secondary Number (Optional)</label>
-                            <input type="text" value={editingMember.secondaryMobile || ''} onChange={(e) => setEditingMember({ ...editingMember, secondaryMobile: e.target.value })} placeholder="10-digit mobile number" style={{ width: '100%' }} />
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.secondary_number', 'Secondary Number (Optional)')}</label>
+                            <input type="text" value={editingMember.secondaryMobile || ''} onChange={(e) => setEditingMember({ ...editingMember, secondaryMobile: e.target.value })} placeholder={t('members.primary_number_placeholder', '10-digit mobile number')} style={{ width: '100%' }} />
                           </div>
                           <div>
-                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>Secondary Email (Optional)</label>
+                            <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>{t('members.secondary_email', 'Secondary Email (Optional)')}</label>
                             <input type="email" value={editingMember.secondaryEmail || ''} onChange={(e) => setEditingMember({ ...editingMember, secondaryEmail: e.target.value })} placeholder="email@domain.com" style={{ width: '100%' }} />
                           </div>
                           <div>
                             <label style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block', color: 'var(--text-primary)' }}>
-                              {editingMember.secondaryUserId ? 'Change Secondary Login Password (Optional)' : 'Set Secondary Login Password (Optional)'}
+                              {editingMember.secondaryUserId ? t('members.change_secondary_password_label', 'Change Secondary Login Password (Optional)') : t('members.set_secondary_password_label', 'Set Secondary Login Password (Optional)')}
                             </label>
                             <input
                               type="password"
-                              placeholder={editingMember.secondaryUserId ? "Leave blank to keep current" : "Min 6 characters"}
+                              placeholder={editingMember.secondaryUserId ? t('members.password_placeholder_blank', 'Leave blank to keep current') : t('members.password_placeholder_min', 'Min 6 characters')}
                               value={editingMember.secondaryPassword || ''}
                               onChange={(e) => setEditingMember({ ...editingMember, secondaryPassword: e.target.value })}
                               style={{ width: '100%' }}
                             />
                             <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                               {editingMember.secondaryUserId 
-                                ? 'Password will be updated only if you enter a new one.' 
-                                : 'Setting a password enables portal login for secondary contact.'}
+                                ? t('members.password_updated_if_new', 'Password will be updated only if you enter a new one.') 
+                                : t('members.set_secondary_password_desc_short', 'Setting a password enables portal login for secondary contact.')}
                             </p>
                           </div>
                         </div>
-
+ 
                       </div>
                     </div>
-
+ 
                     {/* Section 3: Document Uploads */}
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>03. Document Uploads</span>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>{t('members.documents_section', '03. Document Uploads')}</span>
                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
                       </div>
                       <div style={{ display: 'block' }}>
@@ -5867,26 +5971,26 @@ const TenantAdminDashboard = () => {
                         <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                             <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)' }}>
-                              <FileText size={14} style={{ color: 'var(--primary)' }} /> ID Proof (Aadhar/PAN)
+                              <FileText size={14} style={{ color: 'var(--primary)' }} /> {t('members.id_proof_label', 'ID Proof (Aadhar/PAN)')}
                             </label>
                             
                             {/* Type selector toggle */}
                             {!editingMember.idProofUrl && (
                               <div style={{ display: 'flex', gap: '0.2rem', backgroundColor: 'var(--bg-tertiary)', padding: '0.15rem', borderRadius: '0.35rem' }}>
-                                <button type="button" onClick={() => setEditIdProofType('PHOTO')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: editIdProofType === 'PHOTO' ? 'var(--bg-primary)' : 'transparent', color: editIdProofType === 'PHOTO' ? 'var(--primary)' : 'var(--text-secondary)' }}>IMAGE</button>
-                                <button type="button" onClick={() => setEditIdProofType('PDF')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: editIdProofType === 'PDF' ? 'var(--bg-primary)' : 'transparent', color: editIdProofType === 'PDF' ? 'var(--primary)' : 'var(--text-secondary)' }}>PDF</button>
+                                <button type="button" onClick={() => setEditIdProofType('PHOTO')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: editIdProofType === 'PHOTO' ? 'var(--bg-primary)' : 'transparent', color: editIdProofType === 'PHOTO' ? 'var(--primary)' : 'var(--text-secondary)' }}>{t('members.image_mode', 'IMAGE')}</button>
+                                <button type="button" onClick={() => setEditIdProofType('PDF')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', fontWeight: 600, border: 'none', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: editIdProofType === 'PDF' ? 'var(--bg-primary)' : 'transparent', color: editIdProofType === 'PDF' ? 'var(--primary)' : 'var(--text-secondary)' }}>{t('members.pdf_mode', 'PDF')}</button>
                               </div>
                             )}
                           </div>
-
+ 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
                             {editingMember.idProofUrl ? (
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                   {editingMember.idProofUrl.toLowerCase().endsWith('.pdf') ? <FileText size={18} style={{ color: '#ef4444' }} /> : <Image size={18} style={{ color: 'var(--primary)' }} />}
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-primary)', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Uploaded ID Document</span>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-primary)', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('members.uploaded_id_doc', 'Uploaded ID Document')}</span>
                                 </div>
-                                <button type="button" onClick={() => setEditingMember({...editingMember, idProofUrl: ''})} style={{ fontSize: '0.7rem', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Remove</button>
+                                <button type="button" onClick={() => setEditingMember({...editingMember, idProofUrl: ''})} style={{ fontSize: '0.7rem', color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{t('members.remove_doc', 'Remove')}</button>
                               </div>
                             ) : (
                               <div style={{ flex: 1 }}>
@@ -5899,22 +6003,22 @@ const TenantAdminDashboard = () => {
                                   style={{ display: 'none' }}
                                 />
                                 <label htmlFor="edit-id-upload" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.625rem', border: '1px dashed var(--border-color)', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8125rem', backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                                  <Upload size={14} /> Upload {editIdProofType === 'PHOTO' ? 'Image/Photo' : 'PDF Document'}
+                                  <Upload size={14} /> {editIdProofType === 'PHOTO' ? t('members.upload_image', 'Upload Image/Photo') : t('members.upload_pdf', 'Upload PDF Document')}
                                 </label>
                               </div>
                             )}
                           </div>
                         </div>
-                        {uploading && <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>⏳ Uploading document, please wait...</div>}
+                        {uploading && <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>{t('members.uploading_msg', '⏳ Uploading document, please wait...')}</div>}
                       </div>
                     </div>
-
+ 
                   </div>
                   
                   {/* Modal Footer Actions */}
                   <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" disabled={uploading}>Update Member</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>{t('members.cancel_btn', 'Cancel')}</button>
+                    <button type="submit" className="btn btn-primary" disabled={uploading}>{t('members.update_member_btn', 'Update Member')}</button>
                   </div>
                 </form>
               </>
@@ -6411,55 +6515,55 @@ const TenantAdminDashboard = () => {
             {showModal === 'transfer' && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem' }}>Transfer / Handover Cash</h2>
+                  <h2 style={{ fontSize: '1.25rem' }}>{t('cash.transfer_handover_cash', 'Transfer / Handover Cash')}</h2>
                   <button onClick={() => setShowModal(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
                 </div>
                 <form onSubmit={handleSubmitTransfer}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.75rem', border: '1px dashed var(--border-color)' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Your Current Cash Balance</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{t('cash.your_current_balance', 'Your Current Cash Balance')}</div>
                       <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)' }}>₹{myBalance.toLocaleString()}</div>
                     </div>
-
+ 
                     <div>
-                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Transfer Type</label>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('cash.transfer_type', 'Transfer Type')}</label>
                       <div style={{ display: 'flex', gap: '1rem' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                           <input type="radio" checked={newTransfer.type === 'HANDOVER'} onChange={() => setNewTransfer({ ...newTransfer, type: 'HANDOVER' })} />
-                          <span style={{ fontSize: '0.875rem' }}>Handover to Admin</span>
+                          <span style={{ fontSize: '0.875rem' }}>{t('cash.handover_to_admin', 'Handover to Admin')}</span>
                         </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                           <input type="radio" checked={newTransfer.type === 'DEPOSIT'} onChange={() => setNewTransfer({ ...newTransfer, type: 'DEPOSIT' })} />
-                          <span style={{ fontSize: '0.875rem' }}>Deposit to Bank</span>
+                          <span style={{ fontSize: '0.875rem' }}>{t('cash.deposit_to_bank', 'Deposit to Bank')}</span>
                         </label>
                       </div>
                     </div>
-
+ 
                     {newTransfer.type === 'HANDOVER' && (
                       <div>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Select Recipient Admin</label>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('cash.select_recipient_admin', 'Select Recipient Admin')}</label>
                         <select required value={newTransfer.toAdminId} onChange={(e) => setNewTransfer({ ...newTransfer, toAdminId: e.target.value })}>
-                          <option value="">-- Select Treasurer --</option>
+                          <option value="">{t('cash.select_treasurer', '-- Select Treasurer --')}</option>
                           {cashBalances.filter((b: any) => b.userId !== user.id).map((b: any) => (
                             <option key={b.userId} value={b.userId}>{b.userName}</option>
                           ))}
                         </select>
                       </div>
                     )}
-
+ 
                     <div>
-                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Amount (₹)</label>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('cash.amount', 'Amount (₹)')}</label>
                       <input type="number" required max={myBalance} value={newTransfer.amount} onChange={(e) => setNewTransfer({ ...newTransfer, amount: parseFloat(e.target.value) || 0 })} />
                     </div>
-
+ 
                     <div>
-                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>Notes</label>
-                      <input type="text" placeholder="e.g. For weekly bank deposit" value={newTransfer.referenceNote} onChange={(e) => setNewTransfer({ ...newTransfer, referenceNote: e.target.value })} />
+                      <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('cash.notes', 'Notes')}</label>
+                      <input type="text" placeholder={t('cash.weekly_deposit_placeholder', 'e.g. For weekly bank deposit')} value={newTransfer.referenceNote} onChange={(e) => setNewTransfer({ ...newTransfer, referenceNote: e.target.value })} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" disabled={newTransfer.amount <= 0 || newTransfer.amount > myBalance}>Initiate Transfer</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>{t('cash.cancel_btn', 'Cancel')}</button>
+                    <button type="submit" className="btn btn-primary" disabled={newTransfer.amount <= 0 || newTransfer.amount > myBalance}>{t('cash.initiate_transfer_btn', 'Initiate Transfer')}</button>
                   </div>
                 </form>
               </>
