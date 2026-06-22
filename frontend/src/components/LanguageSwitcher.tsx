@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Languages } from 'lucide-react';
-import { useLanguage, Language } from '../context/LanguageContext';
+import { useLanguage } from '../context/LanguageContext';
+import type { Language } from '../context/LanguageContext';
 
 const LANGUAGES: { code: Language; label: string; nativeLabel: string; flag: string }[] = [
   { code: 'en', label: 'English', nativeLabel: 'English', flag: '🇬🇧' },
