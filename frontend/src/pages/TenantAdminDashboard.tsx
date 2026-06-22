@@ -11,6 +11,7 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import NotificationPanel from '../components/NotificationPanel';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/ConfirmModal';
 const exportTableToCSV = (filename: string, headers: string[], rows: (string|number)[][]) => {
@@ -2129,6 +2130,7 @@ const TenantAdminDashboard = () => {
   const { logout, token, user, updateUser } = useAuth();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('overview');
   const [activeSettingsTab, setActiveSettingsTab] = useState('pricing');
   const [loading, setLoading] = useState(true);
@@ -4960,20 +4962,20 @@ const TenantAdminDashboard = () => {
 
   // Build nav tabs based on role
   const allAdminTabs = [
-    { id: 'overview', icon: LayoutDashboard, label: 'Overview' },
-      { id: 'members', icon: Users, label: 'Members' },
-      { id: 'payments', icon: Receipt, label: 'Payments' },
-      { id: 'ledger-reconciliation', icon: FileText, label: 'Ledger Dates' },
-      { id: 'upcoming', icon: Calendar, label: 'Upcoming Dues' },
-      { id: 'expenses', icon: Landmark, label: 'Expenses' },
-      ...(summary.enableForums ? [{ id: 'helpdesk', icon: LifeBuoy, label: 'Helpdesk' }] : []),
-      { id: 'vendors', icon: Users2, label: 'Vendors' },
-      { id: 'events', icon: Calendar, label: 'Society Events' },
-      { id: 'notifications', icon: Bell, label: 'Raise Notifications' },
-      { id: 'settings', icon: Settings, label: 'Settings' },
-      { id: 'staff', icon: UserCheck, label: 'Office Bearers' },
-      { id: 'logs', icon: History, label: 'Audit Logs' },
-      { id: 'reports', icon: BarChart2, label: 'Reports' },
+    { id: 'overview', icon: LayoutDashboard, label: t('nav.overview') },
+      { id: 'members', icon: Users, label: t('nav.members') },
+      { id: 'payments', icon: Receipt, label: t('nav.payments') },
+      { id: 'ledger-reconciliation', icon: FileText, label: t('nav.ledger') },
+      { id: 'upcoming', icon: Calendar, label: t('nav.upcoming') },
+      { id: 'expenses', icon: Landmark, label: t('nav.expenses') },
+      ...(summary.enableForums ? [{ id: 'helpdesk', icon: LifeBuoy, label: t('nav.helpdesk') }] : []),
+      { id: 'vendors', icon: Users2, label: t('nav.vendors') },
+      { id: 'events', icon: Calendar, label: t('nav.events') },
+      { id: 'notifications', icon: Bell, label: t('nav.notifications') },
+      { id: 'settings', icon: Settings, label: t('nav.settings') },
+      { id: 'staff', icon: UserCheck, label: t('nav.staff') },
+      { id: 'logs', icon: History, label: t('nav.logs') },
+      { id: 'reports', icon: BarChart2, label: t('nav.reports') },
     ];
 
   // For other office bearers, filter out payments and expenses
@@ -5003,7 +5005,7 @@ const TenantAdminDashboard = () => {
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: '0.9375rem', lineHeight: 1.2 }}>
-                {isAdmin ? 'Admin Dashboard' : isTreasurer ? 'Treasurer Dashboard' : 'Society Dashboard'}
+                {isAdmin ? t('header.admin_dashboard') : isTreasurer ? t('header.treasurer_dashboard') : t('header.society_dashboard')}
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.2 }}>
                 {user?.tenantName}{user?.designation ? ` · ${user.designation}` : ''}
@@ -5014,24 +5016,24 @@ const TenantAdminDashboard = () => {
           {/* Right: action buttons + user info + logout */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginRight: '0.25rem' }} className="desktop-only">
-              Welcome, <strong style={{ color: 'var(--text-primary)' }}>{user?.name}</strong>
+              {t('header.welcome')}, <strong style={{ color: 'var(--text-primary)' }}>{user?.name}</strong>
             </span>
             {/* Transfer Cash — Treasurer only */}
             {isTreasurer && (
               <button className="btn btn-secondary" onClick={() => setShowModal('transfer')} style={{ whiteSpace: 'nowrap', padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}>
-                <Send size={15} /> <span className="desktop-only">Transfer Cash</span>
+                <Send size={15} /> <span className="desktop-only">{t('header.transfer_cash')}</span>
               </button>
             )}
             {/* Record Payment — Treasurer only */}
             {isTreasurer && (
               <button className="btn btn-primary" onClick={() => setShowModal('payment')} style={{ whiteSpace: 'nowrap', padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}>
-                <Plus size={15} /> <span className="desktop-only">Record Payment</span>
+                <Plus size={15} /> <span className="desktop-only">{t('header.record_payment')}</span>
               </button>
             )}
             <NotificationPanel token={token} />
             <LanguageSwitcher />
             <button onClick={logout} style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.4rem 0.7rem', cursor: 'pointer', color: 'var(--error)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
-              <LogOut size={15} /> <span className="desktop-only">Logout</span>
+              <LogOut size={15} /> <span className="desktop-only">{t('header.logout')}</span>
             </button>
           </div>
         </header>
@@ -5078,7 +5080,7 @@ const TenantAdminDashboard = () => {
                       <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</div>
                       <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{user?.designation || 'Admin'}</div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 500 }}>Edit</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 500 }}>{t('header.edit')}</div>
                   </div>
                 </div>
               </aside>
@@ -5090,8 +5092,8 @@ const TenantAdminDashboard = () => {
             {/* Pending cash handover banners */}
             {pendingTransfers.length > 0 && (
               <div style={{ marginBottom: '1.5rem' }}>
-                {pendingTransfers.map((t: any) => (
-                  <div key={t.id} style={{
+                {pendingTransfers.map((xfer: any) => (
+                  <div key={xfer.id} style={{
                     backgroundColor: 'rgba(245, 158, 11, 0.1)',
                     border: '1px solid var(--warning)',
                     borderRadius: '0.75rem',
@@ -5104,14 +5106,14 @@ const TenantAdminDashboard = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <div style={{ color: 'var(--warning)' }}><ArrowDownLeft size={24} /></div>
                       <div>
-                        <div style={{ fontWeight: 600 }}>Cash Handover Request</div>
+                        <div style={{ fontWeight: 600 }}>{t('cash.handover_request')}</div>
                         <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                          {t.fromAdmin?.name} wants to handover <strong>₹{t.amount.toLocaleString()}</strong> to you.
+                          {xfer.fromAdmin?.name} {t('cash.wants_handover')} <strong>₹{xfer.amount.toLocaleString()}</strong> {t('cash.to_you')}
                         </div>
                       </div>
                     </div>
-                    <button className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem' }} onClick={() => handleApproveTransfer(t.id)}>
-                      Accept & Update Balance
+                    <button className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem' }} onClick={() => handleApproveTransfer(xfer.id)}>
+                      {t('cash.accept')}
                     </button>
                   </div>
                 ))}

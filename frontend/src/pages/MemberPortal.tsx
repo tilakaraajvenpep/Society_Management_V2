@@ -9,6 +9,7 @@ import {
 import axios from 'axios';
 import NotificationPanel from '../components/NotificationPanel';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../components/Toast';
 
 const MemberHelpdesk = ({ token }: { token: string | null }) => {
@@ -987,6 +988,7 @@ const loadRazorpay = () => {
 const MemberPortal = () => {
   const { logout, token, user } = useAuth();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [memberInfo, setMemberInfo] = useState<any>(null);
@@ -1296,8 +1298,8 @@ const MemberPortal = () => {
             <div className="card" style={{ borderLeft: '4px solid var(--primary)', backgroundColor: 'var(--bg-secondary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Hello, {user?.name}!</h2>
-                  <p style={{ color: 'var(--text-secondary)' }}>Welcome to your resident portal for <strong>{user?.tenantName}</strong>.</p>
+                  <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{t('member.hello')}, {user?.name}!</h2>
+                  <p style={{ color: 'var(--text-secondary)' }}>{t('member.welcome')} <strong>{user?.tenantName}</strong>.</p>
                 </div>
                 <div style={{ backgroundColor: 'var(--primary)', color: '#fff', padding: '1rem', borderRadius: '1rem' }}>
                   <Building size={32} />
@@ -1311,7 +1313,7 @@ const MemberPortal = () => {
                   <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)' }}>
                     <CreditCard size={20} />
                   </div>
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Current Dues</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.current_dues')}</span>
                 </div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 700, color: (memberInfo?.outstandingDues || 0) > 0 ? 'var(--error)' : 'var(--success)' }}>
                   ₹{Math.max(0, memberInfo?.outstandingDues || 0).toLocaleString()}
@@ -1321,11 +1323,11 @@ const MemberPortal = () => {
                     <span>
                       Please pay at the society office or{" "}
                       <span onClick={() => setShowPaymentModal(true)} style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
-                        pay online now
+                        {t('member.pay_online')}
                       </span>.
                     </span>
                   ) : (
-                    'No outstanding dues!'
+                    t('member.no_dues')
                   )}
                 </p>
               </div>
@@ -1335,7 +1337,7 @@ const MemberPortal = () => {
                   <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>
                     <Clock size={20} />
                   </div>
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Due Months</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.due_months')}</span>
                 </div>
                 <div style={{ fontSize: '1.1rem', fontWeight: 600, maxHeight: '80px', overflowY: 'auto', color: 'var(--error)' }}>
                   {dueMonthsList.length > 0 ? (
@@ -1347,11 +1349,11 @@ const MemberPortal = () => {
                       ))}
                     </div>
                   ) : (
-                    <span style={{ color: 'var(--success)' }}>All months paid!</span>
+                    <span style={{ color: 'var(--success)' }}>{t('member.all_paid')}</span>
                   )}
                 </div>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  {dueMonthsList.length > 0 ? `${dueMonthsList.length} month(s) pending payment` : 'No pending months'}
+                  {dueMonthsList.length > 0 ? `${dueMonthsList.length} ${t('member.pending_months')}` : t('member.no_pending')}
                 </p>
               </div>
 
@@ -1360,10 +1362,10 @@ const MemberPortal = () => {
                   <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' }}>
                     <User size={20} />
                   </div>
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Flat Details</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.flat_details')}</span>
                 </div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                  Unit {memberInfo?.flatNo || 'N/A'}
+                  {t('member.unit')} {memberInfo?.flatNo || 'N/A'}
                 </div>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                   {user?.tenantName}
@@ -1375,7 +1377,7 @@ const MemberPortal = () => {
                   <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#d97706' }}>
                     <History size={20} />
                   </div>
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Annual Maintenance Cost</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.annual_cost')}</span>
                 </div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                   {annualCostLabel}
@@ -1562,31 +1564,31 @@ const MemberPortal = () => {
 
         <nav style={{ flex: 1 }}>
           <a href="#" className={`nav-link ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}>
-            <LayoutDashboard size={20} /> My Home
+            <LayoutDashboard size={20} /> {t('nav.home')}
           </a>
           <a href="#" className={`nav-link ${activeTab === 'dues-history' ? 'active' : ''}`} onClick={() => { setActiveTab('dues-history'); setIsSidebarOpen(false); }}>
-            <Clock size={20} /> Maintenance Fee History
+            <Clock size={20} /> {t('nav.dues_history')}
           </a>
           <a href="#" className={`nav-link ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => { setActiveTab('payments'); setIsSidebarOpen(false); }}>
-            <History size={20} /> Payment History
+            <History size={20} /> {t('nav.payment_history')}
           </a>
           <a href="#" className={`nav-link ${activeTab === 'receipts' ? 'active' : ''}`} onClick={() => { setActiveTab('receipts'); setIsSidebarOpen(false); }}>
-            <FileText size={20} /> Receipts
+            <FileText size={20} /> {t('nav.receipts')}
           </a>
           <a href="#" className={`nav-link ${activeTab === 'events' ? 'active' : ''}`} onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }}>
-            <Calendar size={20} /> Society Events
+            <Calendar size={20} /> {t('nav.events')}
           </a>
           <a href="#" className={`nav-link ${activeTab === 'helpdesk' ? 'active' : ''}`} onClick={() => { setActiveTab('helpdesk'); setIsSidebarOpen(false); }}>
-            <LifeBuoy size={20} /> Helpdesk
+            <LifeBuoy size={20} /> {t('nav.helpdesk')}
           </a>
           <a href="#" className={`nav-link ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}>
-            <User size={20} /> My Profile
+            <User size={20} /> {t('nav.my_profile')}
           </a>
         </nav>
 
         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
           <button onClick={logout} className="nav-link" style={{ background: 'none', border: 'none', width: '100%', color: 'var(--error)', cursor: 'pointer' }}>
-            <LogOut size={20} /> Logout
+            <LogOut size={20} /> {t('header.logout')}
           </button>
         </div>
       </div>
@@ -1594,8 +1596,8 @@ const MemberPortal = () => {
       <div className="main-content">
         <header className="dashboard-header">
           <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Resident Portal</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{user?.tenantName} • Flat {memberInfo?.flatNo}</p>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{t('header.resident_portal')}</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{user?.tenantName} • {t('member.flat')} {memberInfo?.flatNo}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <LanguageSwitcher />
