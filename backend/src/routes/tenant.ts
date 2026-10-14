@@ -1,6 +1,6 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import prisma, { getTenantPrisma, getTenantDbUrl } from "../utils/prisma";
+import prisma, { masterPrisma, getTenantPrisma, getTenantDbUrl } from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 import { Client } from "pg";
 import { exec } from "child_process";
@@ -38,17 +38,36 @@ router.get("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
 // Super Admin only: Create a new tenant with its own separate database
 router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
   const { name, address, billingCycle, maintenanceAmount, adminEmail, adminName, adminPassword, slug, subscriptionAmount, lastRenewalDate, nextRenewalDate, enableForums } = req.body;
-  try {
-    const tenantSlug = slug || name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-    const schemaName = `society_${tenantSlug}`;
+  
+  if (!name || !address || !adminEmail || !adminName) {
+    return res.status(400).json({ message: "Society Name, Address, Admin Name, and Admin Email are required." });
+  }
 
-    // 1. Create the schema in PostgreSQL
-    const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
-    const isClientLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
-    const pgClient = new Client({
-      connectionString: masterConnectionString,
-      ssl: isClientLocalhost ? false : { rejectUnauthorized: false }
-    });
+  const tenantSlug = slug || name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  const schemaName = `society_${tenantSlug}`;
+
+  // Check if tenant already exists in registry
+  const existingTenant = await prisma.tenant.findFirst({
+    where: {
+      OR: [
+        { slug: tenantSlug },
+        { name: { equals: name, mode: "insensitive" } }
+      ]
+    }
+  });
+
+  if (existingTenant) {
+    return res.status(400).json({ message: `A society with name "${name}" or slug "${tenantSlug}" already exists.` });
+  }
+
+  const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+  const isClientLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
+  const pgClient = new Client({
+    connectionString: masterConnectionString,
+    ssl: isClientLocalhost ? false : { rejectUnauthorized: false }
+  });
+
+  try {
     await pgClient.connect();
 
     console.log(`Creating schema: ${schemaName}`);
@@ -78,7 +97,13 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
 
     for (const [enumName, values] of Object.entries(enums)) {
       const valuesStr = values.map(v => `'${v}'`).join(', ');
-      await pgClient.query(`CREATE TYPE "${schemaName}"."${enumName}" AS ENUM (${valuesStr})`);
+      try {
+        await pgClient.query(`CREATE TYPE "${schemaName}"."${enumName}" AS ENUM (${valuesStr})`);
+      } catch (enumErr: any) {
+        if (!enumErr.message.includes("already exists")) {
+          throw enumErr;
+        }
+      }
     }
 
     // 3. Clone tables from public schema to tenant schema
@@ -167,24 +192,33 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
         }
       }
     }
-    await pgClient.end();
+  } finally {
+    await pgClient.end().catch(() => {});
+  }
 
-    // 3. Register the tenant in the master registry database
+  try {
+    const parseValidDate = (d: any) => {
+      if (!d) return null;
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    // 6. Register the tenant in the master registry database
     const tenant = await prisma.tenant.create({
       data: { 
         name, 
         address, 
         slug: tenantSlug,
-        billingCycle, 
-        maintenanceAmount: maintenanceAmount || 0,
+        billingCycle: billingCycle || "MONTHLY", 
+        maintenanceAmount: maintenanceAmount ? parseFloat(maintenanceAmount.toString()) : 0,
         enableForums: !!enableForums,
-        subscriptionAmount: subscriptionAmount || 0,
-        lastRenewalDate: lastRenewalDate ? new Date(lastRenewalDate) : null,
-        nextRenewalDate: nextRenewalDate ? new Date(nextRenewalDate) : null,
+        subscriptionAmount: subscriptionAmount ? parseFloat(subscriptionAmount.toString()) : 0,
+        lastRenewalDate: parseValidDate(lastRenewalDate),
+        nextRenewalDate: parseValidDate(nextRenewalDate),
       },
     });
 
-    // 4. Create the tenant record inside its own dynamic database to support local relations
+    // 7. Create the tenant record inside its own dynamic schema
     const tenantPrisma = getTenantPrisma(tenantSlug);
     await tenantPrisma.tenant.create({
       data: {
@@ -192,17 +226,19 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
         name,
         address,
         slug: tenantSlug,
-        billingCycle,
-        maintenanceAmount: maintenanceAmount || 0,
+        billingCycle: billingCycle || "MONTHLY", 
+        maintenanceAmount: maintenanceAmount ? parseFloat(maintenanceAmount.toString()) : 0,
         enableForums: !!enableForums,
-        subscriptionAmount: subscriptionAmount || 0,
-        lastRenewalDate: lastRenewalDate ? new Date(lastRenewalDate) : null,
-        nextRenewalDate: nextRenewalDate ? new Date(nextRenewalDate) : null,
+        subscriptionAmount: subscriptionAmount ? parseFloat(subscriptionAmount.toString()) : 0,
+        lastRenewalDate: parseValidDate(lastRenewalDate),
+        nextRenewalDate: parseValidDate(nextRenewalDate),
       }
     });
 
-    // 5. Create the tenant's admin user inside its own isolated database
+    // 8. Create the tenant's admin user inside its own isolated database & public registry
     const hashedPassword = await bcrypt.hash(adminPassword || "admin123", 10);
+    
+    // In tenant schema
     await tenantPrisma.user.create({
       data: {
         email: adminEmail,
@@ -213,10 +249,25 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
       },
     });
 
+    // In master public schema (so super admin list & relations work properly)
+    try {
+      await masterPrisma.user.create({
+        data: {
+          email: adminEmail,
+          name: adminName,
+          password: hashedPassword,
+          role: "TENANT_ADMIN",
+          tenantId: tenant.id,
+        }
+      });
+    } catch (masterUserErr: any) {
+      console.warn("Could not create tenant admin in master registry:", masterUserErr.message);
+    }
+
     res.status(201).json(tenant);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating tenant:", error);
-    res.status(500).json({ message: "Error creating tenant", error });
+    res.status(error?.status || 500).json({ message: error?.message || "Error creating tenant", error: error?.message || error });
   }
 });
 
