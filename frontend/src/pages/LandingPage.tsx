@@ -24,7 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import './LandingPage.css';
 
 const SALES_PHONE = '7812860791';
-const SALES_PHONE_DISPLAY = '+91 7812860791';
+const SALES_PHONE_DISPLAY = '+91 78128 60791';
 const CONTACT_EMAIL = 'd.tilakaraaj2003@gmail.com';
 const LOCATION_DISPLAY = 'DT Venture, Coimbatore, Tamil Nadu, India';
 const WHATSAPP_URL = `https://wa.me/917812860791?text=${encodeURIComponent(
@@ -154,8 +154,11 @@ const LandingPage: React.FC = () => {
 
           <div className="sa-nav-actions">
             <a href={`tel:${SALES_PHONE}`} className="sa-phone-pill" title="Call Sales Hotline">
-              <PhoneCall size={14} />
-              <span>{SALES_PHONE}</span>
+              <span className="sa-phone-icon-wrap">
+                <PhoneCall size={13} />
+                <span className="sa-phone-live-dot" />
+              </span>
+              <span className="sa-phone-text">{SALES_PHONE_DISPLAY}</span>
             </a>
 
             <a href="/login" className="sa-btn-login" id="btn-portal-login">
@@ -1147,8 +1150,11 @@ const LandingPage: React.FC = () => {
               </p>
               <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <a href={`tel:${SALES_PHONE}`} className="sa-phone-pill" style={{ textDecoration: 'none' }}>
-                  <PhoneCall size={14} />
-                  <span>Call Sales: {SALES_PHONE}</span>
+                  <span className="sa-phone-icon-wrap">
+                    <PhoneCall size={13} />
+                    <span className="sa-phone-live-dot" />
+                  </span>
+                  <span className="sa-phone-text">Hotline: {SALES_PHONE_DISPLAY}</span>
                 </a>
               </div>
             </div>
