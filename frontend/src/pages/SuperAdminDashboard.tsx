@@ -160,12 +160,20 @@ const SuperAdminDashboard = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const payload: any = {
+        ...newTenant,
+        subscriptionAmount: newTenant.subscriptionAmount ? parseFloat(newTenant.subscriptionAmount.toString()) : 0,
+        adminPassword: newTenant.adminPassword?.trim() ? newTenant.adminPassword.trim() : undefined,
+        lastRenewalDate: newTenant.lastRenewalDate || undefined,
+        nextRenewalDate: newTenant.nextRenewalDate || undefined,
+      };
+
       if (editingTenantId) {
-        await axios.patch(`/tenants/${editingTenantId}`, newTenant, {
+        await axios.patch(`/tenants/${editingTenantId}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post('/tenants', newTenant, {
+        await axios.post('/tenants', payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
@@ -173,9 +181,9 @@ const SuperAdminDashboard = () => {
       setEditingTenantId(null);
       await Promise.all([fetchTenants(), fetchStats()]);
       showToast(editingTenantId ? 'Society updated successfully!' : 'Society registered successfully!', 'success');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting tenant', err);
-      showToast('Error saving society details.', 'error');
+      showToast(err.response?.data?.message || 'Error saving society details.', 'error');
     } finally {
       setIsSubmitting(false);
     }

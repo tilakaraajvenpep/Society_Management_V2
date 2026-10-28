@@ -689,6 +689,12 @@ router.patch("/:id/superadmin-menu-config", authenticate, authorize(["SUPER_ADMI
 router.patch("/:id", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
   const { name, address, billingCycle, status, adminPassword, adminName, adminEmail, slug, subscriptionAmount, lastRenewalDate, nextRenewalDate, enableForums } = req.body;
   try {
+    const parseValidDate = (d: any) => {
+      if (!d) return undefined;
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime()) ? undefined : parsed;
+    };
+
     const tenant = await prisma.tenant.update({
       where: { id: req.params.id as string },
       data: { 
@@ -698,49 +704,138 @@ router.patch("/:id", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) 
         status, 
         slug,
         enableForums: enableForums !== undefined ? !!enableForums : undefined,
-        subscriptionAmount: subscriptionAmount ? parseFloat(subscriptionAmount.toString()) : undefined,
-        lastRenewalDate: lastRenewalDate ? new Date(lastRenewalDate) : undefined,
-        nextRenewalDate: nextRenewalDate ? new Date(nextRenewalDate) : undefined,
+        subscriptionAmount: (subscriptionAmount !== undefined && subscriptionAmount !== null && subscriptionAmount !== "") ? parseFloat(subscriptionAmount.toString()) : undefined,
+        lastRenewalDate: parseValidDate(lastRenewalDate),
+        nextRenewalDate: parseValidDate(nextRenewalDate),
       },
     });
 
     // Mirror update inside the tenant's isolated database
-    const tenantPrisma = getTenantPrisma(tenant.slug);
-    await tenantPrisma.tenant.update({
-      where: { id: tenant.id },
-      data: {
-        name,
-        address,
-        billingCycle,
-        status,
-        slug,
-        enableForums: enableForums !== undefined ? !!enableForums : undefined,
-        subscriptionAmount: subscriptionAmount ? parseFloat(subscriptionAmount.toString()) : undefined,
-        lastRenewalDate: lastRenewalDate ? new Date(lastRenewalDate) : undefined,
-        nextRenewalDate: nextRenewalDate ? new Date(nextRenewalDate) : undefined,
-      }
-    });
-
-    // Update Admin User details in tenant database if provided
-    if (adminName || adminEmail || adminPassword) {
-      const updateData: any = {};
-      if (adminName) updateData.name = adminName;
-      if (adminEmail) updateData.email = adminEmail;
-      
-      if (adminPassword) {
-        updateData.password = await bcrypt.hash(adminPassword, 10);
-      }
-
-      await tenantPrisma.user.updateMany({
-        where: { tenantId: req.params.id as string, role: "TENANT_ADMIN" },
-        data: updateData,
+    try {
+      const tenantPrisma = getTenantPrisma(tenant.slug);
+      await tenantPrisma.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          name,
+          address,
+          billingCycle,
+          status,
+          slug,
+          enableForums: enableForums !== undefined ? !!enableForums : undefined,
+          subscriptionAmount: (subscriptionAmount !== undefined && subscriptionAmount !== null && subscriptionAmount !== "") ? parseFloat(subscriptionAmount.toString()) : undefined,
+          lastRenewalDate: parseValidDate(lastRenewalDate),
+          nextRenewalDate: parseValidDate(nextRenewalDate),
+        }
       });
+    } catch (mirrorErr: any) {
+      console.warn("Could not mirror tenant update to tenant schema:", mirrorErr?.message || mirrorErr);
+    }
+
+    // Safely update primary Admin User details in master database and tenant database if provided
+    const cleanAdminEmail = adminEmail && typeof adminEmail === "string" ? adminEmail.trim().toLowerCase() : undefined;
+    const cleanAdminName = adminName && typeof adminName === "string" ? adminName.trim() : undefined;
+    const cleanAdminPassword = adminPassword && typeof adminPassword === "string" && adminPassword.trim() ? adminPassword.trim() : undefined;
+
+    if (cleanAdminName || cleanAdminEmail || cleanAdminPassword) {
+      let hashedPassword: string | undefined = undefined;
+      if (cleanAdminPassword) {
+        hashedPassword = await bcrypt.hash(cleanAdminPassword, 10);
+      }
+
+      // 1. Identify primary admin in master registry
+      const currentMasterAdmin = await masterPrisma.user.findFirst({
+        where: { tenantId: tenant.id, role: "TENANT_ADMIN" },
+        orderBy: { createdAt: "asc" }
+      });
+
+      if (currentMasterAdmin) {
+        const masterUserData: any = {};
+        if (cleanAdminName) masterUserData.name = cleanAdminName;
+        if (hashedPassword) masterUserData.password = hashedPassword;
+        
+        // Only update email if it actually changed and does not collide with another user in the tenant
+        if (cleanAdminEmail && cleanAdminEmail !== (currentMasterAdmin.email || "").toLowerCase()) {
+          const emailExists = await masterPrisma.user.findFirst({
+            where: {
+              tenantId: tenant.id,
+              email: cleanAdminEmail,
+              id: { not: currentMasterAdmin.id }
+            }
+          });
+          if (!emailExists) {
+            masterUserData.email = cleanAdminEmail;
+          } else {
+            console.warn(`Email ${cleanAdminEmail} already in use in master tenant, skipping email rename`);
+          }
+        }
+
+        if (Object.keys(masterUserData).length > 0) {
+          await masterPrisma.user.update({
+            where: { id: currentMasterAdmin.id },
+            data: masterUserData
+          });
+        }
+      }
+
+      // 2. Identify corresponding admin in isolated tenant schema
+      try {
+        const tenantPrisma = getTenantPrisma(tenant.slug);
+        let targetTenantUser = null;
+        if (currentMasterAdmin) {
+          const orConditions: any[] = [{ id: currentMasterAdmin.id }];
+          if (currentMasterAdmin.email) {
+            orConditions.push({ email: currentMasterAdmin.email });
+          }
+          targetTenantUser = await tenantPrisma.user.findFirst({
+            where: {
+              tenantId: tenant.id,
+              OR: orConditions
+            }
+          });
+        }
+        if (!targetTenantUser) {
+          targetTenantUser = await tenantPrisma.user.findFirst({
+            where: { tenantId: tenant.id, role: "TENANT_ADMIN" },
+            orderBy: { createdAt: "asc" }
+          });
+        }
+
+        if (targetTenantUser) {
+          const tenantUserData: any = {};
+          if (cleanAdminName) tenantUserData.name = cleanAdminName;
+          if (hashedPassword) tenantUserData.password = hashedPassword;
+
+          if (cleanAdminEmail && cleanAdminEmail !== (targetTenantUser.email || "").toLowerCase()) {
+            const emailCollision = await tenantPrisma.user.findFirst({
+              where: {
+                tenantId: tenant.id,
+                email: cleanAdminEmail,
+                id: { not: targetTenantUser.id }
+              }
+            });
+            if (!emailCollision) {
+              tenantUserData.email = cleanAdminEmail;
+            } else {
+              console.warn(`Email ${cleanAdminEmail} already in use in tenant schema, skipping email rename`);
+            }
+          }
+
+          if (Object.keys(tenantUserData).length > 0) {
+            await tenantPrisma.user.update({
+              where: { id: targetTenantUser.id },
+              data: tenantUserData
+            });
+          }
+        }
+      } catch (tenantUserErr: any) {
+        console.warn("Could not sync admin user to tenant schema:", tenantUserErr?.message || tenantUserErr);
+      }
     }
 
     res.json(tenant);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating tenant:", error);
-    res.status(500).json({ message: "Error updating tenant", error });
+    res.status(500).json({ message: "Error updating tenant", error: error?.message || error });
   }
 });
 
@@ -755,11 +850,15 @@ router.patch("/:id/toggle-status", authenticate, authorize(["SUPER_ADMIN"]), asy
     });
 
     // Mirror update inside tenant database
-    const tenantPrisma = getTenantPrisma(tenant.slug);
-    await tenantPrisma.tenant.update({
-      where: { id: tenant.id },
-      data: { status: newStatus },
-    });
+    try {
+      const tenantPrisma = getTenantPrisma(tenant.slug);
+      await tenantPrisma.tenant.update({
+        where: { id: tenant.id },
+        data: { status: newStatus },
+      });
+    } catch (mirrorErr: any) {
+      console.warn("Could not mirror toggle-status to tenant schema:", mirrorErr?.message || mirrorErr);
+    }
 
     res.json(tenant);
   } catch (error) {
