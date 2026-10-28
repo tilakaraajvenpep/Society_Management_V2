@@ -7,6 +7,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { ToastProvider } from './components/Toast';
 import { ConfirmProvider } from './components/ConfirmModal';
 import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import TenantAdminDashboard from './pages/TenantAdminDashboard';
 import MemberPortal from './pages/MemberPortal';
@@ -19,18 +20,10 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode, roles:
   return children;
 };
 
-const RootRedirect = () => {
-  const { user, isAuthenticated } = useAuth();
-  if (!isAuthenticated || !user) return <Navigate to="/login" />;
-  if (user.role === 'SUPER_ADMIN') return <Navigate to="/super-admin" />;
-  if (user.role === 'TENANT_ADMIN') return <Navigate to="/tenant-admin" />;
-  return <Navigate to="/member" />;
-};
-
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
   return (
-    <button className="theme-toggle" onClick={toggleTheme}>
+    <button className="theme-toggle" onClick={toggleTheme} title="Toggle Dark/Light Mode">
       {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
     </button>
   );
@@ -61,36 +54,37 @@ function App() {
                 <Router>
                   <RoleThemeSelector />
                   <Routes>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/landing" element={<LandingPage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/portal" element={<LoginPage />} />
+                    <Route path="/super-admin" 
+                      element={
+                        <ProtectedRoute roles={['SUPER_ADMIN']}>
+                          <SuperAdminDashboard />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/tenant-admin" 
+                      element={
+                        <ProtectedRoute roles={['TENANT_ADMIN']}>
+                          <TenantAdminDashboard />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/member" 
+                      element={
+                        <ProtectedRoute roles={['MEMBER']}>
+                          <MemberPortal />
+                        </ProtectedRoute>
+                      } 
+                    />
                     <Route path="/:tenantSlug" element={<LoginPage />} />
-                  <Route 
-                    path="/super-admin" 
-                    element={
-                      <ProtectedRoute roles={['SUPER_ADMIN']}>
-                        <SuperAdminDashboard />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/tenant-admin" 
-                    element={
-                      <ProtectedRoute roles={['TENANT_ADMIN']}>
-                        <TenantAdminDashboard />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/member" 
-                    element={
-                      <ProtectedRoute roles={['MEMBER']}>
-                        <MemberPortal />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route path="/" element={<RootRedirect />} />
-                </Routes>
-                <ThemeToggle />
-              </Router>
+                  </Routes>
+                  <ThemeToggle />
+                </Router>
               </ConfirmProvider>
             </ToastProvider>
           </ThemeProvider>

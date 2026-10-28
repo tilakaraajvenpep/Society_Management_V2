@@ -1,6 +1,6 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import prisma from "../utils/prisma";
+import prisma, { masterPrisma } from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 
 const router = express.Router();
@@ -86,10 +86,111 @@ router.get("/profile", authorize(["MEMBER"]), async (req: any, res) => {
     if (!member) {
       return res.status(404).json({ message: "Member profile not found" });
     }
-    
+
+    // Calculate Monthly Ledger (Due vs Paid breakdown for each month)
+    const regYear = member.registrationYear?.trim() || getFinancialYear(new Date());
+    const startYear = getStartYear(regYear) || new Date().getFullYear();
+
+    const allCosts = await prisma.maintenanceCost.findMany({
+      where: { tenantId: member.tenantId }
+    });
+
+    const applicableCost = allCosts.find(c => 
+      c.financialYear === regYear && 
+      c.residenceType === (member.residenceType || "COMMON") && 
+      c.bhk === (member.bhk || "COMMON")
+    );
+
+    const annualAmount = applicableCost ? applicableCost.amount 
+      : (member.tenant?.annualAmount || (member.tenant?.maintenanceAmount ? member.tenant.maintenanceAmount * 12 : 2000));
+    const monthlyRate = Math.round(annualAmount / 12);
+
+    const monthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
+    const monthlyLedger = [];
+
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    for (let i = 0; i < 12; i++) {
+      const calYear = i < 9 ? startYear : startYear + 1;
+      const monthIndex = (3 + i) % 12; // 3 = April, 4 = May, ... 2 = March
+      const mStart = new Date(calYear, monthIndex, 1);
+      const mEnd = new Date(calYear, monthIndex + 1, 0, 23, 59, 59, 999);
+
+      // 1. Check if covered by an approved payment
+      const coveredPayment = member.payments.find((p: any) => {
+        if (p.status !== 'PAID') return false;
+        if (p.coverageStartDate && p.coverageEndDate) {
+          const cStart = new Date(p.coverageStartDate);
+          const cEnd = new Date(p.coverageEndDate);
+          return cStart <= mEnd && cEnd >= mStart;
+        }
+        return false;
+      });
+
+      // 2. Check if covered by pending submission awaiting treasurer approval
+      const pendingPayment = !coveredPayment ? member.payments.find((p: any) => {
+        if (p.status !== 'PENDING') return false;
+        if (p.coverageStartDate && p.coverageEndDate) {
+          const cStart = new Date(p.coverageStartDate);
+          const cEnd = new Date(p.coverageEndDate);
+          return cStart <= mEnd && cEnd >= mStart;
+        }
+        return false;
+      }) : null;
+
+      // 3. Fallback: if member has no payments recorded with coverage dates but has paidUntil
+      const hasCoverageDatedPayments = member.payments.some((p: any) => p.status === 'PAID' && p.coverageStartDate);
+      const isPaidByPaidUntil = !hasCoverageDatedPayments && member.paidUntil && new Date(member.paidUntil) >= mStart;
+
+      const isPaid = !!coveredPayment || isPaidByPaidUntil;
+      const isPending = !isPaid && !!pendingPayment;
+      const status = isPaid ? 'PAID' : (isPending ? 'PENDING_APPROVAL' : 'DUE');
+
+      const isOverdue = status === 'DUE' && mEnd < now;
+
+      monthlyLedger.push({
+        monthIndex: i + 1,
+        monthName: monthNames[i],
+        year: calYear,
+        label: `${monthNames[i]} ${calYear}`,
+        status, // 'PAID' | 'PENDING_APPROVAL' | 'DUE'
+        isOverdue,
+        amount: isPaid && coveredPayment ? coveredPayment.amount : monthlyRate,
+        receiptNumber: coveredPayment?.receiptNumber || null,
+        paymentId: coveredPayment?.id || null,
+        paymentDate: coveredPayment?.paymentDate || null,
+        paymentMode: coveredPayment?.mode || null,
+        referenceNumber: pendingPayment?.referenceNumber || coveredPayment?.referenceNumber || null
+      });
+    }
+
+    const paidMonthsCount = monthlyLedger.filter(m => m.status === 'PAID').length;
+    const dueMonthsCount = monthlyLedger.filter(m => m.status === 'DUE').length;
+    const pendingApprovalCount = monthlyLedger.filter(m => m.status === 'PENDING_APPROVAL').length;
+    const totalPaidAmount = monthlyLedger.filter(m => m.status === 'PAID').reduce((sum, m) => sum + m.amount, 0);
+
+    const duesSummary = {
+      financialYear: regYear,
+      annualAmount,
+      monthlyRate,
+      paidMonthsCount,
+      dueMonthsCount,
+      pendingApprovalCount,
+      totalPaidAmount,
+      totalOutstandingDues: member.outstandingDues
+    };
+
     // Tell the frontend whether the currently logged-in user is the secondary contact
     const isSecondaryUser = member.secondaryUserId === req.user.id;
-    res.json({ ...member, isSecondaryUser });
+
+    let globalSetting = await masterPrisma.systemSetting.findUnique({ where: { key: "global_maintenance" } });
+    let globalMaintenance = { isMaintenance: false, targets: [], message: "", whitelistedEmails: [] };
+    if (globalSetting?.value) {
+      try { globalMaintenance = JSON.parse(globalSetting.value); } catch (e) {}
+    }
+
+    res.json({ ...member, isSecondaryUser, monthlyLedger, duesSummary, globalMaintenance });
   } catch (error) {
     res.status(500).json({ message: "Error fetching profile", error });
   }

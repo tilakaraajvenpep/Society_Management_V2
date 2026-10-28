@@ -5,7 +5,8 @@ import {
   LayoutDashboard, Users, User,
   ArrowDownLeft, Landmark, LogOut, Plus, Send,
   TrendingUp, Users2, Receipt, Building, Settings, History, Download, Upload, Edit, XCircle, Printer, Eye, UserCheck, Trash2, Calendar, BarChart2, Menu, X, Bell,
-  MessageSquare, LifeBuoy, Clock, FileText, Image, Search, DollarSign, Percent, Wrench, Save
+  MessageSquare, LifeBuoy, Clock, FileText, Image, Search, DollarSign, Percent, Wrench, Save, Loader2, CheckCircle,
+  Sliders, Palette, Smartphone, Globe, ShieldAlert, Check, RefreshCw, Lock
 } from 'lucide-react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -14,6 +15,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/ConfirmModal';
+import { LoadingSpinner, PageLoader } from '../components/LoadingSpinner';
 const exportTableToCSV = (filename: string, headers: string[], rows: (string|number)[][]) => {
   const escapeCSV = (str: string | number) => `"${String(str).replace(/"/g, '""')}"`;
   const csvContent = [
@@ -264,7 +266,15 @@ const StaffManagement = ({ token, currentUserId, designations, staff, onRefresh 
           </div>
           {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
-            <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>{loading ? t('action.saving') : (editingStaff ? t('action.update') : t('staff.add_bearer'))}</button>
+            <button 
+              className="btn btn-primary" 
+              onClick={handleSubmit} 
+              disabled={loading}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              {loading && <Loader2 size={16} className="animate-spin" />}
+              <span>{loading ? t('action.saving') : (editingStaff ? t('action.update') : t('staff.add_bearer'))}</span>
+            </button>
             <button className="btn btn-secondary" onClick={() => { setShowForm(false); setEditingStaff(null); }}>{t('action.cancel')}</button>
           </div>
         </div>
@@ -1021,8 +1031,14 @@ const FinancialYearCostSetup = ({ token }: { token: string | null }) => {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? t('action.saving') : t('settings.set_annual_fees')}
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            disabled={loading}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            {loading && <Loader2 size={16} className="animate-spin" />}
+            <span>{loading ? t('action.saving') : t('settings.set_annual_fees')}</span>
           </button>
         </div>
       </form>
@@ -1199,7 +1215,7 @@ const MastersManagement = ({ token, onRefresh }: { token: string | null, onRefre
 
       {/* Items list */}
       {loadingItems ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('action.loading')}</p>
+        <LoadingSpinner message={t('action.loading')} inline size="sm" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {items.map((item: any) => (
@@ -1366,7 +1382,9 @@ const Helpdesk = ({ token }: { token: string | null }) => {
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{t('action.loading')}</div>
+            <div style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
+              <LoadingSpinner message={t('action.loading')} />
+            </div>
           ) : tickets.length === 0 ? (
             <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <MessageSquare size={40} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
@@ -1599,8 +1617,14 @@ const AdminProfileEdit = ({ token, user, updateUser }: { token: string | null, u
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? t('action.saving') : t('profile.save_btn')}
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            disabled={loading}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            {loading && <Loader2 size={16} className="animate-spin" />}
+            <span>{loading ? t('action.saving') : t('profile.save_btn')}</span>
           </button>
         </div>
       </form>
@@ -1682,7 +1706,9 @@ const EventManagement = ({ token }: { token: string | null }) => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
-  const [form, setForm] = useState({ title: '', description: '', eventDate: '', location: '' });
+  const [form, setForm] = useState({ title: '', description: '', eventDate: '', location: '', imageUrl: '' });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -1704,6 +1730,24 @@ const EventManagement = ({ token }: { token: string | null }) => {
     fetchEvents();
   }, []);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setForm(prev => ({ ...prev, imageUrl: '' }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.description || !form.eventDate) {
@@ -1713,20 +1757,40 @@ const EventManagement = ({ token }: { token: string | null }) => {
     setError('');
     setSubmitting(true);
     try {
+      let finalImageUrl = form.imageUrl;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        const uploadRes = await axios.post('/upload/file', formData, {
+          headers: { 
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}` 
+          }
+        });
+        finalImageUrl = uploadRes.data.url;
+      }
+
+      const payload = {
+        ...form,
+        imageUrl: finalImageUrl || null
+      };
+
       if (editingEvent) {
-        await axios.put(`/events/${editingEvent.id}`, form, {
+        await axios.put(`/events/${editingEvent.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
         showToast(t('events.success_update'), 'success');
       } else {
-        await axios.post('/events', form, {
+        await axios.post('/events', payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
         showToast(t('events.success_create'), 'success');
       }
       setShowForm(false);
       setEditingEvent(null);
-      setForm({ title: '', description: '', eventDate: '', location: '' });
+      setForm({ title: '', description: '', eventDate: '', location: '', imageUrl: '' });
+      setImageFile(null);
+      setImagePreview('');
       fetchEvents();
     } catch (err: any) {
       setError(err.response?.data?.message || t('events.error_delete'));
@@ -1744,8 +1808,11 @@ const EventManagement = ({ token }: { token: string | null }) => {
       title: event.title,
       description: event.description,
       eventDate: localISOTime,
-      location: event.location || ''
+      location: event.location || '',
+      imageUrl: event.imageUrl || ''
     });
+    setImagePreview(event.imageUrl || '');
+    setImageFile(null);
     setShowForm(true);
   };
 
@@ -1778,7 +1845,13 @@ const EventManagement = ({ token }: { token: string | null }) => {
           </p>
         </div>
         {!showForm && (
-          <button className="btn btn-primary" onClick={() => { setEditingEvent(null); setForm({ title: '', description: '', eventDate: '', location: '' }); setShowForm(true); }}>
+          <button className="btn btn-primary" onClick={() => { 
+            setEditingEvent(null); 
+            setForm({ title: '', description: '', eventDate: '', location: '', imageUrl: '' }); 
+            setImageFile(null);
+            setImagePreview('');
+            setShowForm(true); 
+          }}>
             <Plus size={18} /> {t('events.add')}
           </button>
         )}
@@ -1801,6 +1874,77 @@ const EventManagement = ({ token }: { token: string | null }) => {
                 <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('events.location_label')}</label>
                 <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="e.g. Clubhouse Hall, Block A Lobby" />
               </div>
+
+              {/* Event Photo Upload & Live Screening */}
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>
+                  Event Poster / Photo (Optional)
+                </label>
+                <div style={{
+                  border: '2px dashed var(--border-color)',
+                  borderRadius: '0.75rem',
+                  padding: '1.25rem',
+                  backgroundColor: 'var(--bg-primary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem'
+                }}>
+                  {imagePreview ? (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Eye size={15} /> Photo Screening / Preview
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="btn btn-secondary"
+                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'var(--error)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                        >
+                          <Trash2 size={13} /> Remove Photo
+                        </button>
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        maxHeight: '260px',
+                        borderRadius: '0.5rem',
+                        overflow: 'hidden',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <img
+                          src={imagePreview}
+                          alt="Event screening preview"
+                          style={{ maxWidth: '100%', maxHeight: '260px', objectFit: 'contain' }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                      <Image size={36} style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }} />
+                      <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', margin: '0 0 0.5rem 0', fontWeight: 500 }}>
+                        Upload an event banner, flyer or photo
+                      </p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 1rem 0' }}>
+                        Supported formats: JPG, PNG, WEBP. Photo will be screened and displayed in the member portal.
+                      </p>
+                      <label className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', margin: '0 auto' }}>
+                        <Upload size={15} /> Choose Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={handleImageChange}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.4rem', display: 'block' }}>{t('events.desc_label')}</label>
                 <textarea required rows={4} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Provide event details, agenda, rules, etc." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
@@ -1808,8 +1952,14 @@ const EventManagement = ({ token }: { token: string | null }) => {
             </div>
             {error && <div style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '0.75rem' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
-              <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {submitting ? t('action.saving') : (editingEvent ? t('action.update') : t('action.add'))}
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={submitting}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                {submitting && <Loader2 size={16} className="animate-spin" />}
+                <span>{submitting ? t('action.saving') : (editingEvent ? t('action.update') : t('action.add'))}</span>
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setEditingEvent(null); }}>
                 {t('action.cancel')}
@@ -1820,7 +1970,7 @@ const EventManagement = ({ token }: { token: string | null }) => {
       )}
 
       {loading ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1rem' }}>{t('action.loading')}</p>
+        <LoadingSpinner message={t('action.loading')} />
       ) : events.length === 0 ? (
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1.5rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', marginTop: '1rem' }}>
           {t('events.no_events_desc')}
@@ -1831,6 +1981,11 @@ const EventManagement = ({ token }: { token: string | null }) => {
             const dateObj = new Date(event.eventDate);
             return (
               <div key={event.id} style={{ display: 'flex', flexDirection: 'column', padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                {event.imageUrl && (
+                  <div style={{ width: '100%', height: '150px', borderRadius: '0.5rem', overflow: 'hidden', marginBottom: '0.875rem', backgroundColor: 'var(--bg-primary)' }}>
+                    <img src={event.imageUrl} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', backgroundColor: 'rgba(99, 102, 241, 0.1)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
                     {dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
@@ -1996,7 +2151,8 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
                 {t('notify.cancel_dont_send')}
               </button>
               <button className="btn btn-primary" onClick={doSend} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Send size={15} /> {submitting ? t('action.sending') : t('notify.send_anyway')}
+                {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                <span>{submitting ? t('action.sending') : t('notify.send_anyway')}</span>
               </button>
             </div>
           </div>
@@ -2087,7 +2243,8 @@ const NotificationManagement = ({ token, members }: { token: string | null; memb
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn btn-primary" disabled={submitting || (recipient === 'MEMBER' && !selectedMemberId)} style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Send size={16} /> {submitting ? t('action.sending') : (recipient === 'ALL' ? t('notify.broadcast') : t('notify.send'))}
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              <span>{submitting ? t('action.sending') : (recipient === 'ALL' ? t('notify.broadcast') : t('notify.send'))}</span>
             </button>
           </div>
         </form>
@@ -2154,7 +2311,7 @@ const TenantAdminDashboard = () => {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'overview');
   const [activeSettingsTab, setActiveSettingsTab] = useState('pricing');
   const [loading, setLoading] = useState(true);
   const [duesCalcMode, setDuesCalcMode] = useState<string>('DB');
@@ -2172,6 +2329,26 @@ const TenantAdminDashboard = () => {
   const [pendingTransfers, setPendingTransfers] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [maintenanceCosts, setMaintenanceCosts] = useState<any[]>([]);
+
+  // Bank details and QR code states
+  const [bankAccountNameInput, setBankAccountNameInput] = useState('');
+  const [bankNameInput, setBankNameInput] = useState('');
+  const [bankAccountNumberInput, setBankAccountNumberInput] = useState('');
+  const [bankIfscInput, setBankIfscInput] = useState('');
+  const [bankUpiIdInput, setBankUpiIdInput] = useState('');
+  const [bankQrCodeUrlInput, setBankQrCodeUrlInput] = useState('');
+  const [bankReferenceRequiredInput, setBankReferenceRequiredInput] = useState(true);
+  const [bankProofRequiredInput, setBankProofRequiredInput] = useState(true);
+  const [qrFile, setQrFile] = useState<File | null>(null);
+  const [qrPreview, setQrPreview] = useState<string>('');
+  const [savingBankSettings, setSavingBankSettings] = useState(false);
+
+  // Pending bank transfers state
+  const [pendingBankTransfers, setPendingBankTransfers] = useState<any[]>([]);
+  const [paymentSubTab, setPaymentSubTab] = useState<'all' | 'pending'>('all');
+  const [reviewProofModal, setReviewProofModal] = useState<{ isOpen: boolean; imageUrl: string; title: string } | null>(null);
+  const [denyModal, setDenyModal] = useState<{ isOpen: boolean; payment: any; reason: string; isSubmitting: boolean } | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   // Pricing settings local inputs state
   const [maintenanceAmountInput, setMaintenanceAmountInput] = useState('');
@@ -2194,6 +2371,79 @@ const TenantAdminDashboard = () => {
   const [lateFeeDateInput, setLateFeeDateInput] = useState('');
   const [lateFeeAmountInput, setLateFeeAmountInput] = useState('0');
 
+  // Member Menus Control states
+  const [menuConfigLoading] = useState(false);
+  const [savingMenuConfig, setSavingMenuConfig] = useState(false);
+  const [superadminAllowedMenus, setSuperadminAllowedMenus] = useState<{
+    admin?: Record<string, boolean>;
+    memberWeb?: Record<string, boolean>;
+    memberMobile?: Record<string, boolean>;
+  }>({});
+  const [tenantMenuToggles, setTenantMenuToggles] = useState<{
+    memberWeb: Record<string, boolean>;
+    memberMobile: Record<string, boolean>;
+  }>({
+    memberWeb: {
+      overview: true,
+      'dues-history': true,
+      payments: true,
+      receipts: true,
+      events: true,
+      helpdesk: true,
+      profile: true
+    },
+    memberMobile: {
+      dashboard: true,
+      payments: true,
+      receipts: true,
+      events: true,
+      helpdesk: true,
+      profile: true
+    }
+  });
+
+  // Branding states
+  const [brandingLoading] = useState(false);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [brandingSettings, setBrandingSettings] = useState({
+    adminThemeColor: '#2563eb',
+    memberThemeColor: '#2563eb',
+    mobileThemeColor: '#2563eb',
+    logoUrl: '',
+    appName: 'SocietyArena'
+  });
+
+  // App Version & Mobile Maintenance states
+  const [appVersionLoading] = useState(false);
+  const [savingAppVersion, setSavingAppVersion] = useState(false);
+  const [appVersionSettings, setAppVersionSettings] = useState({
+    android: {
+      currentVersion: '2.0.0',
+      supportedVersion: '2.0.0',
+      forceUpdate: false,
+      storeUrl: 'https://play.google.com/store/apps/details?id=com.societyarena.mobile'
+    },
+    ios: {
+      currentVersion: '2.0.0',
+      supportedVersion: '2.0.0',
+      forceUpdate: false,
+      storeUrl: 'https://apps.apple.com/app/societyarena/id123456789'
+    },
+    maintenanceEnabled: false,
+    maintenanceMessage: 'Mobile app is currently under maintenance. Please check back later.'
+  });
+
+  // Listen to popstate / URL search params for deep linking
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const p = new URLSearchParams(window.location.search);
+      const tabParam = p.get('tab');
+      if (tabParam) setActiveTab(tabParam);
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
+
   useEffect(() => {
     if (summary) {
       setMaintenanceAmountInput(summary.maintenanceAmount !== undefined && summary.maintenanceAmount !== null ? String(summary.maintenanceAmount) : '0');
@@ -2212,6 +2462,23 @@ const TenantAdminDashboard = () => {
 
       setLateFeeDateInput(summary.lateFeeDate ? summary.lateFeeDate.split('T')[0] : '');
       setLateFeeAmountInput(summary.lateFeeAmount !== undefined && summary.lateFeeAmount !== null ? String(summary.lateFeeAmount) : '0');
+
+      // Populate society bank and QR details
+      const tInfo = summary.tenantInfo || {};
+      setBankAccountNameInput(tInfo.bankAccountName || summary.bankAccountName || '');
+      setBankNameInput(tInfo.bankName || summary.bankName || '');
+      setBankAccountNumberInput(tInfo.bankAccountNumber || summary.bankAccountNumber || '');
+      setBankIfscInput(tInfo.bankIfsc || summary.bankIfsc || '');
+      setBankUpiIdInput(tInfo.bankUpiId || summary.bankUpiId || '');
+      setBankQrCodeUrlInput(tInfo.bankQrCodeUrl || summary.bankQrCodeUrl || '');
+      setBankReferenceRequiredInput(
+        tInfo.bankReferenceRequired !== undefined ? !!tInfo.bankReferenceRequired :
+        (summary.bankReferenceRequired !== undefined ? !!summary.bankReferenceRequired : true)
+      );
+      setBankProofRequiredInput(
+        tInfo.bankProofRequired !== undefined ? !!tInfo.bankProofRequired :
+        (summary.bankProofRequired !== undefined ? !!summary.bankProofRequired : true)
+      );
     }
   }, [summary]);
 
@@ -2302,6 +2569,60 @@ const TenantAdminDashboard = () => {
   useEffect(() => {
     if (token) fetchData();
   }, [token]);
+
+  // Role helpers — admin has no designation; treasurer has designation 'Treasurer' or email treasurer@sunrise.com
+  const isTreasurer = user?.designation === 'Treasurer' || user?.email?.toLowerCase() === 'treasurer@sunrise.com';
+  const isAdmin = !user?.designation && !isTreasurer;
+
+  // Build nav tabs based on role
+  const allAdminTabs = [
+    { id: 'overview', icon: LayoutDashboard, label: t('nav.overview') },
+    { id: 'members', icon: Users, label: t('nav.members') },
+    { id: 'payments', icon: Receipt, label: t('nav.payments') },
+    { id: 'ledger-reconciliation', icon: FileText, label: t('nav.ledger') },
+    { id: 'upcoming', icon: Calendar, label: t('nav.upcoming') },
+    { id: 'expenses', icon: Landmark, label: t('nav.expenses') },
+    ...(summary.enableForums ? [{ id: 'helpdesk', icon: LifeBuoy, label: t('nav.helpdesk') }] : []),
+    { id: 'vendors', icon: Users2, label: t('nav.vendors') },
+    { id: 'events', icon: Calendar, label: t('nav.events') },
+    { id: 'notifications', icon: Bell, label: t('nav.notifications') },
+    { id: 'member-menus', icon: Sliders, label: 'Member Menus' },
+    { id: 'branding', icon: Palette, label: 'Branding' },
+    { id: 'app-versions', icon: Smartphone, label: 'App Version Settings' },
+    { id: 'settings', icon: Settings, label: t('nav.settings') },
+    { id: 'staff', icon: UserCheck, label: t('nav.staff') },
+    { id: 'logs', icon: History, label: t('nav.logs') },
+    { id: 'reports', icon: BarChart2, label: t('nav.reports') },
+  ];
+
+  // Filter admin tabs by superadmin permissions
+  const filteredAdminTabs = allAdminTabs.filter(tab => {
+    if (superadminAllowedMenus.admin && superadminAllowedMenus.admin[tab.id] === false) {
+      return false;
+    }
+    return true;
+  });
+
+  // For other office bearers, filter out payments, expenses, and system controls
+  const otherBearerTabs = filteredAdminTabs.filter(tab => 
+    tab.id !== 'payments' && 
+    tab.id !== 'expenses' && 
+    tab.id !== 'member-menus' && 
+    tab.id !== 'branding' && 
+    tab.id !== 'app-versions'
+  );
+
+  const navTabs = isAdmin || isTreasurer ? filteredAdminTabs : otherBearerTabs;
+  const hasSidebar = true; // All tenant admin logins display the sidebar
+
+  // If the active tab is disabled by superadmin permissions, redirect to the first available tab
+  useEffect(() => {
+    if (activeTab === 'profile') return;
+    const isCurrentTabAllowed = navTabs.some(t => t.id === activeTab);
+    if (!isCurrentTabAllowed && navTabs.length > 0) {
+      setActiveTab(navTabs[0].id);
+    }
+  }, [navTabs, activeTab]);
 
   const fetchFinancials = async () => {
     try {
@@ -2425,7 +2746,7 @@ const TenantAdminDashboard = () => {
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [membersRes, paymentsRes, cashRes, pendingRes, summaryRes, vendorsRes, logsRes, expensesRes, stRes, desRes, ecRes, upcomingRes, finRes, mcRes, staffRes] = await Promise.all([
+      const [membersRes, paymentsRes, cashRes, pendingRes, summaryRes, vendorsRes, logsRes, expensesRes, stRes, desRes, ecRes, upcomingRes, finRes, mcRes, staffRes, pendingBankRes] = await Promise.all([
         axios.get('/members', { headers }),
         axios.get('/payments/history', { headers }),
         axios.get('/cash/in-hand', { headers }),
@@ -2441,14 +2762,18 @@ const TenantAdminDashboard = () => {
         axios.get('/reports/financials', { headers }),
         axios.get('/maintenance-costs', { headers }),
         axios.get('/staff', { headers }),
+        axios.get('/payments/pending-transfers', { headers }),
       ]);
       setMembers(membersRes.data);
       setStaff(staffRes.data);
       setPayments(paymentsRes.data);
       setCashBalances(cashRes.data);
       setPendingTransfers(pendingRes.data);
-      setSummary(summaryRes.data);
       setFinancials(finRes.data);
+      setSummary(summaryRes.data);
+      if (summaryRes.data?.superadminMenuConfig) {
+        setSuperadminAllowedMenus(prev => ({ ...prev, ...(summaryRes.data.superadminMenuConfig || {}) }));
+      }
       setVendors(vendorsRes.data);
       setAuditLogs(logsRes.data);
       setExpenses(expensesRes.data);
@@ -2457,10 +2782,195 @@ const TenantAdminDashboard = () => {
       setExpenseCategories(ecRes.data.map((x: any) => x.value));
       setUpcomingMembers(upcomingRes.data);
       setMaintenanceCosts(mcRes.data);
+      setPendingBankTransfers(pendingBankRes.data || []);
+
+      // Fetch menu config
+      try {
+        const menuRes = await axios.get('/tenants/settings/menu-config', { headers: { Authorization: `Bearer ${token}` } });
+        if (menuRes.data?.superadminAllowed) setSuperadminAllowedMenus(menuRes.data.superadminAllowed);
+        if (menuRes.data?.tenantToggles) setTenantMenuToggles(menuRes.data.tenantToggles);
+      } catch (e) {}
+
+      // Fetch branding
+      try {
+        const brandRes = await axios.get('/tenants/settings/branding', { headers: { Authorization: `Bearer ${token}` } });
+        if (brandRes.data) {
+          setBrandingSettings(brandRes.data);
+          if (brandRes.data.adminThemeColor) {
+            document.documentElement.style.setProperty('--primary', brandRes.data.adminThemeColor);
+          }
+        }
+      } catch (e) {}
+
+      // Fetch app version settings
+      try {
+        const verRes = await axios.get('/tenants/settings/app-version', { headers: { Authorization: `Bearer ${token}` } });
+        if (verRes.data) setAppVersionSettings(verRes.data);
+      } catch (e) {}
     } catch (err) {
       console.error('Error fetching data', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Member Menus, Branding & App Version Handlers ───────────────────────────
+  const handleSaveMenuToggles = async () => {
+    setSavingMenuConfig(true);
+    try {
+      await axios.patch('/tenants/settings/menu-config', tenantMenuToggles, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showToast('Member menu preferences saved successfully!', 'success');
+    } catch (err: any) {
+      console.error('Error saving member menu config', err);
+      showToast(err.response?.data?.message || 'Failed to save menu settings.', 'error');
+    } finally {
+      setSavingMenuConfig(false);
+    }
+  };
+
+  const handleSaveBranding = async () => {
+    setSavingBranding(true);
+    try {
+      const res = await axios.patch('/tenants/settings/branding', brandingSettings, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data?.branding?.adminThemeColor) {
+        document.documentElement.style.setProperty('--primary', res.data.branding.adminThemeColor);
+      }
+      showToast('Branding settings saved successfully!', 'success');
+    } catch (err: any) {
+      console.error('Error saving branding', err);
+      showToast(err.response?.data?.message || 'Failed to save branding.', 'error');
+    } finally {
+      setSavingBranding(false);
+    }
+  };
+
+  const handleSaveAppVersion = async () => {
+    setSavingAppVersion(true);
+    try {
+      await axios.patch('/tenants/settings/app-version', appVersionSettings, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showToast('App version & maintenance settings saved successfully!', 'success');
+    } catch (err: any) {
+      console.error('Error saving app version settings', err);
+      showToast(err.response?.data?.message || 'Failed to save app version settings.', 'error');
+    } finally {
+      setSavingAppVersion(false);
+    }
+  };
+
+  const handleApproveBankTransfer = async (paymentId: string) => {
+    if (!await confirm({
+      title: 'Approve Payment Transfer',
+      message: 'Are you sure you want to approve this bank transfer payment? This will mark the payment as PAID, generate an official receipt, update the member\'s dues and paid-until status, and send a notification with the receipt link to the member.',
+      confirmLabel: 'Approve & Issue Receipt',
+      cancelLabel: 'Cancel'
+    })) return;
+
+    setActionLoadingId(paymentId);
+    try {
+      const res = await axios.post(`/payments/${paymentId}/approve`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showToast('Payment approved and official receipt issued successfully!', 'success');
+      await fetchData();
+      if (res.data?.payment) {
+        setSelectedPayment(res.data.payment);
+        setShowModal('receipt');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Error approving bank transfer', 'error');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleOpenDenyModal = (payment: any) => {
+    setDenyModal({
+      isOpen: true,
+      payment,
+      reason: '',
+      isSubmitting: false
+    });
+  };
+
+  const handleSubmitDeny = async () => {
+    if (!denyModal || !denyModal.payment) return;
+    if (!denyModal.reason.trim()) {
+      showToast('Please enter rejection notes explaining why this payment is denied.', 'error');
+      return;
+    }
+
+    setDenyModal(prev => prev ? { ...prev, isSubmitting: true } : null);
+    try {
+      await axios.post(`/payments/${denyModal.payment.id}/deny`, {
+        rejectionReason: denyModal.reason.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showToast('Payment transfer rejected and member notified with your notes.', 'success');
+      setDenyModal(null);
+      await fetchData();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Error rejecting payment transfer', 'error');
+      setDenyModal(prev => prev ? { ...prev, isSubmitting: false } : null);
+    }
+  };
+
+  const handleQrFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setQrFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setQrPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveBankSettings = async () => {
+    setSavingBankSettings(true);
+    try {
+      let finalQrUrl = bankQrCodeUrlInput;
+      if (qrFile) {
+        const formData = new FormData();
+        formData.append('file', qrFile);
+        const uploadRes = await axios.post('/upload/file', formData, {
+          headers: { 
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}` 
+          }
+        });
+        finalQrUrl = uploadRes.data.url;
+        setBankQrCodeUrlInput(finalQrUrl);
+      }
+
+      await axios.patch('/tenants/settings', {
+        bankAccountName: bankAccountNameInput.trim() || null,
+        bankName: bankNameInput.trim() || null,
+        bankAccountNumber: bankAccountNumberInput.trim() || null,
+        bankIfsc: bankIfscInput.trim().toUpperCase() || null,
+        bankUpiId: bankUpiIdInput.trim() || null,
+        bankQrCodeUrl: finalQrUrl || null,
+        bankReferenceRequired: bankReferenceRequiredInput,
+        bankProofRequired: bankProofRequiredInput
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setQrFile(null);
+      setQrPreview('');
+      await fetchData();
+      showToast('Society bank details and payment requirements updated successfully!', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Error updating bank details', 'error');
+    } finally {
+      setSavingBankSettings(false);
     }
   };
 
@@ -3018,10 +3528,65 @@ const TenantAdminDashboard = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Building size={48} className="animate-pulse" style={{ marginBottom: '1rem', color: 'var(--primary)' }} />
-          <p>Loading Dashboard...</p>
+      <PageLoader 
+        message="Loading Society Dashboard..." 
+        subtitle="Syncing members, receipts, maintenance dues, and accounts..." 
+        portalType="admin"
+        icon={<Building size={36} />}
+      />
+    );
+  }
+
+  // Helper to check if an admin menu/module is allowed by Superadmin
+  const isMenuAllowed = (menuId: string) => {
+    if (superadminAllowedMenus.admin && superadminAllowedMenus.admin[menuId] === false) {
+      return false;
+    }
+    return true;
+  };
+
+  // Check Maintenance Mode for Admin Web
+  const adminEmail = (user?.email || '').toLowerCase().trim();
+  const globalMaint = summary.globalMaintenance;
+  const tenantMaint = summary.maintenanceConfig;
+  let isAdminUnderMaintenance = false;
+  let adminMaintMsg = 'This administration portal is currently undergoing scheduled maintenance. Please check back later.';
+
+  if (globalMaint?.isMaintenance && (globalMaint.targets?.includes('ADMIN_WEB') || globalMaint.targets?.includes('ALL'))) {
+    const isWhitelisted = (globalMaint.whitelistedEmails || []).some((e: string) => e.toLowerCase().trim() === adminEmail);
+    if (!isWhitelisted) {
+      isAdminUnderMaintenance = true;
+      if (globalMaint.message) adminMaintMsg = globalMaint.message;
+    }
+  }
+
+  if (!isAdminUnderMaintenance && tenantMaint?.isMaintenance && (tenantMaint.targets?.includes('ADMIN_WEB') || tenantMaint.targets?.includes('ALL'))) {
+    const isWhitelisted = (tenantMaint.whitelistedEmails || []).some((e: string) => e.toLowerCase().trim() === adminEmail);
+    if (!isWhitelisted) {
+      isAdminUnderMaintenance = true;
+      if (tenantMaint.message) adminMaintMsg = tenantMaint.message;
+    }
+  }
+
+  if (isAdminUnderMaintenance) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-secondary)', padding: '1.5rem' }}>
+        <div className="card" style={{ maxWidth: '520px', width: '100%', textAlign: 'center', padding: '3rem 2rem', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+            <ShieldAlert size={36} />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Admin Portal Under Maintenance</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+            {adminMaintMsg}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+            <button className="btn btn-secondary" onClick={() => window.location.reload()}>
+              <RefreshCw size={16} /> Check Again
+            </button>
+            <button className="btn btn-primary" onClick={logout}>
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -3065,191 +3630,229 @@ const TenantAdminDashboard = () => {
           <>
             {/* ─── Row 1: KPI Cards ─────────────────────── */}
             <div className="stat-grid">
-              <KpiCard title="Total Collection" value={`₹${(summary.totalIncome || 0).toLocaleString()}`}
-                subtitle={`This month: ₹${(summary.thisMonthIncome || 0).toLocaleString()}`}
-                color="#10b981" trend={thisMonthIncomePct} icon={TrendingUp} />
-              <KpiCard title="Total Expenses" value={`₹${(summary.totalExpenses || 0).toLocaleString()}`}
-                subtitle={`This month: ₹${(summary.thisMonthExpenses || 0).toLocaleString()}`}
-                color="#ef4444" trend={thisMonthExpensePct !== null ? -thisMonthExpensePct! : null} icon={Receipt} />
-              <KpiCard title="Net Balance" value={`₹${netBalance.toLocaleString()}`}
-                subtitle={`Collection – Expenses`}
-                color={netBalance >= 0 ? '#6366f1' : '#f59e0b'} trend={null} icon={Building} />
-              <KpiCard title="Cash In Hand" value={`₹${totalCashInHand.toLocaleString()}`}
-                subtitle={`Your share: ₹${myBalance.toLocaleString()}`}
-                color="#f59e0b" trend={null} icon={Users2} />
-            </div>
-
-            {/* ─── Row 2: Reconciliation Strip ─────────── */}
-            <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
-              <h4 style={{ marginBottom: '1.25rem', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
-                Financial Reconciliation
-              </h4>
-
-              {/* Top row: the 4 primary KPI values */}
-              <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: '1.25rem' }}>
-                {[
-                  { label: 'Total Collected', val: summary.totalIncome || 0, sub: 'All payment modes', color: '#10b981' },
-                  { label: 'Total Expenses', val: summary.totalExpenses || 0, sub: 'All recorded expenses', color: '#ef4444' },
-                  { label: 'Net Balance', val: netBalance, sub: 'Collected − Expenses', color: netBalance >= 0 ? '#6366f1' : '#f59e0b' },
-                  { label: 'Cash In Hand', val: totalCashInHand, sub: 'Physical cash available', color: '#f59e0b' },
-                ].map((item, i) => (
-                  <div key={i} style={{ textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', padding: '1rem', border: `1px solid ${item.color}44` }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '0.35rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</div>
-                    <div style={{ fontWeight: 700, fontSize: '1.25rem', color: item.color }}>₹{item.val.toLocaleString()}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{item.sub}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Cash In Hand breakdown */}
-              <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', padding: '1rem 1.25rem', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                  Cash In Hand — How It's Calculated
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1.5rem', alignItems: 'center', fontSize: '0.875rem' }}>
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Cash Collected</span>
-                    <span style={{ fontWeight: 700, color: '#10b981' }}>+ ₹{(summary.totalCashCollected || 0).toLocaleString()}</span>
-                  </span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontWeight: 300 }}>−</span>
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Cash Expenses</span>
-                    <span style={{ fontWeight: 700, color: '#ef4444' }}>₹{(summary.totalSocietyExpensesPaidCash || 0).toLocaleString()}</span>
-                  </span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontWeight: 300 }}>−</span>
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Bank Deposited</span>
-                    <span style={{ fontWeight: 700, color: '#ef4444' }}>₹{(summary.totalDeposited || 0).toLocaleString()}</span>
-                  </span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontWeight: 300 }}>=</span>
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Cash In Hand</span>
-                    <span style={{ fontWeight: 800, fontSize: '1rem', color: '#f59e0b' }}>₹{totalCashInHand.toLocaleString()}</span>
-                  </span>
-                  {(summary.totalNonCashCollected || 0) > 0 && (
-                    <>
-                      <span style={{ marginLeft: '1rem', borderLeft: '1px solid var(--border-color)', paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Non-Cash (UPI/Bank/Cheque)</span>
-                        <span style={{ fontWeight: 600, color: '#6366f1' }}>₹{(summary.totalNonCashCollected || 0).toLocaleString()}</span>
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Outstanding dues alert */}
-              {(summary.totalOutstanding || 0) > 0 && (
-                <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: '0.75rem', border: '1px solid rgba(245,158,11,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  <span style={{ fontSize: '0.875rem', color: '#f59e0b' }}>
-                    ⚠️ <strong>{summary.membersWithDues || 0} member{(summary.membersWithDues || 0) !== 1 ? 's' : ''}</strong> have outstanding dues of <strong>₹{(summary.totalOutstanding || 0).toLocaleString()}</strong>
-                  </span>
-                  <button className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }} onClick={() => setActiveTab('members')}>
-                    View Members →
-                  </button>
-                </div>
+              {isMenuAllowed('payments') && (
+                <KpiCard title="Total Collection" value={`₹${(summary.totalIncome || 0).toLocaleString()}`}
+                  subtitle={`This month: ₹${(summary.thisMonthIncome || 0).toLocaleString()}`}
+                  color="#10b981" trend={thisMonthIncomePct} icon={TrendingUp} />
+              )}
+              {isMenuAllowed('expenses') && (
+                <KpiCard title="Total Expenses" value={`₹${(summary.totalExpenses || 0).toLocaleString()}`}
+                  subtitle={`This month: ₹${(summary.thisMonthExpenses || 0).toLocaleString()}`}
+                  color="#ef4444" trend={thisMonthExpensePct !== null ? -thisMonthExpensePct! : null} icon={Receipt} />
+              )}
+              {(isMenuAllowed('payments') || isMenuAllowed('expenses')) && (
+                <KpiCard title="Net Balance" value={`₹${netBalance.toLocaleString()}`}
+                  subtitle={`Collection – Expenses`}
+                  color={netBalance >= 0 ? '#6366f1' : '#f59e0b'} trend={null} icon={Building} />
+              )}
+              {(isMenuAllowed('payments') || isMenuAllowed('expenses') || isMenuAllowed('ledger-reconciliation')) && (
+                <KpiCard title="Cash In Hand" value={`₹${totalCashInHand.toLocaleString()}`}
+                  subtitle={`Your share: ₹${myBalance.toLocaleString()}`}
+                  color="#f59e0b" trend={null} icon={Users2} />
               )}
             </div>
 
-            {/* ─── Row 3: Charts ───────────────────────── */}
-            <div className="responsive-grid-dashboard responsive-grid">
-              {/* 6-month trend */}
-              <div className="card">
-                <h3 style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>6-Month Income vs Expense Trend</h3>
-                <div style={{ width: '100%', minWidth: 0, height: 260, overflow: 'hidden' }}>
-                  <ResponsiveContainer width="100%" height={260} debounce={50}>
-                    <LineChart data={summary.monthlyTrends || []} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                      <XAxis dataKey="month" stroke="var(--text-secondary)" tick={{ fontSize: 11 }} />
-                      <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-primary)', borderRadius: '0.5rem' }}
-                        formatter={(v: any) => [`₹${Number(v).toLocaleString()}`, '']} />
-                      <Legend iconType="circle" iconSize={8} />
-                      <Line type="monotone" dataKey="income" name="Collection" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4, fill: '#ef4444' }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="net" name="Net" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 4" dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              {/* Expense by category pie */}
-              <div className="card">
-                <h3 style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>Expenses by Category</h3>
-                {(summary.expenseByCategory || []).length === 0 ? (
-                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem 0', fontSize: '0.875rem' }}>No expenses recorded yet</div>
-                ) : (
-                  <div style={{ width: '100%', minWidth: 0, height: 220, overflow: 'hidden' }}>
-                    <ResponsiveContainer width="100%" height={220} debounce={50}>
-                      <PieChart>
-                        <Pie data={summary.expenseByCategory || []} dataKey="amount" nameKey="category" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
-                          {(summary.expenseByCategory || []).map((_: any, index: number) => (
-                            <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', borderRadius: '0.5rem' }}
-                          formatter={(v: any) => [`₹${Number(v).toLocaleString()}`, '']} />
-                        <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v}</span>} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* ─── Row 2: Reconciliation Strip ─────────── */}
+            {(isMenuAllowed('ledger-reconciliation') || isMenuAllowed('payments') || isMenuAllowed('expenses')) && (
+              <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+                <h4 style={{ marginBottom: '1.25rem', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
+                  Financial Reconciliation
+                </h4>
 
-            {/* ─── Row 4: Recent Activity + Cash Holders ── */}
-            <div className="responsive-grid-dashboard responsive-grid">
-              {/* Recent payments */}
-              <div className="card">
-                <h3 style={{ marginBottom: '1.25rem', fontSize: '1rem' }}>Recent Collections</h3>
-                {(summary.recentPayments || []).length === 0 ? (
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No payments recorded yet.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                    {(summary.recentPayments || []).map((p: any) => (
-                      <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 0.875rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem' }}>
-                        <div>
-                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.memberName}</span>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>Flat {p.flatNo}</span>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontWeight: 700, color: '#10b981' }}>₹{Number(p.amount).toLocaleString()}</div>
-                          <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>
-                            {new Date(p.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} · {p.mode}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Cash in hand per admin */}
-              <div className="card">
-                <h3 style={{ marginBottom: '1.25rem', fontSize: '1rem' }}>Cash In Hand — Holders</h3>
-                {cashBalances.length === 0 ? (
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No cash balance data available.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                    {cashBalances.map((admin: any) => (
-                      <div key={admin.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0.875rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', border: admin.userId === user?.id ? '1px solid var(--primary)' : '1px solid transparent' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>
-                            {admin.userName?.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{admin.userName}</div>
-                            {admin.userId === user?.id && <div style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>You</div>}
-                          </div>
-                        </div>
-                        <div style={{ fontWeight: 700, fontSize: '1rem', color: '#f59e0b' }}>₹{admin.balance.toLocaleString()}</div>
-                      </div>
-                    ))}
-                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.6rem', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Total</span>
-                      <span style={{ fontWeight: 700, color: '#f59e0b' }}>₹{totalCashInHand.toLocaleString()}</span>
+                {/* Top row: the 4 primary KPI values */}
+                <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: '1.25rem' }}>
+                  {[
+                    { id: 'payments', label: 'Total Collected', val: summary.totalIncome || 0, sub: 'All payment modes', color: '#10b981' },
+                    { id: 'expenses', label: 'Total Expenses', val: summary.totalExpenses || 0, sub: 'All recorded expenses', color: '#ef4444' },
+                    { id: 'net', label: 'Net Balance', val: netBalance, sub: 'Collected − Expenses', color: netBalance >= 0 ? '#6366f1' : '#f59e0b' },
+                    { id: 'cash', label: 'Cash In Hand', val: totalCashInHand, sub: 'Physical cash available', color: '#f59e0b' },
+                  ].filter(item => {
+                    if (item.id === 'payments') return isMenuAllowed('payments');
+                    if (item.id === 'expenses') return isMenuAllowed('expenses');
+                    if (item.id === 'net') return isMenuAllowed('payments') || isMenuAllowed('expenses');
+                    if (item.id === 'cash') return isMenuAllowed('payments') || isMenuAllowed('expenses') || isMenuAllowed('ledger-reconciliation');
+                    return true;
+                  }).map((item, i) => (
+                    <div key={i} style={{ textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', padding: '1rem', border: `1px solid ${item.color}44` }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '0.35rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</div>
+                      <div style={{ fontWeight: 700, fontSize: '1.25rem', color: item.color }}>₹{item.val.toLocaleString()}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{item.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Cash In Hand breakdown */}
+                {(isMenuAllowed('ledger-reconciliation') || isMenuAllowed('payments') || isMenuAllowed('expenses')) && (
+                  <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', padding: '1rem 1.25rem', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                      Cash In Hand — How It's Calculated
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1.5rem', alignItems: 'center', fontSize: '0.875rem' }}>
+                      {isMenuAllowed('payments') && (
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Cash Collected</span>
+                          <span style={{ fontWeight: 700, color: '#10b981' }}>+ ₹{(summary.totalCashCollected || 0).toLocaleString()}</span>
+                        </span>
+                      )}
+                      {isMenuAllowed('expenses') && (
+                        <>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontWeight: 300 }}>−</span>
+                          <span style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Cash Expenses</span>
+                            <span style={{ fontWeight: 700, color: '#ef4444' }}>₹{(summary.totalSocietyExpensesPaidCash || 0).toLocaleString()}</span>
+                          </span>
+                        </>
+                      )}
+                      {isMenuAllowed('ledger-reconciliation') && (
+                        <>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontWeight: 300 }}>−</span>
+                          <span style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Bank Deposited</span>
+                            <span style={{ fontWeight: 700, color: '#ef4444' }}>₹{(summary.totalDeposited || 0).toLocaleString()}</span>
+                          </span>
+                        </>
+                      )}
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', fontWeight: 300 }}>=</span>
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Cash In Hand</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: '#f59e0b' }}>₹{totalCashInHand.toLocaleString()}</span>
+                      </span>
+                      {isMenuAllowed('payments') && (summary.totalNonCashCollected || 0) > 0 && (
+                        <>
+                          <span style={{ marginLeft: '1rem', borderLeft: '1px solid var(--border-color)', paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Non-Cash (UPI/Bank/Cheque)</span>
+                            <span style={{ fontWeight: 600, color: '#6366f1' }}>₹{(summary.totalNonCashCollected || 0).toLocaleString()}</span>
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
+
+                {/* Outstanding dues alert */}
+                {isMenuAllowed('members') && (summary.totalOutstanding || 0) > 0 && (
+                  <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: 'rgba(245,158,11,0.1)', borderRadius: '0.75rem', border: '1px solid rgba(245,158,11,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <span style={{ fontSize: '0.875rem', color: '#f59e0b' }}>
+                      ⚠️ <strong>{summary.membersWithDues || 0} member{(summary.membersWithDues || 0) !== 1 ? 's' : ''}</strong> have outstanding dues of <strong>₹{(summary.totalOutstanding || 0).toLocaleString()}</strong>
+                    </span>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }} onClick={() => setActiveTab('members')}>
+                      View Members →
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* ─── Row 3: Charts ───────────────────────── */}
+            {(isMenuAllowed('payments') || isMenuAllowed('expenses')) && (
+              <div className="responsive-grid-dashboard responsive-grid">
+                {/* 6-month trend */}
+                <div className="card">
+                  <h3 style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>6-Month Income vs Expense Trend</h3>
+                  <div style={{ width: '100%', minWidth: 0, height: 260, overflow: 'hidden' }}>
+                    <ResponsiveContainer width="100%" height={260} debounce={50}>
+                      <LineChart data={summary.monthlyTrends || []} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                        <XAxis dataKey="month" stroke="var(--text-secondary)" tick={{ fontSize: 11 }} />
+                        <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
+                        <Tooltip contentStyle={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-primary)', borderRadius: '0.5rem' }}
+                          formatter={(v: any) => [`₹${Number(v).toLocaleString()}`, '']} />
+                        <Legend iconType="circle" iconSize={8} />
+                        {isMenuAllowed('payments') && <Line type="monotone" dataKey="income" name="Collection" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />}
+                        {isMenuAllowed('expenses') && <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4, fill: '#ef4444' }} activeDot={{ r: 6 }} />}
+                        {isMenuAllowed('payments') && isMenuAllowed('expenses') && <Line type="monotone" dataKey="net" name="Net" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 4" dot={false} />}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                {/* Expense by category pie */}
+                {isMenuAllowed('expenses') && (
+                  <div className="card">
+                    <h3 style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>Expenses by Category</h3>
+                    {(summary.expenseByCategory || []).length === 0 ? (
+                      <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem 0', fontSize: '0.875rem' }}>No expenses recorded yet</div>
+                    ) : (
+                      <div style={{ width: '100%', minWidth: 0, height: 220, overflow: 'hidden' }}>
+                        <ResponsiveContainer width="100%" height={220} debounce={50}>
+                          <PieChart>
+                            <Pie data={summary.expenseByCategory || []} dataKey="amount" nameKey="category" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                              {(summary.expenseByCategory || []).map((_: any, index: number) => (
+                                <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip contentStyle={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', borderRadius: '0.5rem' }}
+                              formatter={(v: any) => [`₹${Number(v).toLocaleString()}`, '']} />
+                            <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{v}</span>} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ─── Row 4: Recent Activity + Cash Holders ── */}
+            {(isMenuAllowed('payments') || isMenuAllowed('ledger-reconciliation')) && (
+              <div className="responsive-grid-dashboard responsive-grid">
+                {/* Recent payments */}
+                {isMenuAllowed('payments') && (
+                  <div className="card">
+                    <h3 style={{ marginBottom: '1.25rem', fontSize: '1rem' }}>Recent Collections</h3>
+                    {(summary.recentPayments || []).length === 0 ? (
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No payments recorded yet.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        {(summary.recentPayments || []).map((p: any) => (
+                          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 0.875rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem' }}>
+                            <div>
+                              <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.memberName}</span>
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>Flat {p.flatNo}</span>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontWeight: 700, color: '#10b981' }}>₹{Number(p.amount).toLocaleString()}</div>
+                              <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>
+                                {new Date(p.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} · {p.mode}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Cash in hand per admin */}
+                {(isMenuAllowed('ledger-reconciliation') || isMenuAllowed('payments')) && (
+                  <div className="card">
+                    <h3 style={{ marginBottom: '1.25rem', fontSize: '1rem' }}>Cash In Hand — Holders</h3>
+                    {cashBalances.length === 0 ? (
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No cash balance data available.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        {cashBalances.map((admin: any) => (
+                          <div key={admin.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0.875rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', border: admin.userId === user?.id ? '1px solid var(--primary)' : '1px solid transparent' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>
+                                {admin.userName?.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{admin.userName}</div>
+                                {admin.userId === user?.id && <div style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>You</div>}
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#f59e0b' }}>₹{admin.balance.toLocaleString()}</div>
+                          </div>
+                        ))}
+                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.6rem', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Total</span>
+                          <span style={{ fontWeight: 700, color: '#f59e0b' }}>₹{totalCashInHand.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         );
       }
@@ -3524,8 +4127,13 @@ const TenantAdminDashboard = () => {
       case 'payments':
         return (
           <div className="card">
-            <div className="section-header-row">
-              <h3>Payment History</h3>
+            <div className="section-header-row" style={{ flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Payments & Bank Transfers</h3>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  Manage society dues, member offline & online payments, and review bank transfer submissions.
+                </p>
+              </div>
               <div className="action-button-group">
                 <button className="btn btn-secondary" onClick={exportPayments}>
                   <Download size={18} /> Export Excel
@@ -3535,66 +4143,299 @@ const TenantAdminDashboard = () => {
                 </button>
               </div>
             </div>
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Receipt No</th>
-                    <th>Member</th>
-                    <th>Amount</th>
-                    <th>Mode</th>
-                    <th>Date</th>
-                    <th>FY</th>
-                    <th>Coverage</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((p: any) => (
-                    <tr key={p.id}>
-                      <td><code style={{ fontSize: '0.8125rem' }}>{p.receiptNumber}</code></td>
-                      <td><strong>{p.member?.name}</strong></td>
-                      <td style={{ fontWeight: 600 }}>₹{p.amount.toLocaleString()}</td>
-                      <td><span className={`badge ${p.mode === 'CASH' ? 'badge-warning' : 'badge-success'}`}>{p.mode}</span></td>
-                      <td style={{ fontSize: '0.8125rem' }}>{new Date(p.paymentDate).toLocaleDateString()}</td>
-                      <td style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-                        {p.coverageStartDate ? getFinancialYear(new Date(p.coverageStartDate)) : (p.periodLabel === 'Initial Onboarding Fee' ? 'Onboarding' : getFinancialYear(new Date(p.paymentDate)))}
-                      </td>
-                      <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                        {p.coverageStartDate && p.coverageEndDate ? (
-                          `${formatLocalDate(p.coverageStartDate)} - ${formatLocalDate(p.coverageEndDate)}`
-                        ) : (
-                          p.periodLabel || '-'
-                        )}
-                      </td>
-                      <td>
-                        <span className={`badge ${p.status === 'PAID' ? 'badge-success' : 'badge-error'}`}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                          <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => { setSelectedPayment(p); setShowModal('receipt'); }} title="View Receipt">
-                            <Eye size={16} />
-                          </button>
-                          {p.status !== 'CANCELLED' && (
-                            <>
-                              <button className="btn btn-secondary" style={{ padding: '0.4rem', color: 'var(--primary)' }} onClick={() => handleOpenEditPayment(p)} title="Edit Payment">
-                                <Edit size={16} />
-                              </button>
-                              <button className="btn btn-secondary" style={{ padding: '0.4rem', color: 'var(--error)' }} onClick={() => handleCancelPayment(p.id)} title="Cancel Payment">
-                                <XCircle size={16} />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            {/* Sub-navigation tabs: All Payments vs Pending Bank Transfers */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+              <button
+                type="button"
+                className={`btn ${paymentSubTab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
+                onClick={() => setPaymentSubTab('all')}
+              >
+                All Payment History ({payments.length})
+              </button>
+              <button
+                type="button"
+                className={`btn ${paymentSubTab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                onClick={() => setPaymentSubTab('pending')}
+              >
+                <span>Pending Bank Transfers</span>
+                {pendingBankTransfers.length > 0 && (
+                  <span style={{
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '999px',
+                    lineHeight: 1
+                  }}>
+                    {pendingBankTransfers.length}
+                  </span>
+                )}
+              </button>
             </div>
+
+            {/* Pending alert banner if on 'all' tab and pending items exist */}
+            {paymentSubTab === 'all' && pendingBankTransfers.length > 0 && (
+              <div style={{
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: '0.5rem',
+                padding: '0.75rem 1rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Bell size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    <strong>{pendingBankTransfers.length} member payment submission(s)</strong> awaiting bank transfer verification and receipt issuance.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem', borderColor: '#f59e0b', color: '#f59e0b' }}
+                  onClick={() => setPaymentSubTab('pending')}
+                >
+                  Review Pending ({pendingBankTransfers.length})
+                </button>
+              </div>
+            )}
+
+            {paymentSubTab === 'pending' ? (
+              /* ── Pending Bank Transfers Review Table ── */
+              <div>
+                {pendingBankTransfers.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem' }}>
+                    <CheckCircle size={44} style={{ color: '#10b981', marginBottom: '0.75rem' }} />
+                    <h4 style={{ margin: 0, fontSize: '1.1rem' }}>All Caught Up!</h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem', margin: '0.25rem 0 0 0' }}>
+                      There are currently no pending bank transfer submissions awaiting review.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Member & Flat</th>
+                          <th>Amount</th>
+                          <th>Coverage Plan</th>
+                          <th>Date Submitted</th>
+                          <th>Reference / UTR</th>
+                          <th>Proof Screenshot</th>
+                          <th>Member Notes</th>
+                          <th style={{ textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingBankTransfers.map((p: any) => (
+                          <tr key={p.id}>
+                            <td>
+                              <div>
+                                <strong style={{ display: 'block' }}>{p.member?.name}</strong>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  Flat: {p.member?.flatNo || 'N/A'} {p.member?.mobile ? `· ${p.member.mobile}` : ''}
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                                ₹{p.amount.toLocaleString()}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                                {p.periodLabel || p.category || 'Maintenance'}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                              {new Date(p.paymentDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </td>
+                            <td>
+                              {p.referenceNumber ? (
+                                <code style={{ fontSize: '0.8125rem', fontWeight: 600, backgroundColor: 'var(--bg-secondary)', padding: '0.2rem 0.45rem', borderRadius: '0.25rem' }}>
+                                  {p.referenceNumber}
+                                </code>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                  Not provided
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {p.proofUrl ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--primary)' }}
+                                  onClick={() => setReviewProofModal({
+                                    isOpen: true,
+                                    imageUrl: p.proofUrl,
+                                    title: `Payment Proof: ${p.member?.name} (${p.member?.flatNo})`
+                                  })}
+                                >
+                                  <Eye size={13} /> View Proof
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                  No proof attached
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ fontSize: '0.8125rem', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.notes || ''}>
+                              {p.notes || '-'}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary"
+                                  disabled={actionLoadingId === p.id}
+                                  style={{
+                                    backgroundColor: '#10b981',
+                                    borderColor: '#10b981',
+                                    padding: '0.35rem 0.75rem',
+                                    fontSize: '0.8rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem'
+                                  }}
+                                  onClick={() => handleApproveBankTransfer(p.id)}
+                                  title="Approve & Generate Official Receipt"
+                                >
+                                  {actionLoadingId === p.id ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                                  <span>Approve</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  disabled={actionLoadingId === p.id}
+                                  style={{
+                                    color: 'var(--error)',
+                                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                                    padding: '0.35rem 0.75rem',
+                                    fontSize: '0.8rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem'
+                                  }}
+                                  onClick={() => handleOpenDenyModal(p)}
+                                  title="Deny Submission with Notes"
+                                >
+                                  <XCircle size={14} />
+                                  <span>Deny</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ── All Payments History Table ── */
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Receipt No</th>
+                      <th>Member</th>
+                      <th>Amount</th>
+                      <th>Mode & Ref</th>
+                      <th>Date</th>
+                      <th>FY</th>
+                      <th>Coverage</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map((p: any) => (
+                      <tr key={p.id}>
+                        <td><code style={{ fontSize: '0.8125rem' }}>{p.receiptNumber}</code></td>
+                        <td><strong>{p.member?.name}</strong></td>
+                        <td style={{ fontWeight: 600 }}>₹{p.amount.toLocaleString()}</td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <span className={`badge ${p.mode === 'CASH' ? 'badge-warning' : p.mode === 'BANK_TRANSFER' ? 'badge-primary' : 'badge-success'}`}>
+                              {p.mode === 'BANK_TRANSFER' ? 'BANK TRANSFER' : p.mode}
+                            </span>
+                            {p.referenceNumber && (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                Ref: <strong>{p.referenceNumber}</strong>
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ fontSize: '0.8125rem' }}>{new Date(p.paymentDate).toLocaleDateString()}</td>
+                        <td style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                          {p.coverageStartDate ? getFinancialYear(new Date(p.coverageStartDate)) : (p.periodLabel === 'Initial Onboarding Fee' ? 'Onboarding' : getFinancialYear(new Date(p.paymentDate)))}
+                        </td>
+                        <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                          {p.coverageStartDate && p.coverageEndDate ? (
+                            `${formatLocalDate(p.coverageStartDate)} - ${formatLocalDate(p.coverageEndDate)}`
+                          ) : (
+                            p.periodLabel || '-'
+                          )}
+                        </td>
+                        <td>
+                          <div>
+                            <span className={`badge ${p.status === 'PAID' ? 'badge-success' : 'badge-error'}`}>
+                              {p.status}
+                            </span>
+                            {p.rejectionReason && (
+                              <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--error)', marginTop: '0.2rem', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`Denial reason: ${p.rejectionReason}`}>
+                                Note: {p.rejectionReason}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            {p.proofUrl && (
+                              <button
+                                className="btn btn-secondary"
+                                style={{ padding: '0.4rem', color: 'var(--primary)' }}
+                                onClick={() => setReviewProofModal({
+                                  isOpen: true,
+                                  imageUrl: p.proofUrl,
+                                  title: `Proof: ${p.member?.name} - Receipt ${p.receiptNumber}`
+                                })}
+                                title="View Payment Proof Screenshot"
+                              >
+                                <Image size={15} />
+                              </button>
+                            )}
+                            <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => { setSelectedPayment(p); setShowModal('receipt'); }} title="View Receipt">
+                              <Eye size={16} />
+                            </button>
+                            {p.status !== 'CANCELLED' && (
+                              <>
+                                <button className="btn btn-secondary" style={{ padding: '0.4rem', color: 'var(--primary)' }} onClick={() => handleOpenEditPayment(p)} title="Edit Payment">
+                                  <Edit size={16} />
+                                </button>
+                                <button className="btn btn-secondary" style={{ padding: '0.4rem', color: 'var(--error)' }} onClick={() => handleCancelPayment(p.id)} title="Cancel Payment">
+                                  <XCircle size={16} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         );
       case 'ledger-reconciliation': {
@@ -4425,6 +5266,7 @@ const TenantAdminDashboard = () => {
 
               {[
                 { id: 'pricing', label: 'Pricing & Fees', icon: <DollarSign size={16} /> },
+                { id: 'bank-qr', label: 'Bank & QR Code', icon: <Landmark size={16} /> },
                 { id: 'reminders', label: 'Auto-Reminders', icon: <Bell size={16} /> },
                 { id: 'discount', label: 'Early Bird Discount', icon: <Percent size={16} /> },
                 { id: 'late-fee', label: 'Late Fee', icon: <Clock size={16} /> },
@@ -4812,6 +5654,281 @@ const TenantAdminDashboard = () => {
                 </div>
               )}
 
+              {activeSettingsTab === 'bank-qr' && (
+                <div className="card" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderRadius: '0.5rem', color: 'var(--primary)' }}>
+                      <Landmark size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Society Bank Details & QR Code</h3>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        Configure the bank account, UPI ID, and QR code shown to members for maintenance transfers, along with verification rules.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+                    {/* Left Column: Bank Account Details */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', margin: 0 }}>
+                        Bank Account Information
+                      </h4>
+
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block' }}>
+                          Account Beneficiary Name
+                        </label>
+                        <input
+                          type="text"
+                          value={bankAccountNameInput}
+                          onChange={e => setBankAccountNameInput(e.target.value)}
+                          placeholder="e.g. Sunrise CHS Ltd"
+                          style={{ padding: '0.75rem', borderRadius: '0.5rem', width: '100%' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block' }}>
+                          Bank Name
+                        </label>
+                        <input
+                          type="text"
+                          value={bankNameInput}
+                          onChange={e => setBankNameInput(e.target.value)}
+                          placeholder="e.g. HDFC Bank, State Bank of India"
+                          style={{ padding: '0.75rem', borderRadius: '0.5rem', width: '100%' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block' }}>
+                          Account Number
+                        </label>
+                        <input
+                          type="text"
+                          value={bankAccountNumberInput}
+                          onChange={e => setBankAccountNumberInput(e.target.value)}
+                          placeholder="e.g. 50200012345678"
+                          style={{ padding: '0.75rem', borderRadius: '0.5rem', width: '100%' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block' }}>
+                          IFSC Code
+                        </label>
+                        <input
+                          type="text"
+                          value={bankIfscInput}
+                          onChange={e => setBankIfscInput(e.target.value.toUpperCase())}
+                          placeholder="e.g. HDFC0001234"
+                          style={{ padding: '0.75rem', borderRadius: '0.5rem', width: '100%', textTransform: 'uppercase' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block' }}>
+                          Society UPI ID / VPA
+                        </label>
+                        <input
+                          type="text"
+                          value={bankUpiIdInput}
+                          onChange={e => setBankUpiIdInput(e.target.value)}
+                          placeholder="e.g. sunrisechs@okhdfcbank"
+                          style={{ padding: '0.75rem', borderRadius: '0.5rem', width: '100%' }}
+                        />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
+                          Members can pay directly to this UPI ID or scan the QR code below.
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right Column: QR Code & Verification Requirements */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', margin: 0 }}>
+                        Payment QR Code & Policy Rules
+                      </h4>
+
+                      {/* QR Code Upload & Screening */}
+                      <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', display: 'block' }}>
+                          Society Payment QR Code
+                        </label>
+                        <div style={{
+                          border: '2px dashed var(--border-color)',
+                          borderRadius: '0.75rem',
+                          padding: '1.25rem',
+                          backgroundColor: 'var(--bg-secondary)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '1rem',
+                          textAlign: 'center'
+                        }}>
+                          {(qrPreview || bankQrCodeUrlInput) ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                              <div style={{
+                                width: '180px',
+                                height: '180px',
+                                padding: '0.75rem',
+                                backgroundColor: 'white',
+                                borderRadius: '0.75rem',
+                                border: '1px solid var(--border-color)',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                <img
+                                  src={qrPreview || bankQrCodeUrlInput}
+                                  alt="Society QR Code"
+                                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                />
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <label className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <Upload size={14} /> Change QR
+                                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleQrFileChange} />
+                                </label>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: 'var(--error)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                                  onClick={() => {
+                                    setQrFile(null);
+                                    setQrPreview('');
+                                    setBankQrCodeUrlInput('');
+                                  }}
+                                >
+                                  <Trash2 size={14} /> Remove
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <Image size={36} style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }} />
+                              <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', margin: '0 0 0.5rem 0', fontWeight: 500 }}>
+                                Upload UPI QR Code photo
+                              </p>
+                              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 1rem 0' }}>
+                                This QR code will be displayed to members when paying via Bank Transfer.
+                              </p>
+                              <label className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                                <Upload size={15} /> Upload QR Image
+                                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleQrFileChange} />
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Member Submission Policy */}
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem', display: 'block' }}>
+                          Member Verification Requirements
+                        </label>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '-0.25rem', marginBottom: '0.875rem' }}>
+                          Choose whether members must provide the reference number and proof screenshot, or if they are optional:
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          {/* Reference Number Policy */}
+                          <div style={{
+                            padding: '0.875rem 1rem',
+                            backgroundColor: 'var(--bg-secondary)',
+                            borderRadius: '0.5rem',
+                            border: '1px solid var(--border-color)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '0.5rem'
+                          }}>
+                            <div>
+                              <strong style={{ fontSize: '0.875rem', display: 'block' }}>UTR / Reference Number</strong>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {bankReferenceRequiredInput ? 'Compulsory for members to submit' : 'Optional for members'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                type="button"
+                                className={`btn ${bankReferenceRequiredInput ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                                onClick={() => setBankReferenceRequiredInput(true)}
+                              >
+                                Compulsory
+                              </button>
+                              <button
+                                type="button"
+                                className={`btn ${!bankReferenceRequiredInput ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                                onClick={() => setBankReferenceRequiredInput(false)}
+                              >
+                                Optional
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Proof Screenshot Policy */}
+                          <div style={{
+                            padding: '0.875rem 1rem',
+                            backgroundColor: 'var(--bg-secondary)',
+                            borderRadius: '0.5rem',
+                            border: '1px solid var(--border-color)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '0.5rem'
+                          }}>
+                            <div>
+                              <strong style={{ fontSize: '0.875rem', display: 'block' }}>Proof Screenshot / Receipt Upload</strong>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {bankProofRequiredInput ? 'Compulsory for members to upload' : 'Optional for members'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                type="button"
+                                className={`btn ${bankProofRequiredInput ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                                onClick={() => setBankProofRequiredInput(true)}
+                              >
+                                Compulsory
+                              </button>
+                              <button
+                                type="button"
+                                className={`btn ${!bankProofRequiredInput ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                                onClick={() => setBankProofRequiredInput(false)}
+                              >
+                                Optional
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)', marginTop: '2rem' }}>
+                    <button
+                      className="btn btn-primary"
+                      disabled={savingBankSettings}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                      onClick={handleSaveBankSettings}
+                    >
+                      {savingBankSettings ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span>{savingBankSettings ? 'Saving Bank Settings...' : 'Save Bank Details & Policies'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {activeSettingsTab === 'financial-year' && (
                 <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
                   <FinancialYearCostSetup token={token} />
@@ -5066,38 +6183,677 @@ const TenantAdminDashboard = () => {
         return <EventManagement token={token} />;
       case 'notifications':
         return <NotificationManagement token={token} members={members} />;
+      
+      case 'member-menus':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Sliders size={22} style={{ color: 'var(--primary)' }} /> Resident Menu Controls
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                    Turn on or off individual menus in the resident web portal and mobile app. Only menus permitted by Superadmin can be activated.
+                  </p>
+                </div>
+
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSaveMenuToggles}
+                  disabled={savingMenuConfig || menuConfigLoading}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', minWidth: '160px', justifyContent: 'center' }}
+                >
+                  {savingMenuConfig ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>{savingMenuConfig ? 'Saving...' : 'Save Menu Settings'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Member Web Portal Section */}
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Globe size={18} style={{ color: 'var(--primary)' }} /> Resident Web Portal Menus
+                  </h4>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    Toggle navigation links visible to residents on the web portal.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                {[
+                  { id: 'overview', name: 'Overview / Home', desc: 'Dues summary and quick actions' },
+                  { id: 'dues-history', name: 'Monthly Dues Breakdown', desc: '12-month calendar ledger & paid status' },
+                  { id: 'payments', name: 'Payment Submission', desc: 'Online / bank transfer QR submission' },
+                  { id: 'receipts', name: 'Payment Receipts', desc: 'Download official digital receipts' },
+                  { id: 'events', name: 'Events Calendar', desc: 'Society celebrations & AGM meetings' },
+                  { id: 'helpdesk', name: 'Helpdesk & Complaints', desc: 'Ticket submission and tracker' },
+                  { id: 'profile', name: 'My Profile', desc: 'Personal details and credentials' }
+                ].map(item => {
+                  const saPermitted = superadminAllowedMenus.memberWeb ? superadminAllowedMenus.memberWeb[item.id] !== false : true;
+                  const isEnabled = saPermitted && tenantMenuToggles.memberWeb[item.id] !== false;
+
+                  return (
+                    <div 
+                      key={item.id}
+                      style={{
+                        padding: '1rem',
+                        borderRadius: '0.75rem',
+                        border: `1px solid ${isEnabled ? 'rgba(37, 99, 235, 0.3)' : 'var(--border-color)'}`,
+                        backgroundColor: isEnabled ? 'rgba(37, 99, 235, 0.03)' : 'var(--bg-secondary)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        opacity: saPermitted ? 1 : 0.6
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: isEnabled ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                          {item.name}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                          {item.desc}
+                        </div>
+                        {!saPermitted && (
+                          <div style={{ fontSize: '0.7rem', color: 'var(--error)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <Lock size={11} /> Disabled by Superadmin
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!saPermitted}
+                        onClick={() => setTenantMenuToggles(prev => ({
+                          ...prev,
+                          memberWeb: { ...prev.memberWeb, [item.id]: !isEnabled }
+                        }))}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '2rem',
+                          border: 'none',
+                          cursor: saPermitted ? 'pointer' : 'not-allowed',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: !saPermitted ? 'var(--border-color)' : (isEnabled ? 'var(--success)' : 'var(--text-secondary)'),
+                          color: '#fff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          minWidth: '65px',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {isEnabled ? <Check size={12} /> : <X size={12} />}
+                        <span>{isEnabled ? 'ON' : 'OFF'}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Member Mobile App Section */}
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Smartphone size={18} style={{ color: 'var(--primary)' }} /> Resident Mobile App Menus
+                  </h4>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    Toggle navigation destinations displayed in the SocietyArena mobile application.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                {[
+                  { id: 'dashboard', name: 'Home Tab', desc: 'Outstanding dues card, announcements & quick pay' },
+                  { id: 'payments', name: 'Payments Tab', desc: 'Monthly dues ledger & offline QR submissions' },
+                  { id: 'receipts', name: 'Receipts Tab', desc: 'Digital receipt archive & instant download' },
+                  { id: 'events', name: 'Events Tab', desc: 'Upcoming festivals & community meetings' },
+                  { id: 'helpdesk', name: 'Helpdesk Tab', desc: 'Create complaint tickets & review status' },
+                  { id: 'profile', name: 'Profile Tab', desc: 'Personal details, flat number & language switcher' }
+                ].map(item => {
+                  const saPermitted = superadminAllowedMenus.memberMobile ? superadminAllowedMenus.memberMobile[item.id] !== false : true;
+                  const isEnabled = saPermitted && tenantMenuToggles.memberMobile[item.id] !== false;
+
+                  return (
+                    <div 
+                      key={item.id}
+                      style={{
+                        padding: '1rem',
+                        borderRadius: '0.75rem',
+                        border: `1px solid ${isEnabled ? 'rgba(37, 99, 235, 0.3)' : 'var(--border-color)'}`,
+                        backgroundColor: isEnabled ? 'rgba(37, 99, 235, 0.03)' : 'var(--bg-secondary)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        opacity: saPermitted ? 1 : 0.6
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: isEnabled ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                          {item.name}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                          {item.desc}
+                        </div>
+                        {!saPermitted && (
+                          <div style={{ fontSize: '0.7rem', color: 'var(--error)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <Lock size={11} /> Disabled by Superadmin
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!saPermitted}
+                        onClick={() => setTenantMenuToggles(prev => ({
+                          ...prev,
+                          memberMobile: { ...prev.memberMobile, [item.id]: !isEnabled }
+                        }))}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '2rem',
+                          border: 'none',
+                          cursor: saPermitted ? 'pointer' : 'not-allowed',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: !saPermitted ? 'var(--border-color)' : (isEnabled ? 'var(--success)' : 'var(--text-secondary)'),
+                          color: '#fff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          minWidth: '65px',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {isEnabled ? <Check size={12} /> : <X size={12} />}
+                        <span>{isEnabled ? 'ON' : 'OFF'}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'branding':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Palette size={22} style={{ color: 'var(--primary)' }} /> Society Branding & Theme Colors
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                    Configure dedicated theme colors separately for Admin Portal, Resident Web Portal, and Mobile Application.
+                  </p>
+                </div>
+
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSaveBranding}
+                  disabled={savingBranding || brandingLoading}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', minWidth: '160px', justifyContent: 'center' }}
+                >
+                  {savingBranding ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>{savingBranding ? 'Saving...' : 'Save Branding'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Three Theme Color Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+              {/* 1. Admin Portal Theme */}
+              <div className="card" style={{ borderTop: `4px solid ${brandingSettings.adminThemeColor || '#2563eb'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Building size={18} style={{ color: brandingSettings.adminThemeColor || '#2563eb' }} /> Admin Portal Theme
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Primary color for office bearers dashboard & controls
+                    </p>
+                  </div>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: brandingSettings.adminThemeColor || '#2563eb', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <input 
+                    type="color" 
+                    value={brandingSettings.adminThemeColor || '#2563eb'}
+                    onChange={(e) => setBrandingSettings(prev => ({ ...prev, adminThemeColor: e.target.value }))}
+                    style={{ width: '44px', height: '40px', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', padding: 0 }}
+                  />
+                  <input 
+                    type="text" 
+                    value={brandingSettings.adminThemeColor || '#2563eb'}
+                    onChange={(e) => setBrandingSettings(prev => ({ ...prev, adminThemeColor: e.target.value }))}
+                    style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', fontWeight: 600, fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                {/* Preset Swatches */}
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  {['#2563eb', '#10b981', '#7c3aed', '#4f46e5', '#e11d48', '#d97706', '#0891b2', '#0f172a'].map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setBrandingSettings(prev => ({ ...prev, adminThemeColor: color }))}
+                      style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: color, border: brandingSettings.adminThemeColor === color ? '2px solid #000' : '1px solid rgba(0,0,0,0.1)', cursor: 'pointer', padding: 0 }}
+                    />
+                  ))}
+                </div>
+
+                {/* Live Preview Button */}
+                <div style={{ padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Live Button Preview:</span>
+                  <button type="button" style={{ backgroundColor: brandingSettings.adminThemeColor || '#2563eb', color: '#fff', border: 'none', padding: '0.35rem 0.85rem', borderRadius: '0.4rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'default' }}>
+                    Admin Action
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Member Web Portal Theme */}
+              <div className="card" style={{ borderTop: `4px solid ${brandingSettings.memberThemeColor || '#2563eb'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Globe size={18} style={{ color: brandingSettings.memberThemeColor || '#2563eb' }} /> Member Web Theme
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Primary color for resident web portal & receipts
+                    </p>
+                  </div>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: brandingSettings.memberThemeColor || '#2563eb', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <input 
+                    type="color" 
+                    value={brandingSettings.memberThemeColor || '#2563eb'}
+                    onChange={(e) => setBrandingSettings(prev => ({ ...prev, memberThemeColor: e.target.value }))}
+                    style={{ width: '44px', height: '40px', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', padding: 0 }}
+                  />
+                  <input 
+                    type="text" 
+                    value={brandingSettings.memberThemeColor || '#2563eb'}
+                    onChange={(e) => setBrandingSettings(prev => ({ ...prev, memberThemeColor: e.target.value }))}
+                    style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', fontWeight: 600, fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                {/* Preset Swatches */}
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  {['#2563eb', '#10b981', '#7c3aed', '#4f46e5', '#e11d48', '#d97706', '#0891b2', '#0f172a'].map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setBrandingSettings(prev => ({ ...prev, memberThemeColor: color }))}
+                      style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: color, border: brandingSettings.memberThemeColor === color ? '2px solid #000' : '1px solid rgba(0,0,0,0.1)', cursor: 'pointer', padding: 0 }}
+                    />
+                  ))}
+                </div>
+
+                {/* Live Preview Button */}
+                <div style={{ padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Live Button Preview:</span>
+                  <button type="button" style={{ backgroundColor: brandingSettings.memberThemeColor || '#2563eb', color: '#fff', border: 'none', padding: '0.35rem 0.85rem', borderRadius: '0.4rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'default' }}>
+                    Pay Maintenance
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Mobile App Theme */}
+              <div className="card" style={{ borderTop: `4px solid ${brandingSettings.mobileThemeColor || '#2563eb'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Smartphone size={18} style={{ color: brandingSettings.mobileThemeColor || '#2563eb' }} /> Mobile App Theme
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Primary color for SocietyArena Android & iOS app
+                    </p>
+                  </div>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: brandingSettings.mobileThemeColor || '#2563eb', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <input 
+                    type="color" 
+                    value={brandingSettings.mobileThemeColor || '#2563eb'}
+                    onChange={(e) => setBrandingSettings(prev => ({ ...prev, mobileThemeColor: e.target.value }))}
+                    style={{ width: '44px', height: '40px', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', padding: 0 }}
+                  />
+                  <input 
+                    type="text" 
+                    value={brandingSettings.mobileThemeColor || '#2563eb'}
+                    onChange={(e) => setBrandingSettings(prev => ({ ...prev, mobileThemeColor: e.target.value }))}
+                    style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', fontWeight: 600, fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                {/* Preset Swatches */}
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  {['#2563eb', '#10b981', '#7c3aed', '#4f46e5', '#e11d48', '#d97706', '#0891b2', '#0f172a'].map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setBrandingSettings(prev => ({ ...prev, mobileThemeColor: color }))}
+                      style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: color, border: brandingSettings.mobileThemeColor === color ? '2px solid #000' : '1px solid rgba(0,0,0,0.1)', cursor: 'pointer', padding: 0 }}
+                    />
+                  ))}
+                </div>
+
+                {/* Live Preview Button */}
+                <div style={{ padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Live Button Preview:</span>
+                  <button type="button" style={{ backgroundColor: brandingSettings.mobileThemeColor || '#2563eb', color: '#fff', border: 'none', padding: '0.35rem 0.85rem', borderRadius: '0.4rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'default' }}>
+                    Mobile Primary
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* General App Branding & Logo */}
+            <div className="card">
+              <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>General Portal Branding</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Portal Display Name</label>
+                  <input 
+                    type="text"
+                    value={brandingSettings.appName || ''}
+                    onChange={(e) => setBrandingSettings(prev => ({ ...prev, appName: e.target.value }))}
+                    placeholder="e.g. Sunrise Society Portal"
+                    style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Society Logo Image URL</label>
+                  <input 
+                    type="url"
+                    value={brandingSettings.logoUrl || ''}
+                    onChange={(e) => setBrandingSettings(prev => ({ ...prev, logoUrl: e.target.value }))}
+                    placeholder="https://example.com/logo.png"
+                    style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'app-versions':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Smartphone size={22} style={{ color: 'var(--primary)' }} /> Mobile App Version & Maintenance Settings
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                    Configure minimum supported app versions, force update redirection links, and toggle mobile maintenance mode.
+                  </p>
+                </div>
+
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSaveAppVersion}
+                  disabled={savingAppVersion || appVersionLoading}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', minWidth: '160px', justifyContent: 'center' }}
+                >
+                  {savingAppVersion ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>{savingAppVersion ? 'Saving...' : 'Save App Settings'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Android & iOS Settings */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+              {/* Android Card */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Smartphone size={18} style={{ color: '#10b981' }} /> Android Version Controls
+                  </h4>
+                  <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>Google Play</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Current Store Version</label>
+                      <input 
+                        type="text" 
+                        value={appVersionSettings.android?.currentVersion || '1.0.0'}
+                        onChange={(e) => setAppVersionSettings(prev => ({
+                          ...prev,
+                          android: { ...prev.android, currentVersion: e.target.value }
+                        }))}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+                        placeholder="1.0.0"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Minimum Supported</label>
+                      <input 
+                        type="text" 
+                        value={appVersionSettings.android?.supportedVersion || '1.0.0'}
+                        onChange={(e) => setAppVersionSettings(prev => ({
+                          ...prev,
+                          android: { ...prev.android, supportedVersion: e.target.value }
+                        }))}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+                        placeholder="1.0.0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Force Update Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: '0.5rem', backgroundColor: appVersionSettings.android?.forceUpdate ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-secondary)', border: `1px solid ${appVersionSettings.android?.forceUpdate ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-color)'}` }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem', color: appVersionSettings.android?.forceUpdate ? 'var(--error)' : 'var(--text-primary)' }}>
+                        Enable Force Update Prompt
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Blocks older apps and forces update via Google Play Store
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAppVersionSettings(prev => ({
+                        ...prev,
+                        android: { ...prev.android, forceUpdate: !prev.android?.forceUpdate }
+                      }))}
+                      style={{
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '2rem',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        backgroundColor: appVersionSettings.android?.forceUpdate ? 'var(--error)' : 'var(--text-secondary)',
+                        color: '#fff'
+                      }}
+                    >
+                      {appVersionSettings.android?.forceUpdate ? 'ACTIVE' : 'OFF'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Google Play Store URL</label>
+                    <input 
+                      type="url" 
+                      value={appVersionSettings.android?.storeUrl || ''}
+                      onChange={(e) => setAppVersionSettings(prev => ({
+                        ...prev,
+                        android: { ...prev.android, storeUrl: e.target.value }
+                      }))}
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', fontSize: '0.8125rem' }}
+                      placeholder="https://play.google.com/store/apps/details?id=com.societyarena.mobile"
+                    />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
+                      Users clicking "Update App" in mobile will be redirected directly to this Play Store link.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* iOS Card */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Smartphone size={18} style={{ color: '#3b82f6' }} /> iOS Version Controls
+                  </h4>
+                  <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>Apple App Store</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Current Store Version</label>
+                      <input 
+                        type="text" 
+                        value={appVersionSettings.ios?.currentVersion || '1.0.0'}
+                        onChange={(e) => setAppVersionSettings(prev => ({
+                          ...prev,
+                          ios: { ...prev.ios, currentVersion: e.target.value }
+                        }))}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+                        placeholder="1.0.0"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Minimum Supported</label>
+                      <input 
+                        type="text" 
+                        value={appVersionSettings.ios?.supportedVersion || '1.0.0'}
+                        onChange={(e) => setAppVersionSettings(prev => ({
+                          ...prev,
+                          ios: { ...prev.ios, supportedVersion: e.target.value }
+                        }))}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}
+                        placeholder="1.0.0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Force Update Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', borderRadius: '0.5rem', backgroundColor: appVersionSettings.ios?.forceUpdate ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-secondary)', border: `1px solid ${appVersionSettings.ios?.forceUpdate ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-color)'}` }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem', color: appVersionSettings.ios?.forceUpdate ? 'var(--error)' : 'var(--text-primary)' }}>
+                        Enable Force Update Prompt
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Blocks older apps and forces update via Apple App Store
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAppVersionSettings(prev => ({
+                        ...prev,
+                        ios: { ...prev.ios, forceUpdate: !prev.ios?.forceUpdate }
+                      }))}
+                      style={{
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '2rem',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        backgroundColor: appVersionSettings.ios?.forceUpdate ? 'var(--error)' : 'var(--text-secondary)',
+                        color: '#fff'
+                      }}
+                    >
+                      {appVersionSettings.ios?.forceUpdate ? 'ACTIVE' : 'OFF'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Apple App Store URL</label>
+                    <input 
+                      type="url" 
+                      value={appVersionSettings.ios?.storeUrl || ''}
+                      onChange={(e) => setAppVersionSettings(prev => ({
+                        ...prev,
+                        ios: { ...prev.ios, storeUrl: e.target.value }
+                      }))}
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', fontSize: '0.8125rem' }}
+                      placeholder="https://apps.apple.com/app/societyarena/id123456789"
+                    />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.25rem' }}>
+                      Users clicking "Update App" in mobile will be redirected directly to this App Store link.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile App Maintenance Mode */}
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: appVersionSettings.maintenanceEnabled ? 'var(--error)' : 'var(--text-primary)' }}>
+                    <ShieldAlert size={20} style={{ color: appVersionSettings.maintenanceEnabled ? 'var(--error)' : 'var(--warning)' }} /> Mobile App Maintenance Mode
+                  </h4>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    When enabled, residents will not be able to log in or use the mobile app until turned off. Displays an under maintenance screen.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAppVersionSettings(prev => ({
+                    ...prev,
+                    maintenanceEnabled: !prev.maintenanceEnabled
+                  }))}
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    borderRadius: '2rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    backgroundColor: appVersionSettings.maintenanceEnabled ? 'var(--error)' : 'var(--success)',
+                    color: '#fff'
+                  }}
+                >
+                  {appVersionSettings.maintenanceEnabled ? 'Turn OFF Maintenance' : 'Turn ON Maintenance'}
+                </button>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Maintenance Screen Message</label>
+                <textarea 
+                  rows={3}
+                  value={appVersionSettings.maintenanceMessage || ''}
+                  onChange={(e) => setAppVersionSettings(prev => ({
+                    ...prev,
+                    maintenanceMessage: e.target.value
+                  }))}
+                  placeholder="e.g. Mobile app is currently under maintenance. Please check back later."
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', fontSize: '0.875rem', resize: 'vertical' }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
   };
-
-  // Role helpers — admin has no designation; treasurer has designation 'Treasurer' or email treasurer@sunrise.com
-  const isTreasurer = user?.designation === 'Treasurer' || user?.email?.toLowerCase() === 'treasurer@sunrise.com';
-  const isAdmin = !user?.designation && !isTreasurer;
-
-  // Build nav tabs based on role
-  const allAdminTabs = [
-    { id: 'overview', icon: LayoutDashboard, label: t('nav.overview') },
-      { id: 'members', icon: Users, label: t('nav.members') },
-      { id: 'payments', icon: Receipt, label: t('nav.payments') },
-      { id: 'ledger-reconciliation', icon: FileText, label: t('nav.ledger') },
-      { id: 'upcoming', icon: Calendar, label: t('nav.upcoming') },
-      { id: 'expenses', icon: Landmark, label: t('nav.expenses') },
-      ...(summary.enableForums ? [{ id: 'helpdesk', icon: LifeBuoy, label: t('nav.helpdesk') }] : []),
-      { id: 'vendors', icon: Users2, label: t('nav.vendors') },
-      { id: 'events', icon: Calendar, label: t('nav.events') },
-      { id: 'notifications', icon: Bell, label: t('nav.notifications') },
-      { id: 'settings', icon: Settings, label: t('nav.settings') },
-      { id: 'staff', icon: UserCheck, label: t('nav.staff') },
-      { id: 'logs', icon: History, label: t('nav.logs') },
-      { id: 'reports', icon: BarChart2, label: t('nav.reports') },
-    ];
-
-  // For other office bearers, filter out payments and expenses
-  const otherBearerTabs = allAdminTabs.filter(tab => tab.id !== 'payments' && tab.id !== 'expenses');
-
-  const navTabs = isAdmin || isTreasurer ? allAdminTabs : otherBearerTabs;
-  const hasSidebar = true; // All tenant admin logins display the sidebar
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column' }}>
@@ -5145,7 +6901,7 @@ const TenantAdminDashboard = () => {
                 <Plus size={15} /> <span className="desktop-only">{t('header.record_payment')}</span>
               </button>
             )}
-            <NotificationPanel token={token} />
+            <NotificationPanel token={token} onNavigate={(tab) => setActiveTab(tab)} />
             <LanguageSwitcher />
             <button onClick={logout} style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.4rem 0.7rem', cursor: 'pointer', color: 'var(--error)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
               <LogOut size={15} /> <span className="desktop-only">{t('header.logout')}</span>
@@ -5488,7 +7244,12 @@ const TenantAdminDashboard = () => {
                             )}
                           </div>
                         </div>
-                        {uploading && <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>{t('members.uploading_msg', '⏳ Uploading document, please wait...')}</div>}
+                        {uploading && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>{t('members.uploading_msg', 'Uploading document, please wait...')}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
  
@@ -5531,7 +7292,15 @@ const TenantAdminDashboard = () => {
                   {/* Modal Footer Actions */}
                   <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)' }}>
                     <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>{t('members.cancel_btn', 'Cancel')}</button>
-                    <button type="submit" className="btn btn-primary" disabled={uploading}>{t('members.add_member_btn', 'Add Member')}</button>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary" 
+                      disabled={uploading}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      {uploading && <Loader2 size={16} className="animate-spin" />}
+                      <span>{t('members.add_member_btn', 'Add Member')}</span>
+                    </button>
                   </div>
                 </form>
               </>
@@ -5694,6 +7463,12 @@ const TenantAdminDashboard = () => {
                             {selectedPayment.mode === 'CASH' ? t('payments.mode_cash', 'Cash') : selectedPayment.mode === 'BANK_TRANSFER' ? t('payments.mode_bank', 'Bank Transfer') : selectedPayment.mode === 'UPI' ? t('payments.mode_upi', 'UPI / QR') : selectedPayment.mode === 'CHEQUE' ? t('payments.mode_cheque', 'Cheque') : selectedPayment.mode}
                           </span>
                         </div>
+                        {selectedPayment.referenceNumber && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                            <span style={{ color: '#64748b' }}>Reference / UTR</span>
+                            <span style={{ fontWeight: 600 }}>{selectedPayment.referenceNumber}</span>
+                          </div>
+                        )}
                         {selectedPayment.periodLabel && (
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                             <span style={{ color: '#64748b' }}>{t('receipt.payment_period', 'Payment Period')}</span>
@@ -6009,7 +7784,12 @@ const TenantAdminDashboard = () => {
                             )}
                           </div>
                         </div>
-                        {uploading && <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>{t('members.uploading_msg', '⏳ Uploading document, please wait...')}</div>}
+                        {uploading && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>{t('members.uploading_msg', 'Uploading document, please wait...')}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
  
@@ -6018,7 +7798,15 @@ const TenantAdminDashboard = () => {
                   {/* Modal Footer Actions */}
                   <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)' }}>
                     <button type="button" className="btn btn-secondary" onClick={() => setShowModal(null)}>{t('members.cancel_btn', 'Cancel')}</button>
-                    <button type="submit" className="btn btn-primary" disabled={uploading}>{t('members.update_member_btn', 'Update Member')}</button>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary" 
+                      disabled={uploading}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                      {uploading && <Loader2 size={16} className="animate-spin" />}
+                      <span>{t('members.update_member_btn', 'Update Member')}</span>
+                    </button>
                   </div>
                 </form>
               </>
@@ -6572,6 +8360,172 @@ const TenantAdminDashboard = () => {
         </div>
       )}
       {selectedDoc && <DocumentViewer url={selectedDoc.url} type={selectedDoc.type} onClose={() => setSelectedDoc(null)} />}
+
+      {/* Lightbox Modal for Payment Proof Screenshot Verification */}
+      {reviewProofModal && reviewProofModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          zIndex: 1200,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          backdropFilter: 'blur(4px)'
+        }} onClick={() => setReviewProofModal(null)}>
+          <div style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '1rem',
+            maxWidth: '650px',
+            width: '100%',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Image size={20} style={{ color: 'var(--primary)' }} />
+                <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{reviewProofModal.title || 'Payment Proof Screenshot'}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewProofModal(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                &times;
+              </button>
+            </div>
+            <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', maxHeight: '70vh', overflow: 'auto' }}>
+              <img
+                src={reviewProofModal.imageUrl}
+                alt="Payment proof screenshot"
+                style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }}>
+              <a
+                href={reviewProofModal.imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-secondary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+              >
+                <Download size={14} /> Open Full Size / Download
+              </a>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setReviewProofModal(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Denial Reason Modal */}
+      {denyModal && denyModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          zIndex: 1200,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          backdropFilter: 'blur(3px)'
+        }} onClick={() => !denyModal.isSubmitting && setDenyModal(null)}>
+          <div style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '1rem',
+            maxWidth: '520px',
+            width: '100%',
+            overflow: 'hidden',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25)',
+            border: '1px solid var(--border-color)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--error)' }}>
+                  <XCircle size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Deny Bank Transfer</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Member will be notified with your feedback</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={denyModal.isSubmitting}
+                onClick={() => setDenyModal(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                <div><strong>Member:</strong> {denyModal.payment?.member?.name} (Flat: {denyModal.payment?.member?.flatNo || 'N/A'})</div>
+                <div><strong>Amount:</strong> ₹{denyModal.payment?.amount?.toLocaleString()} · {denyModal.payment?.periodLabel || 'Maintenance'}</div>
+                {denyModal.payment?.referenceNumber && <div><strong>UTR:</strong> {denyModal.payment.referenceNumber}</div>}
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
+                  Rejection Reason / Notes <span style={{ color: 'var(--error)' }}>*</span>
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={denyModal.reason}
+                  onChange={e => setDenyModal({ ...denyModal, reason: e.target.value })}
+                  placeholder="e.g. UTR number does not match society bank statement. Please check the transaction ID and re-submit."
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.875rem',
+                    resize: 'vertical'
+                  }}
+                />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.35rem' }}>
+                  This reason will be visible to the member in their payment history and sent via instant notification with a link to re-submit.
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', padding: '1.25rem 1.5rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={denyModal.isSubmitting}
+                onClick={() => setDenyModal(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={denyModal.isSubmitting || !denyModal.reason.trim()}
+                style={{ backgroundColor: 'var(--error)', borderColor: 'var(--error)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                onClick={handleSubmitDeny}
+              >
+                {denyModal.isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                <span>{denyModal.isSubmitting ? 'Rejecting...' : 'Confirm Deny & Notify Member'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

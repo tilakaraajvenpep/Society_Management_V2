@@ -9,19 +9,87 @@ import util from "util";
 const execPromise = util.promisify(exec);
 const router = express.Router();
 
-// Public endpoint for tenant detection
+// Public endpoint for tenant detection and config loading
 router.get("/public/:slug", async (req, res) => {
   try {
-    const tenant = await prisma.tenant.findUnique({
-      where: { slug: req.params.slug },
-      select: { id: true, name: true, slug: true, status: true }
+    const cleanSlug = req.params.slug.toLowerCase().trim();
+    const tenant = await masterPrisma.tenant.findFirst({
+      where: {
+        OR: [
+          { slug: cleanSlug },
+          { name: { equals: cleanSlug, mode: "insensitive" } }
+        ]
+      },
+      select: { 
+        id: true, 
+        name: true, 
+        slug: true, 
+        status: true, 
+        address: true,
+        bankQrCodeUrl: true,
+        bankUpiId: true,
+        bankAccountName: true,
+        bankName: true,
+        bankAccountNumber: true,
+        bankIfsc: true,
+        brandingConfig: true,
+        appVersionConfig: true,
+        maintenanceConfig: true,
+        superadminMenuConfig: true,
+        tenantMenuConfig: true
+      }
     });
     
     if (!tenant || tenant.status !== "ACTIVE") {
       return res.status(404).json({ message: "Tenant not found or inactive" });
     }
-    
-    res.json(tenant);
+
+    let branding = { adminThemeColor: "#2563eb", memberThemeColor: "#2563eb", mobileThemeColor: "#2563eb" };
+    if (tenant.brandingConfig) {
+      try { branding = { ...branding, ...JSON.parse(tenant.brandingConfig) }; } catch (e) {}
+    }
+
+    let appVersion = {
+      android: { currentVersion: "1.0.0", supportedVersion: "1.0.0", forceUpdate: false, storeUrl: "" },
+      ios: { currentVersion: "1.0.0", supportedVersion: "1.0.0", forceUpdate: false, storeUrl: "" },
+      maintenanceEnabled: false,
+      maintenanceMessage: "Mobile app is currently under maintenance. Please check back later."
+    };
+    if (tenant.appVersionConfig) {
+      try { appVersion = { ...appVersion, ...JSON.parse(tenant.appVersionConfig) }; } catch (e) {}
+    }
+
+    let maintenance = { isMaintenance: false, targets: ["ADMIN_WEB", "MEMBER_WEB", "MOBILE_APP"], message: "", whitelistedEmails: [] };
+    if (tenant.maintenanceConfig) {
+      try { maintenance = { ...maintenance, ...JSON.parse(tenant.maintenanceConfig) }; } catch (e) {}
+    }
+
+    let globalSetting = await masterPrisma.systemSetting.findUnique({ where: { key: "global_maintenance" } });
+    let globalMaintenance = { isMaintenance: false, targets: [], message: "", whitelistedEmails: [] };
+    if (globalSetting?.value) {
+      try { globalMaintenance = JSON.parse(globalSetting.value); } catch (e) {}
+    }
+
+    let superadminMenus: any = null;
+    if (tenant.superadminMenuConfig) {
+      try { superadminMenus = JSON.parse(tenant.superadminMenuConfig); } catch (e) {}
+    }
+    let tenantMenus: any = null;
+    if (tenant.tenantMenuConfig) {
+      try { tenantMenus = JSON.parse(tenant.tenantMenuConfig); } catch (e) {}
+    }
+
+    res.json({
+      ...tenant,
+      branding,
+      appVersion,
+      maintenance,
+      globalMaintenance,
+      menus: {
+        superadmin: superadminMenus,
+        tenant: tenantMenus
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: "Error fetching tenant info", error });
   }
@@ -273,31 +341,347 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
 
 // Update tenant settings (used by Tenant Admin inside their session)
 router.patch("/settings", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { maintenanceAmount, billingCycle, quarterlyAmount, halfYearlyAmount, annualAmount, enableForums, enableMonthlyReminder, monthlyReminderCount, monthlyReminderInterval, enableOverdueReminder, overdueReminderInterval, discountDate, discountAmount, lateFeeDate, lateFeeAmount } = req.body;
+  const { 
+    maintenanceAmount, billingCycle, quarterlyAmount, halfYearlyAmount, annualAmount, 
+    enableForums, enableMonthlyReminder, monthlyReminderCount, monthlyReminderInterval, 
+    enableOverdueReminder, overdueReminderInterval, discountDate, discountAmount, 
+    lateFeeDate, lateFeeAmount,
+    bankAccountName, bankName, bankAccountNumber, bankIfsc, bankUpiId, bankQrCodeUrl,
+    bankReferenceRequired, bankProofRequired
+  } = req.body;
   try {
+    const updatePayload: any = { 
+      maintenanceAmount: maintenanceAmount !== undefined ? parseFloat(maintenanceAmount.toString()) : undefined,
+      billingCycle: billingCycle,
+      quarterlyAmount: quarterlyAmount !== undefined ? (quarterlyAmount === null || quarterlyAmount === "" ? null : parseFloat(quarterlyAmount.toString())) : undefined,
+      halfYearlyAmount: halfYearlyAmount !== undefined ? (halfYearlyAmount === null || halfYearlyAmount === "" ? null : parseFloat(halfYearlyAmount.toString())) : undefined,
+      annualAmount: annualAmount !== undefined ? (annualAmount === null || annualAmount === "" ? null : parseFloat(annualAmount.toString())) : undefined,
+      enableForums: enableForums !== undefined ? !!enableForums : undefined,
+      enableMonthlyReminder: enableMonthlyReminder !== undefined ? !!enableMonthlyReminder : undefined,
+      monthlyReminderCount: monthlyReminderCount !== undefined ? parseInt(monthlyReminderCount.toString(), 10) : undefined,
+      monthlyReminderInterval: monthlyReminderInterval !== undefined ? parseInt(monthlyReminderInterval.toString(), 10) : undefined,
+      enableOverdueReminder: enableOverdueReminder !== undefined ? !!enableOverdueReminder : undefined,
+      overdueReminderInterval: overdueReminderInterval !== undefined ? parseInt(overdueReminderInterval.toString(), 10) : undefined,
+      discountDate: discountDate !== undefined ? (discountDate === null || discountDate === "" ? null : new Date(discountDate)) : undefined,
+      discountAmount: discountAmount !== undefined ? (discountAmount === null || discountAmount === "" ? 0 : parseFloat(discountAmount.toString())) : undefined,
+      lateFeeDate: lateFeeDate !== undefined ? (lateFeeDate === null || lateFeeDate === "" ? null : new Date(lateFeeDate)) : undefined,
+      lateFeeAmount: lateFeeAmount !== undefined ? (lateFeeAmount === null || lateFeeAmount === "" ? 0 : parseFloat(lateFeeAmount.toString())) : undefined,
+      bankAccountName: bankAccountName !== undefined ? bankAccountName : undefined,
+      bankName: bankName !== undefined ? bankName : undefined,
+      bankAccountNumber: bankAccountNumber !== undefined ? bankAccountNumber : undefined,
+      bankIfsc: bankIfsc !== undefined ? bankIfsc : undefined,
+      bankUpiId: bankUpiId !== undefined ? bankUpiId : undefined,
+      bankQrCodeUrl: bankQrCodeUrl !== undefined ? bankQrCodeUrl : undefined,
+      bankReferenceRequired: bankReferenceRequired !== undefined ? !!bankReferenceRequired : undefined,
+      bankProofRequired: bankProofRequired !== undefined ? !!bankProofRequired : undefined,
+    };
+
     const tenant = await prisma.tenant.update({
       where: { id: req.user.tenantId as string },
-      data: { 
-        maintenanceAmount: maintenanceAmount !== undefined ? parseFloat(maintenanceAmount.toString()) : undefined,
-        billingCycle: billingCycle,
-        quarterlyAmount: quarterlyAmount !== undefined ? (quarterlyAmount === null || quarterlyAmount === "" ? null : parseFloat(quarterlyAmount.toString())) : undefined,
-        halfYearlyAmount: halfYearlyAmount !== undefined ? (halfYearlyAmount === null || halfYearlyAmount === "" ? null : parseFloat(halfYearlyAmount.toString())) : undefined,
-        annualAmount: annualAmount !== undefined ? (annualAmount === null || annualAmount === "" ? null : parseFloat(annualAmount.toString())) : undefined,
-        enableForums: enableForums !== undefined ? !!enableForums : undefined,
-        enableMonthlyReminder: enableMonthlyReminder !== undefined ? !!enableMonthlyReminder : undefined,
-        monthlyReminderCount: monthlyReminderCount !== undefined ? parseInt(monthlyReminderCount.toString(), 10) : undefined,
-        monthlyReminderInterval: monthlyReminderInterval !== undefined ? parseInt(monthlyReminderInterval.toString(), 10) : undefined,
-        enableOverdueReminder: enableOverdueReminder !== undefined ? !!enableOverdueReminder : undefined,
-        overdueReminderInterval: overdueReminderInterval !== undefined ? parseInt(overdueReminderInterval.toString(), 10) : undefined,
-        discountDate: discountDate !== undefined ? (discountDate === null || discountDate === "" ? null : new Date(discountDate)) : undefined,
-        discountAmount: discountAmount !== undefined ? (discountAmount === null || discountAmount === "" ? 0 : parseFloat(discountAmount.toString())) : undefined,
-        lateFeeDate: lateFeeDate !== undefined ? (lateFeeDate === null || lateFeeDate === "" ? null : new Date(lateFeeDate)) : undefined,
-        lateFeeAmount: lateFeeAmount !== undefined ? (lateFeeAmount === null || lateFeeAmount === "" ? 0 : parseFloat(lateFeeAmount.toString())) : undefined,
-      },
+      data: updatePayload,
     });
+
+    try {
+      await masterPrisma.tenant.update({
+        where: { id: req.user.tenantId as string },
+        data: updatePayload,
+      });
+    } catch (masterErr: any) {
+      console.warn("Could not sync tenant settings to master database:", masterErr.message);
+    }
+
     res.json(tenant);
   } catch (error) {
     res.status(500).json({ message: "Error updating settings", error });
+  }
+});
+
+// ─── Tenant Admin: Branding Settings ─────────────────────────────────────────
+router.get("/settings/branding", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
+  try {
+    const tenant = await masterPrisma.tenant.findUnique({
+      where: { id: req.user.tenantId },
+      select: { brandingConfig: true }
+    });
+    let branding = {
+      adminThemeColor: "#2563eb",
+      memberThemeColor: "#2563eb",
+      mobileThemeColor: "#2563eb"
+    };
+    if (tenant?.brandingConfig) {
+      try { branding = { ...branding, ...JSON.parse(tenant.brandingConfig) }; } catch (e) {}
+    }
+    res.json(branding);
+  } catch (error: any) {
+    res.status(500).json({ message: "Error loading branding settings", error: error.message });
+  }
+});
+
+router.patch("/settings/branding", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
+  try {
+    const { adminThemeColor, memberThemeColor, mobileThemeColor } = req.body;
+    const config = JSON.stringify({
+      adminThemeColor: adminThemeColor || "#2563eb",
+      memberThemeColor: memberThemeColor || "#2563eb",
+      mobileThemeColor: mobileThemeColor || "#2563eb"
+    });
+
+    await masterPrisma.tenant.update({
+      where: { id: req.user.tenantId },
+      data: { brandingConfig: config }
+    });
+
+    try {
+      await prisma.tenant.update({
+        where: { id: req.user.tenantId },
+        data: { brandingConfig: config }
+      });
+    } catch (e) {}
+
+    res.json({ message: "Branding settings saved successfully", branding: JSON.parse(config) });
+  } catch (error: any) {
+    res.status(500).json({ message: "Error saving branding settings", error: error.message });
+  }
+});
+
+// ─── Tenant Admin: Member Menu Toggles ───────────────────────────────────────
+router.get("/settings/menu-config", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
+  try {
+    const tenant = await masterPrisma.tenant.findUnique({
+      where: { id: req.user.tenantId },
+      select: { superadminMenuConfig: true, tenantMenuConfig: true }
+    });
+
+    let saMenus = {
+      admin: {
+        dashboard: true,
+        overview: true,
+        members: true,
+        payments: true,
+        "ledger-reconciliation": true,
+        upcoming: true,
+        expenses: true,
+        helpdesk: true,
+        vendors: true,
+        events: true,
+        notifications: true,
+        "member-menus": true,
+        branding: true,
+        "app-versions": true,
+        settings: true,
+        staff: true,
+        logs: true,
+        reports: true
+      },
+      memberWeb: { overview: true, "dues-history": true, payments: true, receipts: true, events: true, helpdesk: true, profile: true },
+      memberMobile: { dashboard: true, payments: true, receipts: true, events: true, helpdesk: true, profile: true }
+    };
+    if (tenant?.superadminMenuConfig) {
+      try {
+        const parsed = JSON.parse(tenant.superadminMenuConfig);
+        if (parsed.admin) saMenus.admin = { ...saMenus.admin, ...parsed.admin };
+        if (parsed.memberWeb) saMenus.memberWeb = { ...saMenus.memberWeb, ...parsed.memberWeb };
+        if (parsed.memberMobile) saMenus.memberMobile = { ...saMenus.memberMobile, ...parsed.memberMobile };
+      } catch (e) {}
+    }
+
+    let tenantMenus = {
+      memberWeb: { overview: true, "dues-history": true, payments: true, receipts: true, events: true, helpdesk: true, profile: true },
+      memberMobile: { dashboard: true, payments: true, receipts: true, events: true, helpdesk: true, profile: true }
+    };
+    if (tenant?.tenantMenuConfig) {
+      try {
+        const parsed = JSON.parse(tenant.tenantMenuConfig);
+        if (parsed.memberWeb) tenantMenus.memberWeb = { ...tenantMenus.memberWeb, ...parsed.memberWeb };
+        if (parsed.memberMobile) tenantMenus.memberMobile = { ...tenantMenus.memberMobile, ...parsed.memberMobile };
+      } catch (e) {}
+    }
+
+    res.json({
+      superadminAllowed: saMenus,
+      tenantToggles: tenantMenus
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: "Error fetching menu config", error: error.message });
+  }
+});
+
+router.patch("/settings/menu-config", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
+  try {
+    const { memberWeb, memberMobile } = req.body;
+    const config = JSON.stringify({
+      memberWeb: memberWeb || {},
+      memberMobile: memberMobile || {}
+    });
+
+    await masterPrisma.tenant.update({
+      where: { id: req.user.tenantId },
+      data: { tenantMenuConfig: config }
+    });
+
+    try {
+      await prisma.tenant.update({
+        where: { id: req.user.tenantId },
+        data: { tenantMenuConfig: config }
+      });
+    } catch (e) {}
+
+    res.json({ message: "Member menu settings saved successfully", config: JSON.parse(config) });
+  } catch (error: any) {
+    res.status(500).json({ message: "Error saving menu config", error: error.message });
+  }
+});
+
+// ─── Tenant Admin: App Version Settings & Mobile Maintenance ─────────────────
+router.get("/settings/app-version", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
+  try {
+    const tenant = await masterPrisma.tenant.findUnique({
+      where: { id: req.user.tenantId },
+      select: { appVersionConfig: true }
+    });
+
+    let appVersion = {
+      android: { currentVersion: "1.0.0", supportedVersion: "1.0.0", forceUpdate: false, storeUrl: "" },
+      ios: { currentVersion: "1.0.0", supportedVersion: "1.0.0", forceUpdate: false, storeUrl: "" },
+      maintenanceEnabled: false,
+      maintenanceMessage: "Mobile app is currently under maintenance. Please check back later."
+    };
+
+    if (tenant?.appVersionConfig) {
+      try { appVersion = { ...appVersion, ...JSON.parse(tenant.appVersionConfig) }; } catch (e) {}
+    }
+
+    res.json(appVersion);
+  } catch (error: any) {
+    res.status(500).json({ message: "Error loading app version settings", error: error.message });
+  }
+});
+
+router.patch("/settings/app-version", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
+  try {
+    const { android, ios, maintenanceEnabled, maintenanceMessage } = req.body;
+    const config = JSON.stringify({
+      android: android || { currentVersion: "1.0.0", supportedVersion: "1.0.0", forceUpdate: false, storeUrl: "" },
+      ios: ios || { currentVersion: "1.0.0", supportedVersion: "1.0.0", forceUpdate: false, storeUrl: "" },
+      maintenanceEnabled: !!maintenanceEnabled,
+      maintenanceMessage: maintenanceMessage || "Mobile app is currently under maintenance. Please check back later."
+    });
+
+    await masterPrisma.tenant.update({
+      where: { id: req.user.tenantId },
+      data: { appVersionConfig: config }
+    });
+
+    try {
+      await prisma.tenant.update({
+        where: { id: req.user.tenantId },
+        data: { appVersionConfig: config }
+      });
+    } catch (e) {}
+
+    res.json({ message: "App version settings saved successfully", appVersion: JSON.parse(config) });
+  } catch (error: any) {
+    res.status(500).json({ message: "Error saving app version settings", error: error.message });
+  }
+});
+
+// ─── Super Admin: Menu Settings by Tenant ────────────────────────────────────
+router.get("/:id/menu-config", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
+  try {
+    const tenant = await masterPrisma.tenant.findUnique({
+      where: { id: String(req.params.id) },
+      select: { id: true, name: true, slug: true, superadminMenuConfig: true, tenantMenuConfig: true }
+    });
+
+    if (!tenant) return res.status(404).json({ message: "Tenant not found" });
+
+    let saMenus = {
+      admin: {
+        overview: true,
+        members: true,
+        payments: true,
+        "ledger-reconciliation": true,
+        upcoming: true,
+        expenses: true,
+        helpdesk: true,
+        vendors: true,
+        events: true,
+        notifications: true,
+        settings: true,
+        staff: true,
+        logs: true,
+        reports: true
+      },
+      memberWeb: {
+        overview: true,
+        "dues-history": true,
+        payments: true,
+        receipts: true,
+        events: true,
+        helpdesk: true,
+        profile: true
+      },
+      memberMobile: {
+        dashboard: true,
+        payments: true,
+        receipts: true,
+        events: true,
+        helpdesk: true,
+        profile: true
+      }
+    };
+
+    if (tenant.superadminMenuConfig) {
+      try {
+        const parsed = JSON.parse(tenant.superadminMenuConfig);
+        if (parsed.admin) saMenus.admin = { ...saMenus.admin, ...parsed.admin };
+        if (parsed.memberWeb) saMenus.memberWeb = { ...saMenus.memberWeb, ...parsed.memberWeb };
+        if (parsed.memberMobile) saMenus.memberMobile = { ...saMenus.memberMobile, ...parsed.memberMobile };
+      } catch (e) {}
+    }
+
+    let tenantMenus: any = null;
+    if (tenant.tenantMenuConfig) {
+      try { tenantMenus = JSON.parse(tenant.tenantMenuConfig); } catch (e) {}
+    }
+
+    res.json({
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      superadminMenuConfig: saMenus,
+      tenantMenuConfig: tenantMenus
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: "Error fetching tenant menu config", error: error.message });
+  }
+});
+
+router.patch("/:id/superadmin-menu-config", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
+  try {
+    const { admin, memberWeb, memberMobile } = req.body;
+    const config = JSON.stringify({
+      admin: admin || {},
+      memberWeb: memberWeb || {},
+      memberMobile: memberMobile || {}
+    });
+
+    const tenant = await masterPrisma.tenant.update({
+      where: { id: String(req.params.id) },
+      data: { superadminMenuConfig: config }
+    });
+
+    try {
+      const { getTenantPrisma } = require("../utils/prisma");
+      const tPrisma = getTenantPrisma(tenant.slug);
+      await tPrisma.tenant.update({
+        where: { id: tenant.id },
+        data: { superadminMenuConfig: config }
+      });
+    } catch (e) {}
+
+    res.json({ message: `Menu configuration updated for ${tenant.name}`, superadminMenuConfig: JSON.parse(config) });
+  } catch (error: any) {
+    res.status(500).json({ message: "Error updating menu config", error: error.message });
   }
 });
 

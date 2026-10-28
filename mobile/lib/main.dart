@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'app/core/theme/app_theme.dart';
 import 'app/routes/app_pages.dart';
 import 'app/core/utils/api_client.dart';
-import 'app/core/utils/notification_service.dart';
+import 'app/core/translations/app_translations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,9 +21,12 @@ void main() async {
 
   runApp(
     GetMaterialApp(
-      title: "SocietyPro",
+      title: "SocietyArena",
       initialRoute: AppPages.INITIAL,
       getPages: AppPages.routes,
+      translations: AppTranslations(),
+      locale: const Locale('en', 'US'),
+      fallbackLocale: const Locale('en', 'US'),
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,

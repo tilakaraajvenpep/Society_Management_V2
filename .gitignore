@@ -5,3 +5,8 @@ dist
 *.log
 
 .vercel
+**/android/build/
+**/android/.gradle/
+.gradle/
+**/scratch/
+backend/uploads/

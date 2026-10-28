@@ -24,7 +24,7 @@ router.get("/", authenticate, async (req: any, res) => {
 
 // Create a new event (Tenant Admin only)
 router.post("/", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
-  const { title, description, eventDate, location } = req.body;
+  const { title, description, eventDate, location, imageUrl } = req.body;
   const tenantId = req.user.tenantId;
 
   if (!title || !description || !eventDate) {
@@ -39,6 +39,7 @@ router.post("/", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res
         description,
         eventDate: new Date(eventDate),
         location: location || null,
+        imageUrl: imageUrl || null,
       },
     });
 
@@ -61,6 +62,7 @@ router.post("/", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res
       title: `Upcoming Event: ${title}`,
       message: `A new event has been scheduled for ${formattedDate} at ${location || "the society premises"}. Details: ${description}`,
       type: "EVENT",
+      link: "/member?tab=events",
     }));
 
     if (notificationsData.length > 0) {
@@ -79,7 +81,7 @@ router.post("/", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res
 // Update an event (Tenant Admin only)
 router.put("/:id", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, res) => {
   const { id } = req.params;
-  const { title, description, eventDate, location } = req.body;
+  const { title, description, eventDate, location, imageUrl } = req.body;
   const tenantId = req.user.tenantId;
 
   if (!title || !description || !eventDate) {
@@ -102,6 +104,7 @@ router.put("/:id", authenticate, authorize(["TENANT_ADMIN"]), async (req: any, r
         description,
         eventDate: new Date(eventDate),
         location: location || null,
+        imageUrl: imageUrl !== undefined ? (imageUrl || null) : undefined,
       },
     });
 

@@ -7,6 +7,7 @@ export interface CreateNotificationParams {
   title: string;
   message: string;
   type?: string;
+  link?: string;
 }
 
 export async function createNotification(params: CreateNotificationParams) {
@@ -18,6 +19,7 @@ export async function createNotification(params: CreateNotificationParams) {
         title: params.title,
         message: params.message,
         type: params.type || "INFO",
+        link: params.link || null,
       },
     });
   } catch (error) {
@@ -30,6 +32,7 @@ export interface NotifyTenantAdminsParams {
   title: string;
   message: string;
   type?: string;
+  link?: string;
 }
 
 export async function notifyTenantAdmins(params: NotifyTenantAdminsParams) {
@@ -48,6 +51,7 @@ export async function notifyTenantAdmins(params: NotifyTenantAdminsParams) {
       title: params.title,
       message: params.message,
       type: params.type || "INFO",
+      link: params.link || null,
     }));
 
     if (notificationsData.length > 0) {
@@ -66,6 +70,7 @@ export interface NotifyMemberParams {
   title: string;
   message: string;
   type?: string;
+  link?: string;
 }
 
 async function sendMail(toEmail: string, subject: string, body: string, tenantName: string) {
@@ -124,6 +129,7 @@ export async function notifyMember(params: NotifyMemberParams) {
           title: params.title,
           message: params.message,
           type: params.type,
+          link: params.link,
         });
       }
       if (member.secondaryUserId) {
@@ -133,6 +139,7 @@ export async function notifyMember(params: NotifyMemberParams) {
           title: params.title,
           message: params.message,
           type: params.type,
+          link: params.link,
         });
       }
 

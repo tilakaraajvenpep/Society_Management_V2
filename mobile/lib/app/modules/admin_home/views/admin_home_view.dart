@@ -18,6 +18,43 @@ class AdminHomeView extends GetView<AdminHomeController> {
         ],
       ),
       body: Obx(() {
+        if (controller.isMaintenanceActive.value) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.construction_rounded, size: 40, color: Colors.redAccent),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('System Under Maintenance', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Text(
+                    controller.maintenanceMessage.value.isNotEmpty
+                        ? controller.maintenanceMessage.value
+                        : 'Society admin portal is currently undergoing scheduled maintenance.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: controller.fetchSummary,
+                    child: const Text('Check Again'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -27,6 +64,9 @@ class AdminHomeView extends GetView<AdminHomeController> {
           return const Center(child: Text('No summary data found'));
         }
 
+        final kpiCards = _buildKPICards(summary);
+        final quickActions = _buildQuickActionWidgets();
+
         return RefreshIndicator(
           onRefresh: controller.fetchSummary,
           child: SingleChildScrollView(
@@ -35,26 +75,40 @@ class AdminHomeView extends GetView<AdminHomeController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Overview',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                _buildKPIGrid(summary),
-                const SizedBox(height: 24),
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                _buildQuickActions(),
-                const SizedBox(height: 24),
-                const Text(
-                  'Payment Handover Status',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                _buildHandoverStatus(summary),
+                if (kpiCards.isNotEmpty) ...[
+                  const Text(
+                    'Overview',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.5,
+                    children: kpiCards,
+                  ),
+                  const SizedBox(height: 24),
+                ],
+                if (quickActions.isNotEmpty) ...[
+                  const Text(
+                    'Quick Actions',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(children: quickActions),
+                  const SizedBox(height: 24),
+                ],
+                if (controller.isMenuEnabled('payments') || controller.isMenuEnabled('expenses')) ...[
+                  const Text(
+                    'Payment Handover Status',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildHandoverStatus(summary),
+                ],
               ],
             ),
           ),
@@ -63,25 +117,25 @@ class AdminHomeView extends GetView<AdminHomeController> {
     );
   }
 
-  Widget _buildKPIGrid(Map summary) {
+  List<Widget> _buildKPICards(Map summary) {
     final outstanding = summary['totals']?['outstanding']?.toDouble() ?? 0.0;
     final cashInHand = summary['totals']?['cashInHand']?.toDouble() ?? 0.0;
     final monthIncome = summary['monthly']?['income']?['current']?.toDouble() ?? 0.0;
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.5,
-      children: [
-        _buildKPICard('Outstanding', '₹${outstanding.toInt()}', Colors.orange),
-        _buildKPICard('Cash in Hand', '₹${cashInHand.toInt()}', Colors.green),
-        _buildKPICard('Monthly Income', '₹${monthIncome.toInt()}', Colors.blue),
-        _buildKPICard('Active Members', summary['totals']?['memberCount']?.toString() ?? '0', Colors.purple),
-      ],
-    );
+    final List<Widget> cards = [];
+    if (controller.isMenuEnabled('payments')) {
+      cards.add(_buildKPICard('Outstanding', '₹${outstanding.toInt()}', Colors.orange));
+    }
+    if (controller.isMenuEnabled('payments') || controller.isMenuEnabled('expenses')) {
+      cards.add(_buildKPICard('Cash in Hand', '₹${cashInHand.toInt()}', Colors.green));
+    }
+    if (controller.isMenuEnabled('payments')) {
+      cards.add(_buildKPICard('Monthly Income', '₹${monthIncome.toInt()}', Colors.blue));
+    }
+    if (controller.isMenuEnabled('members')) {
+      cards.add(_buildKPICard('Active Members', summary['totals']?['memberCount']?.toString() ?? '0', Colors.purple));
+    }
+    return cards;
   }
 
   Widget _buildKPICard(String title, String value, Color color) {
@@ -110,16 +164,20 @@ class AdminHomeView extends GetView<AdminHomeController> {
     );
   }
 
-  Widget _buildQuickActions() {
-    return Row(
-      children: [
-        _buildActionItem(Icons.add_card, 'Collect', () => Get.toNamed('/admin-collect-payment')),
-        const SizedBox(width: 16),
-        _buildActionItem(Icons.people, 'Members', () => Get.toNamed('/admin-members')),
-        const SizedBox(width: 16),
-        _buildActionItem(Icons.account_balance_wallet, 'Expenses', () {}),
-      ],
-    );
+  List<Widget> _buildQuickActionWidgets() {
+    final List<Widget> items = [];
+    if (controller.isMenuEnabled('payments')) {
+      items.add(_buildActionItem(Icons.add_card, 'Collect', () => Get.toNamed('/admin-collect-payment')));
+    }
+    if (controller.isMenuEnabled('members')) {
+      if (items.isNotEmpty) items.add(const SizedBox(width: 16));
+      items.add(_buildActionItem(Icons.people, 'Members', () => Get.toNamed('/admin-members')));
+    }
+    if (controller.isMenuEnabled('expenses')) {
+      if (items.isNotEmpty) items.add(const SizedBox(width: 16));
+      items.add(_buildActionItem(Icons.account_balance_wallet, 'Expenses', () {}));
+    }
+    return items;
   }
 
   Widget _buildActionItem(IconData icon, String label, VoidCallback onTap) {

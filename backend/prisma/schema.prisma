@@ -34,6 +34,21 @@ model Tenant {
   lateFeeDate            DateTime?
   lateFeeAmount          Float         @default(0)
   
+  bankAccountName        String?
+  bankName               String?
+  bankAccountNumber      String?
+  bankIfsc               String?
+  bankUpiId              String?
+  bankQrCodeUrl          String?
+  bankReferenceRequired  Boolean       @default(true)
+  bankProofRequired      Boolean       @default(true)
+
+  superadminMenuConfig   String?
+  tenantMenuConfig       String?
+  brandingConfig         String?
+  appVersionConfig       String?
+  maintenanceConfig      String?
+  
   auditLogs          AuditLog[]
   cashTransactions   CashTransaction[]
   expenses           Expense[]
@@ -156,6 +171,11 @@ model Payment {
   coverageEndDate   DateTime?
   coverageStartDate DateTime?
   category          String         @default("Maintenance")
+  referenceNumber   String?
+  proofUrl          String?
+  rejectionReason   String?
+  approvedAt        DateTime?
+  approvedById      String?
   
   collectedBy       User           @relation("CollectedBy", fields: [collectedById], references: [id])
   member            Member         @relation(fields: [memberId], references: [id])
@@ -357,6 +377,7 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   readAt    DateTime?
+  link      String?
 
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -369,8 +390,15 @@ model Event {
   description String
   eventDate   DateTime
   location    String?
+  imageUrl    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

@@ -4,6 +4,7 @@ import {
   Bell, MessageSquare, CreditCard, Landmark, 
   Megaphone, Info
 } from 'lucide-react';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface Notification {
   id: string;
@@ -12,17 +13,20 @@ interface Notification {
   title: string;
   message: string;
   type: string;
+  link?: string;
   isRead: boolean;
   createdAt: string;
 }
 
 interface NotificationPanelProps {
   token: string | null;
+  onNavigate?: (tabOrPath: string) => void;
 }
 
-export const NotificationPanel: React.FC<NotificationPanelProps> = ({ token }) => {
+export const NotificationPanel: React.FC<NotificationPanelProps> = ({ token, onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = async () => {
@@ -34,6 +38,8 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ token }) =
       setNotifications(res.data);
     } catch (err) {
       console.error('Error fetching notifications:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -123,6 +129,45 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ token }) =
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  const handleNotificationClick = async (n: Notification, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!n.isRead) {
+      markAsRead(n.id, e);
+    }
+    setIsOpen(false);
+
+    if (n.link) {
+      try {
+        const url = new URL(n.link, window.location.origin);
+        const tab = url.searchParams.get('tab');
+        const isSamePage = window.location.pathname === url.pathname || 
+          (window.location.pathname.includes('member') && url.pathname.includes('member')) || 
+          (window.location.pathname.includes('tenant-admin') && url.pathname.includes('tenant-admin'));
+        
+        if (isSamePage && tab && onNavigate) {
+          onNavigate(tab);
+          return;
+        }
+        window.location.href = n.link;
+        return;
+      } catch (err) {
+        if (onNavigate && !n.link.startsWith('/')) {
+          onNavigate(n.link);
+          return;
+        }
+        window.location.href = n.link;
+        return;
+      }
+    }
+
+    // Fallback based on notification type
+    if (onNavigate) {
+      if (n.type === 'PAYMENT') onNavigate('payments');
+      else if (n.type === 'EVENT') onNavigate('events');
+      else if (n.type === 'TICKET') onNavigate('helpdesk');
+    }
   };
 
   return (
@@ -224,7 +269,11 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ token }) =
 
           {/* List */}
           <div style={{ overflowY: 'auto', flex: 1 }}>
-            {notifications.length === 0 ? (
+            {loading ? (
+              <div style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
+                <LoadingSpinner size="sm" message="Loading notifications..." />
+              </div>
+            ) : notifications.length === 0 ? (
               <div 
                 style={{
                   padding: '2rem 1rem',
@@ -245,14 +294,14 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({ token }) =
               notifications.map((n) => (
                 <div 
                   key={n.id}
-                  onClick={(e) => !n.isRead && markAsRead(n.id, e)}
+                  onClick={(e) => handleNotificationClick(n, e)}
                   style={{
                     padding: '0.875rem 1rem',
                     borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     gap: '0.75rem',
-                    cursor: n.isRead ? 'default' : 'pointer',
-                    backgroundColor: n.isRead ? 'transparent' : 'rgba(37, 99, 235, 0.03)',
+                    cursor: 'pointer',
+                    backgroundColor: n.isRead ? 'transparent' : 'rgba(37, 99, 235, 0.05)',
                     transition: 'background-color 0.2s',
                     position: 'relative',
                   }}

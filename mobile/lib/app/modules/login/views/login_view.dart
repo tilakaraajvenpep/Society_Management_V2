@@ -20,7 +20,7 @@ class LoginView extends GetView<LoginController> {
             children: [
               const SizedBox(height: 32),
               Obx(() => Text(
-                'Welcome to ${controller.slug.value.toUpperCase()}',
+                'Welcome to ${controller.tenantName.value.isNotEmpty ? controller.tenantName.value : controller.slug.value.toUpperCase()}',
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -40,8 +40,9 @@ class LoginView extends GetView<LoginController> {
               TextField(
                 controller: controller.emailController,
                 decoration: const InputDecoration(
-                  labelText: 'Email Address',
-                  prefixIcon: Icon(Icons.email),
+                  labelText: 'Email or Mobile Number',
+                  hintText: 'e.g. tilak@gmail.com or 9876543210',
+                  prefixIcon: Icon(Icons.person_outline),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),

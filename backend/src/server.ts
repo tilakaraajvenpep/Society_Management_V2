@@ -116,6 +116,106 @@ async function ensurePublicTables() {
       `);
     }
 
+    // Ensure Tenant table has bank details & policy flags
+    const tenantColFixes = [
+      { col: "bankAccountName", def: "TEXT" },
+      { col: "bankName", def: "TEXT" },
+      { col: "bankAccountNumber", def: "TEXT" },
+      { col: "bankIfsc", def: "TEXT" },
+      { col: "bankUpiId", def: "TEXT" },
+      { col: "bankQrCodeUrl", def: "TEXT" },
+      { col: "bankReferenceRequired", def: "BOOLEAN NOT NULL DEFAULT true" },
+      { col: "bankProofRequired", def: "BOOLEAN NOT NULL DEFAULT true" }
+    ];
+    for (const { col, def } of tenantColFixes) {
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'Tenant' AND column_name = '${col}'
+          ) THEN
+            ALTER TABLE "Tenant" ADD COLUMN "${col}" ${def};
+          END IF;
+        EXCEPTION WHEN others THEN NULL;
+        END $$
+      `);
+    }
+
+    // Ensure Payment table has proof and approval fields
+    const paymentColFixes = [
+      { col: "referenceNumber", def: "TEXT" },
+      { col: "proofUrl", def: "TEXT" },
+      { col: "rejectionReason", def: "TEXT" },
+      { col: "approvedAt", def: "TIMESTAMP(3)" },
+      { col: "approvedById", def: "TEXT" }
+    ];
+    for (const { col, def } of paymentColFixes) {
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'Payment' AND column_name = '${col}'
+          ) THEN
+            ALTER TABLE "Payment" ADD COLUMN "${col}" ${def};
+          END IF;
+        EXCEPTION WHEN others THEN NULL;
+        END $$
+      `);
+    }
+
+    // Ensure Event table has imageUrl
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'Event' AND column_name = 'imageUrl'
+        ) THEN
+          ALTER TABLE "Event" ADD COLUMN "imageUrl" TEXT;
+        END IF;
+      EXCEPTION WHEN others THEN NULL;
+      END $$
+    `);
+
+    // Ensure Notification table has link
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'Notification' AND column_name = 'link'
+        ) THEN
+          ALTER TABLE "Notification" ADD COLUMN "link" TEXT;
+        END IF;
+      EXCEPTION WHEN others THEN NULL;
+      END $$
+    `);
+
+    // Ensure SystemSetting table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "SystemSetting" (
+        "key" TEXT PRIMARY KEY,
+        "value" TEXT NOT NULL,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Ensure Tenant columns for menus, branding, app version and maintenance exist
+    const tenantSettingsCols = [
+      "superadminMenuConfig", "tenantMenuConfig", "brandingConfig", "appVersionConfig", "maintenanceConfig"
+    ];
+    for (const col of tenantSettingsCols) {
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'Tenant' AND column_name = '${col}'
+          ) THEN
+            ALTER TABLE "Tenant" ADD COLUMN "${col}" TEXT;
+          END IF;
+        EXCEPTION WHEN others THEN NULL;
+        END $$
+      `);
+    }
+
     // Drop the old index/constraint in all tenant schemas
     const schemasRes = await client.query(`
       SELECT schema_name 
@@ -160,20 +260,15 @@ async function ensurePublicTables() {
 }
 
 async function start() {
-  // Step 1: Ensure public schema has all required tables/columns
-  await ensurePublicTables().catch(err => {
-    console.error("Failed to ensure public tables:", err);
-  });
-
-  // Step 2: Sync public schema to all tenant schemas
-  await ensureTenantSchemas().catch(err => {
-    console.error("Failed to sync tenant schemas:", err);
-  });
-
-  // Step 3: Start the server
+  // Start the server immediately so it is available without delay
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     
+    // Background schema and table checks
+    ensurePublicTables()
+      .then(() => ensureTenantSchemas())
+      .catch(err => console.error("Schema sync error:", err));
+
     // Run reminder scheduler job at startup and then hourly (every 3600000 ms)
     setTimeout(() => {
       runReminderJob().catch(err => console.error("Error running reminder job at startup:", err));

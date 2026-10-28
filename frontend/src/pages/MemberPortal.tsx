@@ -4,13 +4,15 @@ import {
   LayoutDashboard, LifeBuoy, LogOut, Plus, Send, 
   MessageSquare, Clock, Building, User, CreditCard, 
   History, Menu, X, Printer, FileText, Camera, Lock,
-  ChevronDown, ChevronUp, Calendar
+  ChevronDown, ChevronUp, Calendar, Loader2, QrCode,
+  Landmark, Copy, Check, ShieldAlert, RefreshCw
 } from 'lucide-react';
 import axios from 'axios';
 import NotificationPanel from '../components/NotificationPanel';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../components/Toast';
+import { LoadingSpinner, PageLoader } from '../components/LoadingSpinner';
 
 const MemberHelpdesk = ({ token }: { token: string | null }) => {
   const { showToast } = useToast();
@@ -125,7 +127,9 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading...</div>
+            <div style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
+              <LoadingSpinner message="Loading tickets..." />
+            </div>
           ) : tickets.length === 0 ? (
             <div style={{ padding: '4rem 1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
               <LifeBuoy size={40} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
@@ -291,8 +295,14 @@ const MemberHelpdesk = ({ token }: { token: string | null }) => {
               </div>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowNewModal(false)} disabled={uploadingImage}>{t('action.cancel')}</button>
-                <button type="submit" className="btn btn-primary" disabled={uploadingImage}>
-                  {uploadingImage ? `${t('action.loading')}` : t('helpdesk.submit')}
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  disabled={uploadingImage}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  {uploadingImage && <Loader2 size={16} className="animate-spin" />}
+                  <span>{uploadingImage ? `${t('action.loading')}` : t('helpdesk.submit')}</span>
                 </button>
               </div>
             </form>
@@ -342,6 +352,7 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                   <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('payments.receipt_no').toUpperCase()}</th>
                   <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('payments.period').toUpperCase()}</th>
                   <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('payments.amount').toUpperCase()}</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>STATUS</th>
                   <th style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{t('members.actions').toUpperCase()}</th>
                 </tr>
               </thead>
@@ -349,13 +360,58 @@ const MemberPayments = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
                 {memberInfo.payments.map((p: any) => (
                   <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{new Date(p.paymentDate).toLocaleDateString()}</td>
-                    <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600 }}>{p.receiptNumber || `RCP-${p.id.slice(-6).toUpperCase()}`}</td>
+                    <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600 }}>
+                      {p.receiptNumber ? (
+                        <code>{p.receiptNumber}</code>
+                      ) : p.status === 'PENDING' ? (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Pending approval</span>
+                      ) : (
+                        `RCP-${p.id.slice(-6).toUpperCase()}`
+                      )}
+                      {p.referenceNumber && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                          Ref: {p.referenceNumber}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{p.periodLabel || `${p.paidMonths} Month(s)`}</td>
                     <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 700 }}>₹{p.amount.toLocaleString()}</td>
                     <td style={{ padding: '1rem' }}>
-                      <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={() => viewReceipt(p)}>
-                        <FileText size={14} /> {t('action.view')} {t('payments.receipt')}
-                      </button>
+                      {p.status === 'PENDING' ? (
+                        <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}>
+                          <Clock size={12} /> Awaiting Approval
+                        </span>
+                      ) : p.status === 'CANCELLED' ? (
+                        <div>
+                          <span className="badge badge-error" style={{ fontSize: '0.75rem' }}>Rejected</span>
+                          {p.rejectionReason && (
+                            <div style={{ fontSize: '0.72rem', color: 'var(--error)', marginTop: '0.25rem', maxWidth: '200px' }}>
+                              Note: {p.rejectionReason}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>Approved</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {p.status === 'PAID' && (
+                          <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={() => viewReceipt(p)}>
+                            <FileText size={14} /> {t('action.view')} {t('payments.receipt')}
+                          </button>
+                        )}
+                        {p.proofUrl && (
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }} 
+                            onClick={() => window.open(p.proofUrl, '_blank')}
+                            title="View uploaded payment proof"
+                          >
+                            <Camera size={14} /> Proof
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -483,16 +539,21 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
         </div>
       </div>
 
-      {!memberInfo?.payments || memberInfo.payments.length === 0 ? (
-        <div className="card" style={{ padding: '4rem 2rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', border: '1px solid var(--border-color)' }}>
-          <FileText size={48} style={{ margin: '0 auto 1.5rem', color: 'var(--text-secondary)', opacity: 0.3 }} />
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Receipts Available</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '300px', margin: '0 auto' }}>Once society payments are recorded against your flat, your receipts will be generated here.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-          {memberInfo.payments.map((p: any) => {
-            const receiptNo = p.receiptNumber || `RCP-${p.id.slice(-6).toUpperCase()}`;
+      {(() => {
+        const paidReceipts = (memberInfo?.payments || []).filter((p: any) => p.status === 'PAID' || (p.status !== 'CANCELLED' && p.status !== 'PENDING' && p.receiptNumber));
+        if (paidReceipts.length === 0) {
+          return (
+            <div className="card" style={{ padding: '4rem 2rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', border: '1px solid var(--border-color)' }}>
+              <FileText size={48} style={{ margin: '0 auto 1.5rem', color: 'var(--text-secondary)', opacity: 0.3 }} />
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>No Approved Receipts Available</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '300px', margin: '0 auto' }}>Once society payments are recorded or approved against your flat, your official receipts will be generated here.</p>
+            </div>
+          );
+        }
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            {paidReceipts.map((p: any) => {
+              const receiptNo = p.receiptNumber || `RCP-${p.id.slice(-6).toUpperCase()}`;
             return (
               <div key={p.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem', transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: 'default', border: '1px solid var(--border-color)' }}
                    onMouseEnter={(e) => {
@@ -532,7 +593,8 @@ const MemberReceipts = ({ memberInfo, user }: { memberInfo: any, user: any }) =>
             );
           })}
         </div>
-      )}
+        );
+      })()}
 
       {showReceipt && selectedPayment && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
@@ -743,8 +805,9 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
               </div>
             )}
             {uploading && (
-              <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontSize: '0.7rem' }}>
-                Uploading...
+              <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(2px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#fff', fontSize: '0.75rem', gap: '0.35rem', borderRadius: '50%' }}>
+                <Loader2 size={18} className="animate-spin" />
+                <span>Uploading...</span>
               </div>
             )}
           </div>
@@ -812,8 +875,14 @@ const MemberProfileTab = ({ memberInfo, setMemberInfo, token }: { memberInfo: an
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-          <button type="submit" className="btn btn-primary" disabled={saving || uploading} style={{ padding: '0.5rem 1.25rem' }}>
-            {saving ? t('action.saving') : t('profile.save_changes')}
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            disabled={saving || uploading} 
+            style={{ padding: '0.5rem 1.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            {saving && <Loader2 size={16} className="animate-spin" />}
+            <span>{saving ? t('action.saving') : t('profile.save_changes')}</span>
           </button>
         </div>
       </form>
@@ -947,7 +1016,7 @@ const MemberEvents = ({ token }: { token: string | null }) => {
       </h3>
 
       {loading ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Loading events...</p>
+        <LoadingSpinner message="Loading events & meetings..." />
       ) : events.length === 0 ? (
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', padding: '1.5rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem' }}>
           No upcoming events or meetings scheduled.
@@ -958,6 +1027,17 @@ const MemberEvents = ({ token }: { token: string | null }) => {
             const dateObj = new Date(event.eventDate);
             return (
               <div key={event.id} style={{ display: 'flex', flexDirection: 'column', padding: '1.25rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                {event.imageUrl && (
+                  <div style={{ width: '100%', height: '160px', borderRadius: '0.5rem', overflow: 'hidden', marginBottom: '0.85rem' }}>
+                    <img 
+                      src={event.imageUrl} 
+                      alt={event.title} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer', transition: 'transform 0.2s' }} 
+                      onClick={() => window.open(event.imageUrl, '_blank')}
+                      title="Click to view full photo"
+                    />
+                  </div>
+                )}
                 <div style={{ marginBottom: '0.75rem' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', backgroundColor: 'rgba(99, 102, 241, 0.1)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
                     {dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · {dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
@@ -1000,13 +1080,20 @@ const MemberPortal = () => {
   const [loading, setLoading] = useState(true);
   const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
 
-  // Online payment state variables
+  // Online & Bank payment state variables
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentFrequency, setPaymentFrequency] = useState<'monthly' | 'quarterly' | 'half_yearly' | 'annual' | 'custom'>('monthly');
   const [customMonths, setCustomMonths] = useState(1);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isTestPaymentProcessing, setIsTestPaymentProcessing] = useState(false);
   const [manualAmount, setManualAmount] = useState('');
+  const [paymentMethodTab, setPaymentMethodTab] = useState<'online' | 'bank'>('online');
+  const [bankRefNumber, setBankRefNumber] = useState('');
+  const [bankProofFile, setBankProofFile] = useState<File | null>(null);
+  const [bankProofPreview, setBankProofPreview] = useState<string | null>(null);
+  const [bankNotes, setBankNotes] = useState('');
+  const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const toggleYear = (yearId: string) => {
     setExpandedYears(prev => ({ ...prev, [yearId]: !prev[yearId] }));
@@ -1246,6 +1333,103 @@ const MemberPortal = () => {
     }
   };
 
+  const handleCopy = (text: string, fieldName: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    showToast(`Copied ${fieldName} to clipboard`, 'success');
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handleBankTransferSubmit = async () => {
+    const { final, monthsCount, lateFee, discount } = getCalculatedAmount();
+    if (final <= 0) {
+      showToast("Payment amount must be greater than 0", "error");
+      return;
+    }
+
+    const isRefRequired = memberInfo?.tenant?.bankReferenceRequired ?? true;
+    const isProofRequired = memberInfo?.tenant?.bankProofRequired ?? true;
+
+    if (isRefRequired && !bankRefNumber.trim()) {
+      showToast("Transaction Reference / UTR Number is compulsory by society policy", "error");
+      return;
+    }
+
+    if (isProofRequired && !bankProofFile) {
+      showToast("Payment proof / screenshot is compulsory by society policy", "error");
+      return;
+    }
+
+    setIsSubmittingTransfer(true);
+    try {
+      let uploadedProofUrl = null;
+      if (bankProofFile) {
+        const formData = new FormData();
+        formData.append('file', bankProofFile);
+        const uploadRes = await axios.post('/upload/file', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`
+          }
+        });
+        uploadedProofUrl = uploadRes.data.url;
+      }
+
+      let start = memberInfo?.paidUntil ? new Date(memberInfo.paidUntil) : new Date();
+      if (isNaN(start.getTime())) start = new Date();
+      if (!memberInfo?.paidUntil) {
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+      } else {
+        start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+      }
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + monthsCount);
+      end.setDate(0);
+
+      const periodLabel = paymentFrequency === 'custom'
+        ? `${customMonths} Month(s) Custom Plan`
+        : `${paymentFrequency.charAt(0).toUpperCase() + paymentFrequency.slice(1).replace('_', '-')} Maintenance Plan`;
+
+      await axios.post('/payments/bank-transfer', {
+        amount: final,
+        periodLabel,
+        paidMonths: monthsCount,
+        coverageStartDate: start.toISOString(),
+        coverageEndDate: end.toISOString(),
+        referenceNumber: bankRefNumber.trim(),
+        proofUrl: uploadedProofUrl,
+        notes: bankNotes.trim(),
+        lateFee,
+        discount,
+        memberId: memberInfo.id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      showToast("✅ Bank transfer submitted! Society admin has been notified for approval.", "success");
+
+      // Refresh member profile data
+      const profileRes = await axios.get('/members/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMemberInfo(profileRes.data);
+      setShowPaymentModal(false);
+      setBankRefNumber('');
+      setBankProofFile(null);
+      setBankProofPreview(null);
+      setBankNotes('');
+      setManualAmount('');
+      setActiveTab('payments');
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.response?.data?.message || "Error submitting bank transfer", "error");
+    } finally {
+      setIsSubmittingTransfer(false);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -1272,6 +1456,51 @@ const MemberPortal = () => {
       fetchData();
     }
   }, [token]);
+
+  // Apply dynamic theme color from tenant branding
+  useEffect(() => {
+    const t = memberInfo?.tenant;
+    let color = user?.branding?.memberThemeColor;
+    if (t?.brandingConfig) {
+      try {
+        const b = JSON.parse(t.brandingConfig);
+        if (b.memberThemeColor) color = b.memberThemeColor;
+      } catch (e) {}
+    }
+    if (color) {
+      document.documentElement.style.setProperty('--primary', color);
+    }
+  }, [memberInfo, user]);
+
+  const isMenuAllowed = (menuId: string) => {
+    if (user?.menus?.memberWeb && user.menus.memberWeb[menuId] === false) return false;
+    const t = memberInfo?.tenant;
+    if (t?.superadminMenuConfig) {
+      try {
+        const sa = JSON.parse(t.superadminMenuConfig);
+        if (sa.memberWeb && sa.memberWeb[menuId] === false) return false;
+      } catch (e) {}
+    }
+    if (t?.tenantMenuConfig) {
+      try {
+        const tm = JSON.parse(t.tenantMenuConfig);
+        if (tm.memberWeb && tm.memberWeb[menuId] === false) return false;
+      } catch (e) {}
+    }
+    return true;
+  };
+
+  // Auto-redirect if active tab is disabled
+  useEffect(() => {
+    if (activeTab === 'profile') return;
+    if (!isMenuAllowed(activeTab)) {
+      const allTabs = ['overview', 'dues-history', 'payments', 'receipts', 'events', 'helpdesk', 'profile'];
+      const firstAllowed = allTabs.find(t => isMenuAllowed(t));
+      if (firstAllowed) {
+        setActiveTab(firstAllowed);
+      }
+    }
+  }, [memberInfo, activeTab]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -1312,54 +1541,62 @@ const MemberPortal = () => {
             </div>
 
             <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-              <div className="card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                  <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)' }}>
-                    <CreditCard size={20} />
-                  </div>
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.current_dues')}</span>
-                </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: (memberInfo?.outstandingDues || 0) > 0 ? 'var(--error)' : 'var(--success)' }}>
-                  ₹{Math.max(0, memberInfo?.outstandingDues || 0).toLocaleString()}
-                </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  {(memberInfo?.outstandingDues || 0) > 0 ? (
-                    <span>
-                      Please pay at the society office or{" "}
-                      <span onClick={() => setShowPaymentModal(true)} style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
-                        {t('member.pay_online')}
-                      </span>.
-                    </span>
-                  ) : (
-                    t('member.no_dues')
-                  )}
-                </p>
-              </div>
-
-              <div className="card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                  <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>
-                    <Clock size={20} />
-                  </div>
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.due_months')}</span>
-                </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 600, maxHeight: '80px', overflowY: 'auto', color: 'var(--error)' }}>
-                  {dueMonthsList.length > 0 ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                      {dueMonthsList.map((m) => (
-                        <span key={m} style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
-                          {m}
-                        </span>
-                      ))}
+              {(isMenuAllowed('dues-history') || isMenuAllowed('payments')) && (
+                <div className="card">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)' }}>
+                      <CreditCard size={20} />
                     </div>
-                  ) : (
-                    <span style={{ color: 'var(--success)' }}>{t('member.all_paid')}</span>
-                  )}
+                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.current_dues')}</span>
+                  </div>
+                  <div style={{ fontSize: '1.75rem', fontWeight: 700, color: (memberInfo?.outstandingDues || 0) > 0 ? 'var(--error)' : 'var(--success)' }}>
+                    ₹{Math.max(0, memberInfo?.outstandingDues || 0).toLocaleString()}
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    {(memberInfo?.outstandingDues || 0) > 0 ? (
+                      <span>
+                        Please pay at the society office{isMenuAllowed('payments') ? (
+                          <>
+                            {" or "}
+                            <span onClick={() => setShowPaymentModal(true)} style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
+                              {t('member.pay_online')}
+                            </span>
+                          </>
+                        ) : null}.
+                      </span>
+                    ) : (
+                      t('member.no_dues')
+                    )}
+                  </p>
                 </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  {dueMonthsList.length > 0 ? `${dueMonthsList.length} ${t('member.pending_months')}` : t('member.no_pending')}
-                </p>
-              </div>
+              )}
+
+              {isMenuAllowed('dues-history') && (
+                <div className="card">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)' }}>
+                      <Clock size={20} />
+                    </div>
+                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.due_months')}</span>
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 600, maxHeight: '80px', overflowY: 'auto', color: 'var(--error)' }}>
+                    {dueMonthsList.length > 0 ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        {dueMonthsList.map((m) => (
+                          <span key={m} style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--success)' }}>{t('member.all_paid')}</span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    {dueMonthsList.length > 0 ? `${dueMonthsList.length} ${t('member.pending_months')}` : t('member.no_pending')}
+                  </p>
+                </div>
+              )}
 
               <div className="card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
@@ -1376,43 +1613,55 @@ const MemberPortal = () => {
                 </p>
               </div>
 
-              <div className="card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                  <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#d97706' }}>
-                    <History size={20} />
+              {(isMenuAllowed('dues-history') || isMenuAllowed('payments')) && (
+                <div className="card">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ padding: '0.6rem', borderRadius: '0.5rem', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#d97706' }}>
+                      <History size={20} />
+                    </div>
+                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.annual_cost')}</span>
                   </div>
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{t('member.annual_cost')}</span>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                    {annualCostLabel}
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                    {subtext}
+                  </p>
                 </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                  {annualCostLabel}
-                </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                  {subtext}
-                </p>
-              </div>
+              )}
             </div>
 
-            <div className="card">
-              <h3 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>Quick Actions</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setActiveTab('helpdesk')}>
-                  <LifeBuoy size={24} />
-                  <span>Raise Helpdesk Ticket</span>
-                </button>
-                <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setActiveTab('payments')}>
-                  <History size={24} />
-                  <span>View Payment History</span>
-                </button>
-                <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setActiveTab('events')}>
-                  <Calendar size={24} />
-                  <span>View Society Events</span>
-                </button>
-                <button className="btn btn-primary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setShowPaymentModal(true)}>
-                  <CreditCard size={24} />
-                  <span>Pay Maintenance Online</span>
-                </button>
+            {(isMenuAllowed('helpdesk') || isMenuAllowed('payments') || isMenuAllowed('events')) && (
+              <div className="card">
+                <h3 style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>Quick Actions</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  {isMenuAllowed('helpdesk') && (
+                    <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setActiveTab('helpdesk')}>
+                      <LifeBuoy size={24} />
+                      <span>Raise Helpdesk Ticket</span>
+                    </button>
+                  )}
+                  {isMenuAllowed('payments') && (
+                    <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setActiveTab('payments')}>
+                      <History size={24} />
+                      <span>View Payment History</span>
+                    </button>
+                  )}
+                  {isMenuAllowed('events') && (
+                    <button className="btn btn-secondary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setActiveTab('events')}>
+                      <Calendar size={24} />
+                      <span>View Society Events</span>
+                    </button>
+                  )}
+                  {isMenuAllowed('payments') && (
+                    <button className="btn btn-primary" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.5rem', alignItems: 'center' }} onClick={() => setShowPaymentModal(true)}>
+                      <CreditCard size={24} />
+                      <span>Pay Maintenance Online</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         );
       }
@@ -1534,7 +1783,66 @@ const MemberPortal = () => {
     }
   };
 
-  if (loading) return <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading Portal...</div>;
+  if (loading) {
+    return (
+      <PageLoader 
+        message="Loading Member Portal..." 
+        subtitle="Fetching your account details, flat dues & announcements..." 
+        portalType="member"
+      />
+    );
+  }
+
+  // Check maintenance mode
+  const tInfo = memberInfo?.tenant;
+  const globalMaint = memberInfo?.globalMaintenance;
+  const memberEmail = (user?.email || '').toLowerCase().trim();
+  let isUnderMaintenance = false;
+  let maintMessage = 'This portal is currently undergoing scheduled maintenance. Please check back later.';
+
+  if (globalMaint?.isMaintenance && (globalMaint.targets?.includes('MEMBER_WEB') || globalMaint.targets?.includes('ALL'))) {
+    const isWhitelisted = (globalMaint.whitelistedEmails || []).some((e: string) => e.toLowerCase().trim() === memberEmail);
+    if (!isWhitelisted) {
+      isUnderMaintenance = true;
+      if (globalMaint.message) maintMessage = globalMaint.message;
+    }
+  }
+
+  if (!isUnderMaintenance && tInfo?.maintenanceConfig) {
+    try {
+      const mc = typeof tInfo.maintenanceConfig === 'string' ? JSON.parse(tInfo.maintenanceConfig) : tInfo.maintenanceConfig;
+      const isTargeted = mc.targets?.includes('MEMBER_WEB') || mc.targets?.includes('ALL');
+      const isWhitelisted = (mc.whitelistedEmails || []).some((e: string) => e.toLowerCase().trim() === memberEmail);
+      if (mc.isMaintenance && isTargeted && !isWhitelisted) {
+        isUnderMaintenance = true;
+        if (mc.message) maintMessage = mc.message;
+      }
+    } catch (e) {}
+  }
+
+  if (isUnderMaintenance) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-secondary)', padding: '1.5rem' }}>
+        <div className="card" style={{ maxWidth: '520px', width: '100%', textAlign: 'center', padding: '3rem 2rem', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+            <ShieldAlert size={36} />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>System Under Maintenance</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+            {maintMessage}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+            <button className="btn btn-secondary" onClick={() => window.location.reload()}>
+              <RefreshCw size={16} /> Check Again
+            </button>
+            <button className="btn btn-primary" onClick={logout} style={{ backgroundColor: 'var(--error)', borderColor: 'var(--error)' }}>
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
@@ -1546,7 +1854,7 @@ const MemberPortal = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <LanguageSwitcher />
-          <NotificationPanel token={token} />
+          <NotificationPanel token={token} onNavigate={(tab) => setActiveTab(tab)} />
           <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.25rem' }}>
             <Menu size={24} />
           </button>
@@ -1567,27 +1875,41 @@ const MemberPortal = () => {
         </div>
 
         <nav style={{ flex: 1 }}>
-          <a href="#" className={`nav-link ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}>
-            <LayoutDashboard size={20} /> {t('nav.home')}
-          </a>
-          <a href="#" className={`nav-link ${activeTab === 'dues-history' ? 'active' : ''}`} onClick={() => { setActiveTab('dues-history'); setIsSidebarOpen(false); }}>
-            <Clock size={20} /> {t('nav.dues_history')}
-          </a>
-          <a href="#" className={`nav-link ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => { setActiveTab('payments'); setIsSidebarOpen(false); }}>
-            <History size={20} /> {t('nav.payment_history')}
-          </a>
-          <a href="#" className={`nav-link ${activeTab === 'receipts' ? 'active' : ''}`} onClick={() => { setActiveTab('receipts'); setIsSidebarOpen(false); }}>
-            <FileText size={20} /> {t('nav.receipts')}
-          </a>
-          <a href="#" className={`nav-link ${activeTab === 'events' ? 'active' : ''}`} onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }}>
-            <Calendar size={20} /> {t('nav.events')}
-          </a>
-          <a href="#" className={`nav-link ${activeTab === 'helpdesk' ? 'active' : ''}`} onClick={() => { setActiveTab('helpdesk'); setIsSidebarOpen(false); }}>
-            <LifeBuoy size={20} /> {t('nav.helpdesk')}
-          </a>
-          <a href="#" className={`nav-link ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}>
-            <User size={20} /> {t('nav.my_profile')}
-          </a>
+          {isMenuAllowed('overview') && (
+            <a href="#" className={`nav-link ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }}>
+              <LayoutDashboard size={20} /> {t('nav.home')}
+            </a>
+          )}
+          {isMenuAllowed('dues-history') && (
+            <a href="#" className={`nav-link ${activeTab === 'dues-history' ? 'active' : ''}`} onClick={() => { setActiveTab('dues-history'); setIsSidebarOpen(false); }}>
+              <Clock size={20} /> {t('nav.dues_history')}
+            </a>
+          )}
+          {isMenuAllowed('payments') && (
+            <a href="#" className={`nav-link ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => { setActiveTab('payments'); setIsSidebarOpen(false); }}>
+              <History size={20} /> {t('nav.payment_history')}
+            </a>
+          )}
+          {isMenuAllowed('receipts') && (
+            <a href="#" className={`nav-link ${activeTab === 'receipts' ? 'active' : ''}`} onClick={() => { setActiveTab('receipts'); setIsSidebarOpen(false); }}>
+              <FileText size={20} /> {t('nav.receipts')}
+            </a>
+          )}
+          {isMenuAllowed('events') && (
+            <a href="#" className={`nav-link ${activeTab === 'events' ? 'active' : ''}`} onClick={() => { setActiveTab('events'); setIsSidebarOpen(false); }}>
+              <Calendar size={20} /> {t('nav.events')}
+            </a>
+          )}
+          {isMenuAllowed('helpdesk') && (
+            <a href="#" className={`nav-link ${activeTab === 'helpdesk' ? 'active' : ''}`} onClick={() => { setActiveTab('helpdesk'); setIsSidebarOpen(false); }}>
+              <LifeBuoy size={20} /> {t('nav.helpdesk')}
+            </a>
+          )}
+          {isMenuAllowed('profile') && (
+            <a href="#" className={`nav-link ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }}>
+              <User size={20} /> {t('nav.my_profile')}
+            </a>
+          )}
         </nav>
 
         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
@@ -1605,7 +1927,7 @@ const MemberPortal = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <LanguageSwitcher />
-            <NotificationPanel token={token} />
+            <NotificationPanel token={token} onNavigate={(tab) => setActiveTab(tab)} />
             <div 
               onClick={() => setActiveTab('profile')} 
               style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.4rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}
@@ -1658,12 +1980,12 @@ const MemberPortal = () => {
             {/* ── Header ── */}
             <div style={{
               background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
-              padding: '1.75rem 1.75rem 1.5rem',
+              padding: '1.5rem 1.75rem 1.25rem',
               position: 'relative',
               flexShrink: 0
             }}>
               <button
-                onClick={() => { setShowPaymentModal(false); setManualAmount(''); }}
+                onClick={() => { setShowPaymentModal(false); setManualAmount(''); setBankProofFile(null); setBankProofPreview(null); }}
                 style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'rgba(255, 255, 255, 0.15)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', backdropFilter: 'blur(4px)', transition: 'all 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
@@ -1672,7 +1994,7 @@ const MemberPortal = () => {
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                 <div style={{ background: 'rgba(255, 255, 255, 0.18)', borderRadius: '0.75rem', padding: '0.6rem', display: 'flex', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
-                  <CreditCard size={24} color="#fff" />
+                  {paymentMethodTab === 'online' ? <CreditCard size={24} color="#fff" /> : <Landmark size={24} color="#fff" />}
                 </div>
                 <div>
                   <h2 style={{ margin: 0, color: '#fff', fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Pay Maintenance</h2>
@@ -1681,266 +2003,657 @@ const MemberPortal = () => {
               </div>
             </div>
 
-            {/* ── Body ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.75rem', overflowY: 'auto' }} className="custom-scrollbar">
-
-              {/* Plan Selector */}
-              <div>
-                <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>1. Select Payment Plan</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
-                  {[
-                    { key: 'monthly', label: 'Monthly', sub: '1 Month' },
-                    { key: 'quarterly', label: 'Quarterly', sub: '3 Months' },
-                    { key: 'half_yearly', label: 'Half-Yearly', sub: '6 Months' },
-                    { key: 'annual', label: 'Annual', sub: '12 Months' },
-                  ].map(plan => {
-                    const isActive = paymentFrequency === plan.key;
-                    return (
-                      <button
-                        key={plan.key}
-                        type="button"
-                        onClick={() => setPaymentFrequency(plan.key as any)}
-                        style={{
-                          padding: '0.85rem 0.6rem',
-                          borderRadius: '0.85rem',
-                          border: isActive ? '2px solid #6366f1' : '1.5px solid var(--border-color)',
-                          background: isActive ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-secondary)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '0.2rem',
-                          transition: 'all 0.2s',
-                          boxShadow: isActive ? '0 4px 12px rgba(99, 102, 241, 0.08)' : 'none'
-                        }}
-                      >
-                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: isActive ? '#6366f1' : 'var(--text-primary)' }}>{plan.label}</span>
-                        <span style={{ fontSize: '0.72rem', color: isActive ? '#6366f1' : 'var(--text-secondary)', opacity: 0.85 }}>{plan.sub}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPaymentFrequency('custom')}
-                  style={{
-                    marginTop: '0.65rem',
-                    width: '100%',
-                    padding: '0.8rem',
-                    borderRadius: '0.85rem',
-                    border: paymentFrequency === 'custom' ? '2px solid #6366f1' : '1.5px solid var(--border-color)',
-                    background: paymentFrequency === 'custom' ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: 700,
-                    color: paymentFrequency === 'custom' ? '#6366f1' : 'var(--text-primary)',
-                    transition: 'all 0.2s',
-                    boxShadow: paymentFrequency === 'custom' ? '0 4px 12px rgba(99, 102, 241, 0.08)' : 'none'
-                  }}
-                >
-                  Custom Months Plan
-                </button>
-                {paymentFrequency === 'custom' && (
-                  <div style={{ marginTop: '0.75rem', animation: 'fadeIn 0.2s ease' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Number of Months to Pay</label>
-                    <select
-                      value={customMonths}
-                      onChange={(e) => setCustomMonths(parseInt(e.target.value))}
-                      style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }}
-                    >
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
-                        <option key={n} value={n}>{n} {n === 1 ? 'Month' : 'Months'}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Custom Amount Override */}
-              <div>
-                <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>2. Enter Custom Amount <span style={{ fontWeight: 400, textTransform: 'none', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>(Optional)</span></p>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-secondary)', fontSize: '1.05rem', pointerEvents: 'none' }}>₹</span>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="Leave blank to use calculated amount"
-                    value={manualAmount}
-                    onChange={(e) => setManualAmount(e.target.value)}
-                    style={{ width: '100%', paddingLeft: '2.2rem', paddingRight: '1rem', paddingTop: '0.75rem', paddingBottom: '0.75rem', borderRadius: '0.75rem', border: `1.5px solid ${manualAmount && parseFloat(manualAmount) > 0 ? '#6366f1' : 'var(--border-color)'}`, backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem', boxSizing: 'border-box', outline: 'none', transition: 'all 0.2s' }}
-                  />
-                </div>
-                {manualAmount && parseFloat(manualAmount) > 0 && (
-                  <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>✓ Custom override active. You will pay ₹{parseFloat(manualAmount).toLocaleString()}</p>
-                )}
-              </div>
-
-              {/* Fee Breakdown Card */}
-              {(() => {
-                const { base, final, discount, lateFee, monthsCount } = getCalculatedAmount();
-                
-                let start = memberInfo?.paidUntil ? new Date(memberInfo.paidUntil) : new Date();
-                if (isNaN(start.getTime())) {
-                  start = new Date();
-                }
-                if (!memberInfo?.paidUntil) {
-                  start.setDate(1);
-                  start.setHours(0, 0, 0, 0);
-                } else {
-                  start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-                }
-                if (isNaN(start.getTime())) {
-                  start = new Date();
-                  start.setDate(1);
-                  start.setHours(0, 0, 0, 0);
-                }
-
-                const end = new Date(start);
-                end.setMonth(end.getMonth() + monthsCount);
-                end.setDate(0);
-
-                const fmt = (d: Date) => {
-                  if (!d || isNaN(d.getTime())) return 'N/A';
-                  return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-                };
-
-                const isUsingManual = !!(manualAmount && parseFloat(manualAmount) > 0);
-
-                return (
-                  <div style={{ borderRadius: '1rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', display: 'block', width: '100%', boxSizing: 'border-box' }}>
-                    {/* Card Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Payment Summary Details</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6366f1', background: 'rgba(99, 102, 241, 0.08)', padding: '0.25rem 0.6rem', borderRadius: '2rem' }}>{fmt(start)} to {fmt(end)}</span>
-                    </div>
-
-                    {/* Text Boxes Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginTop: '1.25rem' }}>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Base Maintenance Rate</label>
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value={`₹${base.toLocaleString()}`} 
-                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Late Fee</label>
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value={lateFee > 0 && !isUsingManual ? `₹${lateFee.toLocaleString()}` : '₹0'} 
-                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Early Bird Discount</label>
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value={discount > 0 && !isUsingManual ? `₹${discount.toLocaleString()}` : '₹0'} 
-                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Total Payable Amount</label>
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value={`₹${final.toLocaleString()}`} 
-                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid #6366f1', backgroundColor: 'var(--bg-primary)', color: '#6366f1', fontSize: '0.9rem', fontWeight: 700, outline: 'none', cursor: 'default' }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Alert banners inside Card */}
-                    {lateFee > 0 && !isUsingManual && (
-                      <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', padding: '0.65rem 1rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginTop: '0.5rem' }}>
-                        <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>⚠️</span>
-                        <span style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.4, fontWeight: 500 }}>
-                          A late fee of ₹{lateFee.toLocaleString()} has been added because today is past the due date of {memberInfo?.tenant?.lateFeeDate ? new Date(memberInfo.tenant.lateFeeDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}.
-                        </span>
-                      </div>
-                    )}
-                    {discount > 0 && !isUsingManual && (
-                      <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.65rem 1rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginTop: '0.5rem' }}>
-                        <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>🎉</span>
-                        <span style={{ fontSize: '0.75rem', color: '#065f46', lineHeight: 1.4, fontWeight: 500 }}>
-                          You qualify for an early bird discount of ₹{discount.toLocaleString()}! Offer valid till {memberInfo?.tenant?.discountDate ? new Date(memberInfo.tenant.discountDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}.
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* ── Test Mode Button ── */}
-              <div style={{ borderRadius: '1rem', border: '1.5px dashed #d97706', background: 'rgba(245, 158, 11, 0.03)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.85rem' }}>⚠️</span> TEST MODE ONLY
-                </div>
-                <button
-                  type="button"
-                  onClick={handleTestPaymentDone}
-                  disabled={isTestPaymentProcessing || isProcessingPayment}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    borderRadius: '0.6rem',
-                    border: '1.5px solid #d97706',
-                    background: isTestPaymentProcessing ? '#fef3c7' : '#fffbeb',
-                    color: '#b45309',
-                    fontWeight: 700,
-                    fontSize: '0.875rem',
-                    cursor: isTestPaymentProcessing ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { if (!isTestPaymentProcessing) e.currentTarget.style.background = '#fef3c7'; }}
-                  onMouseLeave={e => { if (!isTestPaymentProcessing) e.currentTarget.style.background = '#fffbeb'; }}
-                >
-                  {isTestPaymentProcessing ? '⏳ Recording test payment...' : '✓ Payment Done (Test Mode)'}
-                </button>
-                <p style={{ margin: 0, fontSize: '0.7rem', color: '#b45309', opacity: 0.8, textAlign: 'center' }}>Skips Razorpay — directly records payment &amp; notifies treasurer</p>
-              </div>
-
-              {/* ── Razorpay Button ── */}
+            {/* ── Payment Method Switcher Tabs ── */}
+            <div style={{
+              display: 'flex',
+              borderBottom: '1.5px solid var(--border-color)',
+              backgroundColor: 'var(--bg-secondary)',
+              padding: '0.4rem',
+              gap: '0.4rem',
+              flexShrink: 0
+            }}>
               <button
                 type="button"
-                onClick={handleOnlinePayment}
-                disabled={isProcessingPayment || isTestPaymentProcessing}
+                onClick={() => setPaymentMethodTab('online')}
                 style={{
-                  width: '100%',
-                  padding: '0.95rem',
-                  borderRadius: '0.9rem',
+                  flex: 1,
+                  padding: '0.65rem 0.5rem',
+                  borderRadius: '0.65rem',
                   border: 'none',
-                  background: isProcessingPayment ? 'linear-gradient(135deg, #9ca3af, #d1d5db)' : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: '1rem',
-                  cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
+                  backgroundColor: paymentMethodTab === 'online' ? '#6366f1' : 'transparent',
+                  color: paymentMethodTab === 'online' ? '#fff' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.65rem',
-                  boxShadow: isProcessingPayment ? 'none' : '0 10px 25px -5px rgba(99, 102, 241, 0.45)',
+                  gap: '0.45rem',
                   transition: 'all 0.2s',
-                  letterSpacing: '-0.01em'
+                  boxShadow: paymentMethodTab === 'online' ? '0 4px 12px rgba(99, 102, 241, 0.25)' : 'none'
                 }}
-                onMouseEnter={e => { if (!isProcessingPayment) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 12px 28px -5px rgba(99, 102, 241, 0.55)'; } }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = isProcessingPayment ? 'none' : '0 10px 25px -5px rgba(99, 102, 241, 0.45)'; }}
               >
-                <CreditCard size={20} />
-                {isProcessingPayment ? 'Processing Securely...' : 'Pay Online with Razorpay'}
+                <CreditCard size={16} /> Online Payment
               </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMethodTab('bank')}
+                style={{
+                  flex: 1,
+                  padding: '0.65rem 0.5rem',
+                  borderRadius: '0.65rem',
+                  border: 'none',
+                  backgroundColor: paymentMethodTab === 'bank' ? '#6366f1' : 'transparent',
+                  color: paymentMethodTab === 'bank' ? '#fff' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.45rem',
+                  transition: 'all 0.2s',
+                  boxShadow: paymentMethodTab === 'bank' ? '0 4px 12px rgba(99, 102, 241, 0.25)' : 'none'
+                }}
+              >
+                <Landmark size={16} /> Bank Transfer &amp; QR
+              </button>
+            </div>
 
-              <p style={{ margin: 0, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', opacity: 0.85 }}>
-                <span>🔒</span> Secured by Razorpay · 256-bit SSL Encryption
-              </p>
+            {/* ── Body ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.75rem', overflowY: 'auto' }} className="custom-scrollbar">
+
+              {paymentMethodTab === 'online' ? (
+                <>
+                  {/* Plan Selector */}
+                  <div>
+                    <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>1. Select Payment Plan</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
+                      {[
+                        { key: 'monthly', label: 'Monthly', sub: '1 Month' },
+                        { key: 'quarterly', label: 'Quarterly', sub: '3 Months' },
+                        { key: 'half_yearly', label: 'Half-Yearly', sub: '6 Months' },
+                        { key: 'annual', label: 'Annual', sub: '12 Months' },
+                      ].map(plan => {
+                        const isActive = paymentFrequency === plan.key;
+                        return (
+                          <button
+                            key={plan.key}
+                            type="button"
+                            onClick={() => setPaymentFrequency(plan.key as any)}
+                            style={{
+                              padding: '0.85rem 0.6rem',
+                              borderRadius: '0.85rem',
+                              border: isActive ? '2px solid #6366f1' : '1.5px solid var(--border-color)',
+                              background: isActive ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-secondary)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '0.2rem',
+                              transition: 'all 0.2s',
+                              boxShadow: isActive ? '0 4px 12px rgba(99, 102, 241, 0.08)' : 'none'
+                            }}
+                          >
+                            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: isActive ? '#6366f1' : 'var(--text-primary)' }}>{plan.label}</span>
+                            <span style={{ fontSize: '0.72rem', color: isActive ? '#6366f1' : 'var(--text-secondary)', opacity: 0.85 }}>{plan.sub}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentFrequency('custom')}
+                      style={{
+                        marginTop: '0.65rem',
+                        width: '100%',
+                        padding: '0.8rem',
+                        borderRadius: '0.85rem',
+                        border: paymentFrequency === 'custom' ? '2px solid #6366f1' : '1.5px solid var(--border-color)',
+                        background: paymentFrequency === 'custom' ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-secondary)',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        color: paymentFrequency === 'custom' ? '#6366f1' : 'var(--text-primary)',
+                        transition: 'all 0.2s',
+                        boxShadow: paymentFrequency === 'custom' ? '0 4px 12px rgba(99, 102, 241, 0.08)' : 'none'
+                      }}
+                    >
+                      Custom Months Plan
+                    </button>
+                    {paymentFrequency === 'custom' && (
+                      <div style={{ marginTop: '0.75rem', animation: 'fadeIn 0.2s ease' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Number of Months to Pay</label>
+                        <select
+                          value={customMonths}
+                          onChange={(e) => setCustomMonths(parseInt(e.target.value))}
+                          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }}
+                        >
+                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                            <option key={n} value={n}>{n} {n === 1 ? 'Month' : 'Months'}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Custom Amount Override */}
+                  <div>
+                    <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>2. Enter Custom Amount <span style={{ fontWeight: 400, textTransform: 'none', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>(Optional)</span></p>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-secondary)', fontSize: '1.05rem', pointerEvents: 'none' }}>₹</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Leave blank to use calculated amount"
+                        value={manualAmount}
+                        onChange={(e) => setManualAmount(e.target.value)}
+                        style={{ width: '100%', paddingLeft: '2.2rem', paddingRight: '1rem', paddingTop: '0.75rem', paddingBottom: '0.75rem', borderRadius: '0.75rem', border: `1.5px solid ${manualAmount && parseFloat(manualAmount) > 0 ? '#6366f1' : 'var(--border-color)'}`, backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '0.95rem', boxSizing: 'border-box', outline: 'none', transition: 'all 0.2s' }}
+                      />
+                    </div>
+                    {manualAmount && parseFloat(manualAmount) > 0 && (
+                      <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>✓ Custom override active. You will pay ₹{parseFloat(manualAmount).toLocaleString()}</p>
+                    )}
+                  </div>
+
+                  {/* Fee Breakdown Card */}
+                  {(() => {
+                    const { base, final, discount, lateFee, monthsCount } = getCalculatedAmount();
+                    
+                    let start = memberInfo?.paidUntil ? new Date(memberInfo.paidUntil) : new Date();
+                    if (isNaN(start.getTime())) start = new Date();
+                    if (!memberInfo?.paidUntil) {
+                      start.setDate(1);
+                      start.setHours(0, 0, 0, 0);
+                    } else {
+                      start = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+                    }
+
+                    const end = new Date(start);
+                    end.setMonth(end.getMonth() + monthsCount);
+                    end.setDate(0);
+
+                    const fmt = (d: Date) => {
+                      if (!d || isNaN(d.getTime())) return 'N/A';
+                      return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+                    };
+
+                    const isUsingManual = !!(manualAmount && parseFloat(manualAmount) > 0);
+
+                    return (
+                      <div style={{ borderRadius: '1rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', padding: '1.25rem', display: 'block', width: '100%', boxSizing: 'border-box' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Payment Summary Details</span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6366f1', background: 'rgba(99, 102, 241, 0.08)', padding: '0.25rem 0.6rem', borderRadius: '2rem' }}>{fmt(start)} to {fmt(end)}</span>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginTop: '1.25rem' }}>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Base Maintenance Rate</label>
+                            <input 
+                              type="text" 
+                              readOnly 
+                              value={`₹${base.toLocaleString()}`} 
+                              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Late Fee</label>
+                            <input 
+                              type="text" 
+                              readOnly 
+                              value={lateFee > 0 && !isUsingManual ? `₹${lateFee.toLocaleString()}` : '₹0'} 
+                              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: lateFee > 0 && !isUsingManual ? '#dc2626' : 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Early Bird Discount</label>
+                            <input 
+                              type="text" 
+                              readOnly 
+                              value={discount > 0 && !isUsingManual ? `₹${discount.toLocaleString()}` : '₹0'} 
+                              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: discount > 0 && !isUsingManual ? '#059669' : 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600, outline: 'none', cursor: 'default' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'block' }}>Total Payable Amount</label>
+                            <input 
+                              type="text" 
+                              readOnly 
+                              value={`₹${final.toLocaleString()}`} 
+                              style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1.5px solid #6366f1', backgroundColor: 'var(--bg-primary)', color: '#6366f1', fontSize: '0.9rem', fontWeight: 700, outline: 'none', cursor: 'default' }}
+                            />
+                          </div>
+                        </div>
+
+                        {lateFee > 0 && !isUsingManual && (
+                          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', padding: '0.65rem 1rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginTop: '0.5rem' }}>
+                            <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>⚠️</span>
+                            <span style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.4, fontWeight: 500 }}>
+                              A late fee of ₹{lateFee.toLocaleString()} has been added.
+                            </span>
+                          </div>
+                        )}
+                        {discount > 0 && !isUsingManual && (
+                          <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.65rem 1rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginTop: '0.5rem' }}>
+                            <span style={{ fontSize: '0.95rem', flexShrink: 0 }}>🎉</span>
+                            <span style={{ fontSize: '0.75rem', color: '#065f46', lineHeight: 1.4, fontWeight: 500 }}>
+                              You qualify for an early bird discount of ₹{discount.toLocaleString()}!
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Test Mode Button ── */}
+                  <div style={{ borderRadius: '1rem', border: '1.5px dashed #d97706', background: 'rgba(245, 158, 11, 0.03)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span style={{ fontSize: '0.85rem' }}>⚠️</span> TEST MODE ONLY
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleTestPaymentDone}
+                      disabled={isTestPaymentProcessing || isProcessingPayment}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '0.6rem',
+                        border: '1.5px solid #d97706',
+                        background: isTestPaymentProcessing ? '#fef3c7' : '#fffbeb',
+                        color: '#b45309',
+                        fontWeight: 700,
+                        fontSize: '0.875rem',
+                        cursor: isTestPaymentProcessing ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      {isTestPaymentProcessing ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          <span>Recording test payment...</span>
+                        </>
+                      ) : (
+                        '✓ Payment Done (Test Mode)'
+                      )}
+                    </button>
+                    <p style={{ margin: 0, fontSize: '0.7rem', color: '#b45309', opacity: 0.8, textAlign: 'center' }}>Skips Razorpay — directly records payment &amp; notifies treasurer</p>
+                  </div>
+
+                  {/* ── Razorpay Button ── */}
+                  <button
+                    type="button"
+                    onClick={handleOnlinePayment}
+                    disabled={isProcessingPayment || isTestPaymentProcessing}
+                    style={{
+                      width: '100%',
+                      padding: '0.95rem',
+                      borderRadius: '0.9rem',
+                      border: 'none',
+                      background: isProcessingPayment ? 'linear-gradient(135deg, #9ca3af, #d1d5db)' : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: '1rem',
+                      cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.65rem',
+                      boxShadow: isProcessingPayment ? 'none' : '0 10px 25px -5px rgba(99, 102, 241, 0.45)',
+                      transition: 'all 0.2s',
+                      letterSpacing: '-0.01em'
+                    }}
+                  >
+                    {isProcessingPayment ? (
+                      <>
+                        <Loader2 size={20} className="animate-spin" />
+                        <span>Processing Securely...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard size={20} />
+                        <span>Pay Online with Razorpay</span>
+                      </>
+                    )}
+                  </button>
+
+                  <p style={{ margin: 0, textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', opacity: 0.85 }}>
+                    <span>🔒</span> Secured by Razorpay · 256-bit SSL Encryption
+                  </p>
+                </>
+              ) : (
+                /* ===== BANK TRANSFER & QR TAB ===== */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.35rem' }}>
+
+                  {/* Society Bank Details Card */}
+                  <div style={{
+                    borderRadius: '1rem',
+                    border: '1.5px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    padding: '1.25rem',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                      <div style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', padding: '0.4rem', borderRadius: '0.5rem' }}>
+                        <Landmark size={18} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>Society Bank &amp; UPI Account Details</h4>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Transfer using NEFT, RTGS, IMPS, or any UPI App</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-primary)', borderRadius: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Account Name:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{memberInfo?.tenant?.bankAccountName || user?.tenantName || 'Society Account'}</span>
+                          <button type="button" onClick={() => handleCopy(memberInfo?.tenant?.bankAccountName || user?.tenantName || '', 'Account Name')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1' }} title="Copy">
+                            {copiedField === 'Account Name' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-primary)', borderRadius: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Bank Name:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{memberInfo?.tenant?.bankName || 'Not configured'}</span>
+                          {memberInfo?.tenant?.bankName && (
+                            <button type="button" onClick={() => handleCopy(memberInfo?.tenant?.bankName || '', 'Bank Name')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1' }} title="Copy">
+                              {copiedField === 'Bank Name' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-primary)', borderRadius: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Account Number:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.04em', color: '#6366f1' }}>{memberInfo?.tenant?.bankAccountNumber || 'N/A'}</span>
+                          {memberInfo?.tenant?.bankAccountNumber && (
+                            <button type="button" onClick={() => handleCopy(memberInfo?.tenant?.bankAccountNumber || '', 'Account Number')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1' }} title="Copy">
+                              {copiedField === 'Account Number' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-primary)', borderRadius: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>IFSC Code:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{memberInfo?.tenant?.bankIfsc || 'N/A'}</span>
+                          {memberInfo?.tenant?.bankIfsc && (
+                            <button type="button" onClick={() => handleCopy(memberInfo?.tenant?.bankIfsc || '', 'IFSC')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1' }} title="Copy">
+                              {copiedField === 'IFSC' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-primary)', borderRadius: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>UPI ID / VPA:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#059669' }}>{memberInfo?.tenant?.bankUpiId || 'N/A'}</span>
+                          {memberInfo?.tenant?.bankUpiId && (
+                            <button type="button" onClick={() => handleCopy(memberInfo?.tenant?.bankUpiId || '', 'UPI ID')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1' }} title="Copy">
+                              {copiedField === 'UPI ID' ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* QR Code Section */}
+                    {memberInfo?.tenant?.bankQrCodeUrl ? (
+                      <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', marginBottom: '0.65rem' }}>
+                          <QrCode size={16} color="#6366f1" />
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>Scan Society QR Code to Pay</span>
+                        </div>
+                        <div style={{ display: 'inline-block', padding: '0.6rem', backgroundColor: '#ffffff', borderRadius: '0.85rem', border: '1.5px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+                          <img 
+                            src={memberInfo.tenant.bankQrCodeUrl} 
+                            alt="Society Bank QR Code" 
+                            style={{ width: '160px', height: '160px', objectFit: 'contain', display: 'block', cursor: 'pointer' }} 
+                            onClick={() => window.open(memberInfo?.tenant?.bankQrCodeUrl, '_blank')}
+                            title="Click to view full QR photo"
+                          />
+                        </div>
+                        <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                          Scan using Google Pay, PhonePe, Paytm, BHIM or any UPI mobile banking app
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: '1rem', padding: '0.65rem', backgroundColor: 'rgba(100, 116, 139, 0.08)', borderRadius: '0.5rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        ℹ️ No QR Code image uploaded by society management. Please transfer directly to the bank account details above.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Plan & Amount Summary */}
+                  <div>
+                    <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>Select Plan &amp; Calculated Amount</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.45rem' }}>
+                      {[
+                        { key: 'monthly', label: '1 Mo' },
+                        { key: 'quarterly', label: '3 Mos' },
+                        { key: 'half_yearly', label: '6 Mos' },
+                        { key: 'annual', label: '12 Mos' },
+                      ].map(p => {
+                        const active = paymentFrequency === p.key;
+                        return (
+                          <button
+                            key={p.key}
+                            type="button"
+                            onClick={() => setPaymentFrequency(p.key as any)}
+                            style={{
+                              padding: '0.6rem 0.35rem',
+                              borderRadius: '0.65rem',
+                              border: active ? '2px solid #6366f1' : '1px solid var(--border-color)',
+                              background: active ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-secondary)',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              color: active ? '#6366f1' : 'var(--text-primary)'
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Payable Amount Highlight */}
+                    {(() => {
+                      const { final, monthsCount } = getCalculatedAmount();
+                      return (
+                        <div style={{ marginTop: '0.75rem', padding: '0.85rem 1rem', borderRadius: '0.75rem', backgroundColor: 'rgba(99, 102, 241, 0.06)', border: '1.5px solid rgba(99, 102, 241, 0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Amount to Transfer ({monthsCount} Month{monthsCount > 1 ? 's' : ''}):</span>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#6366f1' }}>₹{final.toLocaleString()}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Submission Form */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
+                    
+                    {/* Reference Number Field */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                        <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Transaction / Reference ID (UTR)
+                        </label>
+                        {memberInfo?.tenant?.bankReferenceRequired !== false ? (
+                          <span style={{ color: '#ef4444', fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#fef2f2', padding: '0.15rem 0.45rem', borderRadius: '0.35rem' }}>
+                            * COMPULSORY
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 600 }}>
+                            (OPTIONAL)
+                          </span>
+                        )}
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 12-digit UTR, UPI Ref ID or Cheque No"
+                        value={bankRefNumber}
+                        onChange={(e) => setBankRefNumber(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 0.9rem',
+                          borderRadius: '0.65rem',
+                          border: '1.5px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.9rem',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    {/* Proof Upload Field */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                        <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Payment Screenshot / Receipt Proof
+                        </label>
+                        {memberInfo?.tenant?.bankProofRequired !== false ? (
+                          <span style={{ color: '#ef4444', fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#fef2f2', padding: '0.15rem 0.45rem', borderRadius: '0.35rem' }}>
+                            * COMPULSORY
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 600 }}>
+                            (OPTIONAL)
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <input 
+                          type="file" 
+                          accept="image/*,application/pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setBankProofFile(file);
+                              if (file.type.startsWith('image/')) {
+                                setBankProofPreview(URL.createObjectURL(file));
+                              } else {
+                                setBankProofPreview(null);
+                              }
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '0.6rem 0.75rem',
+                            borderRadius: '0.65rem',
+                            border: '1.5px dashed var(--border-color)',
+                            backgroundColor: 'var(--bg-secondary)',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.85rem',
+                            boxSizing: 'border-box',
+                            cursor: 'pointer'
+                          }}
+                        />
+
+                        {bankProofPreview && (
+                          <div style={{ position: 'relative', width: '100%', height: '140px', borderRadius: '0.65rem', overflow: 'hidden', border: '1px solid var(--border-color)', backgroundColor: '#000' }}>
+                            <img src={bankProofPreview} alt="Proof preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            <button
+                              type="button"
+                              onClick={() => { setBankProofFile(null); setBankProofPreview(null); }}
+                              style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(239, 68, 68, 0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                              title="Remove proof"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )}
+
+                        {bankProofFile && !bankProofPreview && (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', fontSize: '0.8rem' }}>
+                            <span>📎 {bankProofFile.name}</span>
+                            <button type="button" onClick={() => setBankProofFile(null)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Optional Notes Field */}
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem', display: 'block' }}>
+                        Remarks / Transfer Notes (Optional)
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Transferred via Google Pay from HDFC Bank A/C"
+                        value={bankNotes}
+                        onChange={(e) => setBankNotes(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: '0.65rem',
+                          border: '1.5px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.85rem',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    {/* Submit Bank Transfer Button */}
+                    <button
+                      type="button"
+                      onClick={handleBankTransferSubmit}
+                      disabled={isSubmittingTransfer}
+                      style={{
+                        marginTop: '0.5rem',
+                        width: '100%',
+                        padding: '0.95rem',
+                        borderRadius: '0.9rem',
+                        border: 'none',
+                        background: isSubmittingTransfer ? 'linear-gradient(135deg, #9ca3af, #d1d5db)' : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
+                        color: '#fff',
+                        fontWeight: 800,
+                        fontSize: '1rem',
+                        cursor: isSubmittingTransfer ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.65rem',
+                        boxShadow: isSubmittingTransfer ? 'none' : '0 10px 25px -5px rgba(99, 102, 241, 0.45)',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {isSubmittingTransfer ? (
+                        <>
+                          <Loader2 size={20} className="animate-spin" />
+                          <span>Submitting Transfer Proof...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send size={18} />
+                          <span>Submit Bank Transfer for Approval</span>
+                        </>
+                      )}
+                    </button>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                      Once approved by the society administrator, your official receipt will be generated.
+                    </p>
+                  </div>
+                </div>
+              )}
 
             </div>{/* end body */}
           </div>{/* end modal card */}

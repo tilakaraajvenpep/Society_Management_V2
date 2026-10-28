@@ -1,5 +1,5 @@
 import express from "express";
-import prisma from "../utils/prisma";
+import prisma, { masterPrisma } from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 
 const router = express.Router();
@@ -35,7 +35,18 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
           discountDate: true,
           discountAmount: true,
           lateFeeDate: true,
-          lateFeeAmount: true
+          lateFeeAmount: true,
+          bankAccountName: true,
+          bankName: true,
+          bankAccountNumber: true,
+          bankIfsc: true,
+          bankUpiId: true,
+          bankQrCodeUrl: true,
+          bankReferenceRequired: true,
+          bankProofRequired: true,
+          maintenanceConfig: true,
+          superadminMenuConfig: true,
+          tenantMenuConfig: true,
         } as any 
       }),
     ]);
@@ -156,6 +167,18 @@ router.get("/summary", authorize(["TENANT_ADMIN"]), async (req: any, res) => {
         id: p.id, amount: p.amount, mode: p.mode, date: p.paymentDate,
         memberName: p.member?.name || "Unknown", flatNo: p.member?.flatNo || "",
       })),
+      // Maintenance & Menus
+      maintenanceConfig: (tenantInfo as any)?.maintenanceConfig ? JSON.parse((tenantInfo as any).maintenanceConfig) : null,
+      superadminMenuConfig: (tenantInfo as any)?.superadminMenuConfig ? JSON.parse((tenantInfo as any).superadminMenuConfig) : null,
+      tenantMenuConfig: (tenantInfo as any)?.tenantMenuConfig ? JSON.parse((tenantInfo as any).tenantMenuConfig) : null,
+      globalMaintenance: await (async () => {
+        try {
+          const gs = await masterPrisma.systemSetting.findUnique({ where: { key: "global_maintenance" } });
+          return gs?.value ? JSON.parse(gs.value) : { isMaintenance: false, targets: [], message: "", whitelistedEmails: [] };
+        } catch (_) {
+          return { isMaintenance: false, targets: [], message: "", whitelistedEmails: [] };
+        }
+      })()
     });
   } catch (error: any) {
     console.error("Summary error:", error.message);
