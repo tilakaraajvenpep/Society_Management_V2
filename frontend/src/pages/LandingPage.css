@@ -128,34 +128,45 @@
 .sa-brand-logo {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 1rem;
   text-decoration: none;
   cursor: pointer;
+  margin-right: 2.5rem;
+  flex-shrink: 0;
 }
 
 .sa-brand-img {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
-  object-fit: cover;
-  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.3);
+  object-fit: contain;
+  background: radial-gradient(circle, #0e1a38 0%, #050814 100%);
+  box-shadow: 0 4px 18px rgba(212, 175, 55, 0.35);
   border: 1px solid var(--sa-border-gold);
+  padding: 2px;
+  transition: transform 0.25s ease;
+}
+
+.sa-brand-logo:hover .sa-brand-img {
+  transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(212, 175, 55, 0.5);
 }
 
 .sa-brand-name {
   font-family: var(--sa-font-brand);
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 800;
-  letter-spacing: 2.5px;
+  letter-spacing: 2px;
   background: var(--sa-gold-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  white-space: nowrap;
 }
 
 .sa-nav-links {
   display: flex;
   align-items: center;
-  gap: 1.75rem;
+  gap: 2rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -168,6 +179,7 @@
   font-weight: 500;
   transition: color 0.2s ease;
   position: relative;
+  white-space: nowrap;
 }
 
 .sa-nav-links a:hover {
@@ -380,13 +392,13 @@
   transform: translateY(-2px);
 }
 
-/* Stat Counters Row */
+/* Stat Counters Row (2 Key Platform Performance Cards) */
 .sa-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
   margin-bottom: 4rem;
-  max-width: 1100px;
+  max-width: 720px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -753,17 +765,218 @@
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
 }
 
-/* Interactive ROI Calculator */
-.sa-calc-container {
+/* ==========================================================================
+   Platform Pricing & Setup Section Styles
+   ========================================================================== */
+
+/* Billing Cycle Toggle Bar */
+.sa-billing-toggle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-bottom: 3.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--sa-text-muted);
+}
+
+.sa-billing-toggle-bar .active-label {
+  color: var(--sa-text-white);
+  font-weight: 700;
+}
+
+.sa-billing-toggle-btn {
+  width: 58px;
+  height: 32px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--sa-border-gold);
+  position: relative;
+  cursor: pointer;
+  padding: 3px;
+  transition: all 0.3s ease;
+}
+
+.sa-toggle-pill {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--sa-gold-gradient);
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.6);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(0);
+}
+
+.sa-toggle-pill.annual-active {
+  transform: translateX(26px);
+}
+
+.sa-discount-chip {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10B981;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  margin-left: 0.5rem;
+  letter-spacing: 0.5px;
+}
+
+/* Pricing Cards Grid */
+.sa-pricing-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-bottom: 4.5rem;
+  align-items: stretch;
+}
+
+.sa-price-card {
+  background: var(--sa-bg-card);
+  border: 1px solid var(--sa-border-subtle);
+  border-radius: 24px;
+  padding: 2.75rem 2rem 2.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  backdrop-filter: blur(16px);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.sa-price-card:hover {
+  border-color: var(--sa-border-gold);
+  transform: translateY(-5px);
+  background: var(--sa-bg-card-hover);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.sa-price-card.featured {
+  background: linear-gradient(180deg, rgba(26, 44, 92, 0.85) 0%, rgba(10, 16, 36, 0.98) 100%);
+  border: 2px solid var(--sa-gold-primary);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(212, 175, 55, 0.2);
+  transform: scale(1.02);
+}
+
+.sa-price-card.featured:hover {
+  transform: scale(1.03) translateY(-4px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 45px rgba(212, 175, 55, 0.3);
+}
+
+.sa-popular-tag {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--sa-gold-gradient);
+  color: #050814;
+  font-size: 0.725rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  padding: 0.35rem 1.15rem;
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.5);
+  white-space: nowrap;
+}
+
+.sa-price-header {
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+.sa-plan-name {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--sa-text-white);
+  margin-bottom: 0.4rem;
+}
+
+.sa-plan-for {
+  font-size: 0.85rem;
+  color: var(--sa-text-muted);
+  min-height: 40px;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.sa-plan-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.sa-plan-currency {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--sa-gold-primary);
+}
+
+.sa-plan-num {
+  font-size: 3.25rem;
+  font-weight: 900;
+  line-height: 1;
+  background: var(--sa-gold-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sa-plan-period {
+  font-size: 0.875rem;
+  color: var(--sa-text-muted);
+  font-weight: 500;
+  margin-left: 0.25rem;
+}
+
+.sa-plan-cap {
+  font-size: 0.8rem;
+  color: var(--sa-gold-light);
+  font-weight: 600;
+}
+
+.sa-plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2.25rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  text-align: left;
+}
+
+.sa-plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--sa-text-white);
+  line-height: 1.45;
+}
+
+.sa-plan-features li svg {
+  color: var(--sa-gold-primary);
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+/* Interactive Society Cost Estimator */
+.sa-estimator-box {
   background: linear-gradient(135deg, rgba(16, 26, 56, 0.8) 0%, rgba(6, 10, 24, 0.95) 100%);
   border: 1px solid var(--sa-border-gold);
-  border-radius: 24px;
-  padding: 3rem 2.5rem;
+  border-radius: 28px;
+  padding: 3.5rem 3rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 3.5rem;
   align-items: center;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  margin-bottom: 5rem;
+}
+
+.sa-estimator-left {
+  text-align: left;
 }
 
 .sa-calc-input-group {
@@ -809,38 +1022,103 @@
   border: 2px solid #FFFFFF;
 }
 
-.sa-calc-results-box {
-  background: rgba(5, 8, 20, 0.8);
+.sa-estimator-right {
+  background: rgba(5, 8, 20, 0.85);
   border: 1px solid var(--sa-border-gold);
   border-radius: 20px;
-  padding: 2rem;
+  padding: 2.25rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  text-align: left;
 }
 
-.sa-result-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+.sa-est-metric-title {
+  font-size: 0.85rem;
+  color: var(--sa-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
 }
 
-.sa-result-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.sa-est-metric-val {
+  font-size: 2.35rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--sa-gold-light);
+  margin-bottom: 0.4rem;
 }
 
-.sa-result-metric-lbl {
-  font-size: 0.875rem;
+.sa-est-metric-sub {
+  font-size: 0.8rem;
   color: var(--sa-text-muted);
 }
 
-.sa-result-metric-val {
-  font-size: 1.5rem;
+.sa-est-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 3-Step Setup Guide */
+.sa-setup-guide {
+  margin-top: 2rem;
+}
+
+.sa-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  text-align: left;
+}
+
+.sa-step-card {
+  background: var(--sa-bg-card);
+  border: 1px solid var(--sa-border-subtle);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.sa-step-card:hover {
+  border-color: var(--sa-border-gold);
+  transform: translateY(-4px);
+  background: var(--sa-bg-card-hover);
+}
+
+.sa-step-number {
+  font-size: 2.75rem;
+  font-weight: 900;
+  line-height: 1;
+  background: var(--sa-gold-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 1.25rem;
+  opacity: 0.9;
+}
+
+.sa-step-card h4 {
+  font-size: 1.25rem;
   font-weight: 800;
-  color: var(--sa-gold-light);
+  color: var(--sa-text-white);
+  margin-bottom: 0.75rem;
+}
+
+.sa-step-card p {
+  font-size: 0.9rem;
+  color: var(--sa-text-muted);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.sa-step-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #10B981;
 }
 
 /* Mobile App Showcase Section */
@@ -916,74 +1194,7 @@
   box-shadow: 0 8px 32px rgba(212, 175, 55, 0.6);
 }
 
-/* Reviews / Testimonials Grid */
-.sa-reviews-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.75rem;
-}
 
-.sa-review-card {
-  background: var(--sa-bg-card);
-  border: 1px solid var(--sa-border-subtle);
-  border-radius: 20px;
-  padding: 2rem;
-  backdrop-filter: blur(16px);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: all 0.3s ease;
-}
-
-.sa-review-card:hover {
-  border-color: var(--sa-border-gold);
-  transform: translateY(-4px);
-}
-
-.sa-stars {
-  display: flex;
-  gap: 0.25rem;
-  color: var(--sa-gold-primary);
-  margin-bottom: 1rem;
-}
-
-.sa-review-quote {
-  font-size: 0.95rem;
-  color: var(--sa-text-white);
-  line-height: 1.65;
-  margin-bottom: 1.5rem;
-  font-style: italic;
-}
-
-.sa-reviewer-row {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-}
-
-.sa-reviewer-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--sa-gold-gradient);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #050814;
-  font-weight: 800;
-  font-size: 1rem;
-}
-
-.sa-reviewer-name {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--sa-text-white);
-}
-
-.sa-reviewer-role {
-  font-size: 0.775rem;
-  color: var(--sa-text-muted);
-}
 
 /* Demo Lead Capture Form Section */
 .sa-form-section {

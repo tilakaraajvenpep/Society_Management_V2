@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  ShieldCheck, 
   CreditCard, 
   Wrench, 
   Calendar, 
@@ -15,33 +14,34 @@ import {
   TrendingUp, 
   Sparkles, 
   Download, 
-  Star, 
   Send, 
-  Lock, 
   Award, 
-  Zap, 
-  Check 
+  Check,
+  FileText,
+  BadgePercent
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './LandingPage.css';
 
 const SALES_PHONE = '7812860791';
 const SALES_PHONE_DISPLAY = '+91 7812860791';
+const CONTACT_EMAIL = 'd.tilakaraaj2003@gmail.com';
+const LOCATION_DISPLAY = 'DT Venture, Coimbatore, Tamil Nadu, India';
 const WHATSAPP_URL = `https://wa.me/917812860791?text=${encodeURIComponent(
-  'Hello SocietyArena Team! I would like to schedule an executive demo for my residential society.'
+  'Hello SocietyArena Team! I would like to schedule an executive demo and setup pricing for my residential society.'
 )}`;
 
 const LandingPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
 
-  // Active states
-  const [activePreviewTab, setActivePreviewTab] = useState<'finance' | 'security' | 'tickets' | 'amenities'>('finance');
-  const [activeRoleTab, setActiveRoleTab] = useState<'admin' | 'resident' | 'security'>('admin');
+  // Active preview and role states (security/guard completely removed)
+  const [activePreviewTab, setActivePreviewTab] = useState<'finance' | 'tickets' | 'amenities'>('finance');
+  const [activeRoleTab, setActiveRoleTab] = useState<'admin' | 'resident'>('admin');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
-  // ROI Calculator states
-  const [calcFlats, setCalcFlats] = useState<number>(180);
-  const [calcMaintenance, setCalcMaintenance] = useState<number>(3500);
+  // Pricing & Estimator states
+  const [calcUnits, setCalcUnits] = useState<number>(120);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
 
   // Demo Form states
   const [demoForm, setDemoForm] = useState({
@@ -54,19 +54,51 @@ const LandingPage: React.FC = () => {
   });
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
 
-  // Dynamic calculations for ROI
-  const annualCollection = calcFlats * calcMaintenance * 12;
-  const hoursSavedPerMonth = Math.round(calcFlats * 0.22);
-  const estimatedLeakagePrevented = Math.round(annualCollection * 0.045);
+  // Dynamic pricing calculation
+  const getDynamicPricing = (units: number) => {
+    if (units <= 50) {
+      const monthly = billingCycle === 'annual' ? 899 : 999;
+      return {
+        plan: 'Starter Plan',
+        tierDesc: 'Ideal for boutique apartments & villa communities up to 50 flats',
+        ratePerUnit: (monthly / units).toFixed(0),
+        monthlyTotal: monthly,
+        annualTotal: monthly * 12,
+        savingsText: billingCycle === 'annual' ? 'Save ₹1,200/yr with annual billing' : 'Billed monthly'
+      };
+    } else if (units <= 250) {
+      const rate = billingCycle === 'annual' ? 15 : 18;
+      const monthly = units * rate;
+      return {
+        plan: 'Professional Plan',
+        tierDesc: 'Best for mid-to-large societies with 51 to 250 flats',
+        ratePerUnit: rate.toString(),
+        monthlyTotal: monthly,
+        annualTotal: monthly * 12,
+        savingsText: billingCycle === 'annual' ? 'Save 17% with annual commitment' : 'Flexible monthly billing'
+      };
+    } else {
+      const rate = billingCycle === 'annual' ? 12 : 15;
+      const monthly = units * rate;
+      return {
+        plan: 'Enterprise Plan',
+        tierDesc: 'For premium multi-tower townships and 250+ unit layouts',
+        ratePerUnit: rate.toString(),
+        monthlyTotal: monthly,
+        annualTotal: monthly * 12,
+        savingsText: billingCycle === 'annual' ? 'Save 20% + Dedicated Account Manager' : 'Volume enterprise tier'
+      };
+    }
+  };
+
+  const dynamicPricing = getDynamicPricing(calcUnits);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitted(true);
-    // Construct WhatsApp message with user details for instantaneous outreach
-    const leadText = `*New SocietyArena Demo Inquiry:*\n- Society: ${demoForm.societyName || 'N/A'}\n- City: ${demoForm.city || 'N/A'}\n- Name: ${demoForm.contactPerson}\n- Phone: ${demoForm.phoneNumber}\n- Units: ${demoForm.flatsCount || 'N/A'}\n- Note: ${demoForm.message || 'Ready for demo'}`;
+    const leadText = `*New SocietyArena Demo & Pricing Inquiry:*\n- Society: ${demoForm.societyName || 'N/A'}\n- City: ${demoForm.city || 'N/A'}\n- Name: ${demoForm.contactPerson}\n- Phone: ${demoForm.phoneNumber}\n- Units: ${demoForm.flatsCount || 'N/A'}\n- Note: ${demoForm.message || 'Interested in platform pricing & setup'}`;
     const dynamicWhatsApp = `https://wa.me/917812860791?text=${encodeURIComponent(leadText)}`;
     
-    // Automatically open WhatsApp in background/tab
     setTimeout(() => {
       window.open(dynamicWhatsApp, '_blank');
     }, 800);
@@ -105,8 +137,8 @@ const LandingPage: React.FC = () => {
         <div className="sa-container sa-navbar-inner">
           <a href="/landing" className="sa-brand-logo" id="logo-nav">
             <img 
-              src="/societyarena-logo.jpeg" 
-              alt="SocietyArena Logo" 
+              src="/societyarena-emblem.png" 
+              alt="SocietyArena Emblem" 
               className="sa-brand-img"
             />
             <span className="sa-brand-name">SOCIETYARENA</span>
@@ -115,9 +147,8 @@ const LandingPage: React.FC = () => {
           <nav className="sa-nav-links">
             <a href="#features">Features</a>
             <a href="#solutions">Solutions</a>
-            <a href="#calculator">Savings Calculator</a>
+            <a href="#pricing">Pricing & Setup</a>
             <a href="#mobile-app">Mobile App</a>
-            <a href="#testimonials">Reviews</a>
             <a href="#faq">FAQ</a>
           </nav>
 
@@ -181,7 +212,7 @@ const LandingPage: React.FC = () => {
             </a>
           </div>
 
-          {/* Social Proof Stats */}
+          {/* Social Proof Stats (Filtered to 2 primary performance cards) */}
           <div className="sa-stats-grid">
             <div className="sa-stat-card">
               <div className="sa-stat-val">99.4%</div>
@@ -190,14 +221,6 @@ const LandingPage: React.FC = () => {
             <div className="sa-stat-card">
               <div className="sa-stat-val">60%</div>
               <div className="sa-stat-lbl">Reduction in Admin Workload</div>
-            </div>
-            <div className="sa-stat-card">
-              <div className="sa-stat-val">24/7</div>
-              <div className="sa-stat-lbl">Live Gate Security & Intercom</div>
-            </div>
-            <div className="sa-stat-card">
-              <div className="sa-stat-val">4.9 ★</div>
-              <div className="sa-stat-lbl">Resident Mobile App Rating</div>
             </div>
           </div>
 
@@ -215,12 +238,6 @@ const LandingPage: React.FC = () => {
                   onClick={() => setActivePreviewTab('finance')}
                 >
                   Maintenance & Billing
-                </button>
-                <button 
-                  className={`sa-preview-tab-btn ${activePreviewTab === 'security' ? 'active' : ''}`}
-                  onClick={() => setActivePreviewTab('security')}
-                >
-                  Gate & Visitor Security
                 </button>
                 <button 
                   className={`sa-preview-tab-btn ${activePreviewTab === 'tickets' ? 'active' : ''}`}
@@ -280,45 +297,6 @@ const LandingPage: React.FC = () => {
                 </div>
               )}
 
-              {activePreviewTab === 'security' && (
-                <div>
-                  <div className="sa-kpi-row">
-                    <div className="sa-kpi-item">
-                      <div className="sa-kpi-title">Today's Visitors Handled</div>
-                      <div className="sa-kpi-amount">84 Entries</div>
-                      <div className="sa-kpi-tag"><CheckCircle2 size={12} /> 100% Verified Passports</div>
-                    </div>
-                    <div className="sa-kpi-item">
-                      <div className="sa-kpi-title">Delivery Passes Issued</div>
-                      <div className="sa-kpi-amount">46 Deliveries</div>
-                      <div className="sa-kpi-tag">Swiggy, Amazon, Zomato, Blinkit</div>
-                    </div>
-                    <div className="sa-kpi-item">
-                      <div className="sa-kpi-title">Domestic Staff On Premises</div>
-                      <div className="sa-kpi-amount">38 Active</div>
-                      <div className="sa-kpi-tag">Maids, Drivers & Cooks logged</div>
-                    </div>
-                    <div className="sa-kpi-item">
-                      <div className="sa-kpi-title">Gate Intercom Response</div>
-                      <div className="sa-kpi-amount">4.2s</div>
-                      <div className="sa-kpi-tag">Instant Resident Phone Prompt</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', padding: '0.45rem', borderRadius: '8px' }}>
-                        <ShieldCheck size={18} />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Main Gate Security Check-In: BlueDart Courier</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-muted)' }}>Approved by Flat 1204 via SocietyArena Mobile Push Notification</div>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: '0.8rem', color: '#3B82F6', fontWeight: 700 }}>VERIFIED ENTRY</span>
-                  </div>
-                </div>
-              )}
-
               {activePreviewTab === 'tickets' && (
                 <div>
                   <div className="sa-kpi-row">
@@ -369,12 +347,12 @@ const LandingPage: React.FC = () => {
                     <div className="sa-kpi-item">
                       <div className="sa-kpi-title">Tennis Court 1</div>
                       <div className="sa-kpi-amount">06:00 - 08:00 AM</div>
-                      <div className="sa-kpi-tag">Slot Reserved & Access Card Synced</div>
+                      <div className="sa-kpi-tag">Slot Reserved & Access Synced</div>
                     </div>
                     <div className="sa-kpi-item">
                       <div className="sa-kpi-title">Swimming Pool Pass</div>
                       <div className="sa-kpi-amount">Digital Pass</div>
-                      <div className="sa-kpi-tag">Strict Resident-Only Capacity Control</div>
+                      <div className="sa-kpi-tag">Resident-Only Capacity Control</div>
                     </div>
                     <div className="sa-kpi-item">
                       <div className="sa-kpi-title">Amenity Revenue</div>
@@ -401,14 +379,14 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Feature Pillars Section */}
+      {/* Feature Pillars Section (Refactored to 100% Platform & Administration focus) */}
       <section className="sa-section" id="features">
         <div className="sa-container">
           <span className="sa-sec-badge">ENGINEERED FOR EXCELLENCE</span>
-          <h2 className="sa-sec-title">The Six Pillars of SocietyArena</h2>
+          <h2 className="sa-sec-title">Core Pillars of SocietyArena</h2>
           <p className="sa-sec-sub">
             Every feature is fine-tuned to solve the exact pain points faced by modern RWAs, 
-            residents, and security supervisors.
+            estate managers, and residents.
           </p>
 
           <div className="sa-features-grid">
@@ -429,20 +407,20 @@ const LandingPage: React.FC = () => {
               </ul>
             </div>
 
-            {/* Feature 2 */}
+            {/* Feature 2: Replaced Gate Security with Financial Ledgers & Audits */}
             <div className="sa-feature-card">
               <div className="sa-feature-icon">
-                <ShieldCheck size={26} />
+                <FileText size={26} />
               </div>
-              <h3 className="sa-feature-title">Smart Gate & High-Security Log</h3>
+              <h3 className="sa-feature-title">Financial Ledgers & AGM-Ready Audits</h3>
               <p className="sa-feature-desc">
-                Transform your security gate with real-time digital entry passes, 
-                automated delivery agent check-ins, and biometric staff attendance tracking.
+                Bank-grade multi-head accounting. Track vendor payments, sinking funds, 
+                and capital expenditures with single-click export of audited balance sheets.
               </p>
               <ul className="sa-feature-points">
-                <li><Check size={14} /> Pre-approved guest invites via shareable QR pass</li>
-                <li><Check size={14} /> Over-the-phone and push approval for couriers</li>
-                <li><Check size={14} /> Complete daily logs of maids, drivers, and vendors</li>
+                <li><Check size={14} /> Real-time bank account reconciliation & GST reports</li>
+                <li><Check size={14} /> Defaulter aging analysis and automatic penalty engine</li>
+                <li><Check size={14} /> 100% transparent income-vs-expense audit trail</li>
               </ul>
             </div>
 
@@ -505,25 +483,25 @@ const LandingPage: React.FC = () => {
               <h3 className="sa-feature-title">Native Android & iOS Resident App</h3>
               <p className="sa-feature-desc">
                 A blazing-fast, multilingual mobile application for Android and iOS that residents love. 
-                Pay dues, book amenities, approve visitors, and stay informed on the go.
+                Pay dues, book amenities, track complaints, and stay informed on the go.
               </p>
               <ul className="sa-feature-points">
                 <li><Check size={14} /> Hindi, Tamil, Telugu, Kannada, Marathi & English</li>
-                <li><Check size={14} /> Digital Resident Identity card for clubhouse entry</li>
-                <li><Check size={14} /> Instant offline caching & biometric login</li>
+                <li><Check size={14} /> Instant digital receipts and outstanding balances</li>
+                <li><Check size={14} /> Fast offline caching & biometric login</li>
               </ul>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Role-Based Solutions */}
+      {/* Role-Based Solutions (Focused purely on RWA Committees & Residents) */}
       <section className="sa-section" id="solutions">
         <div className="sa-container">
           <span className="sa-sec-badge">TAILORED EXPERIENCES</span>
-          <h2 className="sa-sec-title">Engineered for Every Stakeholder</h2>
+          <h2 className="sa-sec-title">Engineered for Society Stakeholders</h2>
           <p className="sa-sec-sub">
-            Whether you are on the management committee, a proud homeowner, or guarding the main gate, 
+            Whether you are on the management committee steering society governance or a proud resident enjoying community amenities, 
             SocietyArena provides a specialized, intuitive interface.
           </p>
 
@@ -540,12 +518,6 @@ const LandingPage: React.FC = () => {
                 onClick={() => setActiveRoleTab('resident')}
               >
                 <Users size={18} /> For Residents & Owners
-              </button>
-              <button 
-                className={`sa-role-tab-btn ${activeRoleTab === 'security' ? 'active' : ''}`}
-                onClick={() => setActiveRoleTab('security')}
-              >
-                <Lock size={18} /> For Security & Facility Staff
               </button>
             </div>
 
@@ -577,7 +549,7 @@ const LandingPage: React.FC = () => {
                       <div className="sa-bullet-icon"><Check size={14} /></div>
                       <div>
                         <div className="sa-bullet-label">Broadcast Hub & Emergency Alert</div>
-                        <div className="sa-bullet-desc">Send immediate SMS or app notifications to all towers in case of power, water, or lift emergencies.</div>
+                        <div className="sa-bullet-desc">Send immediate SMS or app notifications to all towers in case of power, water, or lift maintenance.</div>
                       </div>
                     </div>
                   </div>
@@ -611,8 +583,8 @@ const LandingPage: React.FC = () => {
                   <h3>Luxurious, Frictionless Living at Your Fingertips</h3>
                   <p>
                     Everything a homeowner or tenant needs in one smartphone app. Pay your dues 
-                    in 10 seconds via Google Pay or PhonePe, approve visitor entry from bed, 
-                    and get maintenance issues fixed without chasing the society manager.
+                    in 10 seconds via Google Pay or PhonePe, reserve clubhouse amenities anytime, 
+                    and get maintenance issues resolved promptly without chasing committee members.
                   </p>
                   <div className="sa-role-bullets">
                     <div className="sa-role-bullet-item">
@@ -625,15 +597,15 @@ const LandingPage: React.FC = () => {
                     <div className="sa-role-bullet-item">
                       <div className="sa-bullet-icon"><Check size={14} /></div>
                       <div>
-                        <div className="sa-bullet-label">Guest & Delivery Pre-Approval</div>
-                        <div className="sa-bullet-desc">Send WhatsApp entry passes to friends. Avoid unnecessary intercom calls during meetings.</div>
+                        <div className="sa-bullet-label">Complete Financial Transparency</div>
+                        <div className="sa-bullet-desc">View society balance sheets and monthly audited accounts directly inside the app.</div>
                       </div>
                     </div>
                     <div className="sa-role-bullet-item">
                       <div className="sa-bullet-icon"><Check size={14} /></div>
                       <div>
                         <div className="sa-bullet-label">Clubhouse & Sports Slot Booking</div>
-                        <div className="sa-bullet-desc">Book the swimming pool or tennis court ahead of time with clear slot availability.</div>
+                        <div className="sa-bullet-desc">Reserve the banquet hall, swimming pool, or tennis court ahead of time with live slot locks.</div>
                       </div>
                     </div>
                   </div>
@@ -654,157 +626,238 @@ const LandingPage: React.FC = () => {
                 </div>
               </div>
             )}
-
-            {activeRoleTab === 'security' && (
-              <div className="sa-role-content">
-                <div className="sa-role-text">
-                  <h3>Ironclad Gate Security with Ultra-Simple Guard Tablet</h3>
-                  <p>
-                    Designed to be operated seamlessly by security guards of all education levels. 
-                    Large buttons, multilingual voice prompts, vehicle number scanning, and instant photo verification.
-                  </p>
-                  <div className="sa-role-bullets">
-                    <div className="sa-role-bullet-item">
-                      <div className="sa-bullet-icon"><Check size={14} /></div>
-                      <div>
-                        <div className="sa-bullet-label">Quick Delivery Check-In</div>
-                        <div className="sa-bullet-desc">Select Swiggy / Zomato / Amazon logo with 1 tap; flat owner automatically prompted.</div>
-                      </div>
-                    </div>
-                    <div className="sa-role-bullet-item">
-                      <div className="sa-bullet-icon"><Check size={14} /></div>
-                      <div>
-                        <div className="sa-bullet-label">Staff & Maid Attendance</div>
-                        <div className="sa-bullet-desc">Tracks entry and exit timestamps of domestic helpers and maintenance workers.</div>
-                      </div>
-                    </div>
-                    <div className="sa-role-bullet-item">
-                      <div className="sa-bullet-icon"><Check size={14} /></div>
-                      <div>
-                        <div className="sa-bullet-label">Vehicle Parking Search</div>
-                        <div className="sa-bullet-desc">Identify unknown parked cars immediately by entering the registration plate digits.</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="sa-role-card-display">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>MAIN GATE ENTRY TERMINAL</span>
-                    <span style={{ fontSize: '0.75rem', background: '#10B981', color: '#050814', fontWeight: 800, padding: '0.2rem 0.6rem', borderRadius: '9999px' }}>
-                      ONLINE
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem' }}>
-                      🟢 <strong>Delivery Agent:</strong> Amazon • Tower B-301 (Approved)
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem' }}>
-                      🟢 <strong>Guest:</strong> Dr. Rajesh Mehta • Flat A-102 (QR Pass Verified)
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem' }}>
-                      🟢 <strong>Staff:</strong> Sunita Devi (Housemaid) • In-time 08:32 AM
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </section>
 
-      {/* Interactive ROI Calculator */}
-      <section className="sa-section" id="calculator">
+      {/* PLATFORM PRICING & SETUP SECTION (Replaces Savings Calculator) */}
+      <section className="sa-section" id="pricing">
         <div className="sa-container">
-          <span className="sa-sec-badge">MEASURE THE VALUE</span>
-          <h2 className="sa-sec-title">Society Savings & Efficiency Calculator</h2>
+          <span className="sa-sec-badge">TRANSPARENT PLATFORM PRICING</span>
+          <h2 className="sa-sec-title">Predictable Pricing for Modern Communities</h2>
           <p className="sa-sec-sub">
-            See how much time and money your apartment community saves every month with SocietyArena.
+            Zero setup fees, zero hardware investment, and a 30-day risk-free pilot for your managing committee.
           </p>
 
-          <div className="sa-calc-container">
-            {/* Input Controls */}
-            <div>
-              <div className="sa-calc-input-group">
-                <div className="sa-calc-label-row">
-                  <span className="sa-calc-label">Total Flats / Units in Society</span>
-                  <span className="sa-calc-val-badge">{calcFlats} Units</span>
+          {/* Billing Switch Toggle */}
+          <div className="sa-billing-toggle-bar">
+            <span className={billingCycle === 'monthly' ? 'active-label' : ''}>Monthly Billing</span>
+            <button 
+              className="sa-billing-toggle-btn"
+              onClick={() => setBillingCycle(billingCycle === 'annual' ? 'monthly' : 'annual')}
+              aria-label="Toggle annual billing discount"
+            >
+              <div className={`sa-toggle-pill ${billingCycle === 'annual' ? 'annual-active' : ''}`} />
+            </button>
+            <span className={billingCycle === 'annual' ? 'active-label' : ''}>
+              Annual Commitment <span className="sa-discount-chip">SAVE UP TO 20%</span>
+            </span>
+          </div>
+
+          {/* 3 Pricing Plans Grid */}
+          <div className="sa-pricing-cards-grid">
+            {/* Plan 1: Starter */}
+            <div className="sa-price-card">
+              <div className="sa-price-header">
+                <h3 className="sa-plan-name">Starter Plan</h3>
+                <p className="sa-plan-for">Ideal for standalone boutique apartments & villa layouts</p>
+                <div className="sa-plan-price-row">
+                  <span className="sa-plan-currency">₹</span>
+                  <span className="sa-plan-num">{billingCycle === 'annual' ? '899' : '999'}</span>
+                  <span className="sa-plan-period">/ month</span>
                 </div>
-                <input 
-                  type="range" 
-                  min="30" 
-                  max="1200" 
-                  step="10" 
-                  value={calcFlats}
-                  onChange={(e) => setCalcFlats(Number(e.target.value))}
-                  className="sa-slider"
-                  id="slider-flats"
-                />
+                <div className="sa-plan-cap">For societies up to 50 flats</div>
               </div>
+
+              <ul className="sa-plan-features">
+                <li><Check size={16} /> Up to 50 Flats / Units</li>
+                <li><Check size={16} /> Automated Dues Invoicing & UPI Receipts</li>
+                <li><Check size={16} /> WhatsApp & SMS Payment Reminders</li>
+                <li><Check size={16} /> Android Resident Mobile App</li>
+                <li><Check size={16} /> Helpdesk Complaints & Ticket SLA</li>
+                <li><Check size={16} /> 2 Managing Committee Admin Logins</li>
+                <li><Check size={16} /> Free Setup & Data Migration</li>
+              </ul>
+
+              <a href="#demo" className="sa-btn-outline-lg" style={{ width: '100%', justifyContent: 'center' }}>
+                Get Started with Starter
+              </a>
+            </div>
+
+            {/* Plan 2: Professional (Recommended) */}
+            <div className="sa-price-card featured">
+              <div className="sa-popular-tag">MOST POPULAR CHOICE</div>
+              <div className="sa-price-header">
+                <h3 className="sa-plan-name">Professional Plan</h3>
+                <p className="sa-plan-for">Designed for mid-to-large residential complexes & towers</p>
+                <div className="sa-plan-price-row">
+                  <span className="sa-plan-currency">₹</span>
+                  <span className="sa-plan-num">{billingCycle === 'annual' ? '15' : '18'}</span>
+                  <span className="sa-plan-period">/ flat / month</span>
+                </div>
+                <div className="sa-plan-cap">For societies with 51 to 250 flats</div>
+              </div>
+
+              <ul className="sa-plan-features">
+                <li><Check size={16} /> Unlimited Towers & Flat Configurations</li>
+                <li><Check size={16} /> Direct Society Bank Account UPI Integration</li>
+                <li><Check size={16} /> Automated Late Fine & GST Ledger Engine</li>
+                <li><Check size={16} /> Clubhouse & Sports Amenity Booking Engine</li>
+                <li><Check size={16} /> Digital Noticeboard & AGM Voting / Polling</li>
+                <li><Check size={16} /> Complete Vendor Expense & Audit Reports</li>
+                <li><Check size={16} /> Dedicated WhatsApp Support Group</li>
+                <li><Check size={16} /> 30-Day Free Trial Before First Invoice</li>
+              </ul>
+
+              <a href="#demo" className="sa-btn-gold" style={{ width: '100%', justifyContent: 'center' }}>
+                <Sparkles size={16} /> Choose Professional Plan
+              </a>
+            </div>
+
+            {/* Plan 3: Enterprise */}
+            <div className="sa-price-card">
+              <div className="sa-price-header">
+                <h3 className="sa-plan-name">Enterprise Plan</h3>
+                <p className="sa-plan-for">Sprawling townships, luxury towers & federation RWAs</p>
+                <div className="sa-plan-price-row">
+                  <span className="sa-plan-currency">₹</span>
+                  <span className="sa-plan-num">{billingCycle === 'annual' ? '12' : '15'}</span>
+                  <span className="sa-plan-period">/ flat / month</span>
+                </div>
+                <div className="sa-plan-cap">For large societies with 250+ units</div>
+              </div>
+
+              <ul className="sa-plan-features">
+                <li><Check size={16} /> Everything in Professional, plus:</li>
+                <li><Check size={16} /> Multi-Phase Township & Sub-Society Hierarchy</li>
+                <li><Check size={16} /> Custom Payment Gateway & Split Escrows</li>
+                <li><Check size={16} /> Custom Bylaws & Maintenance Formulas</li>
+                <li><Check size={16} /> Dedicated Onboarding Manager & On-Site Assistance</li>
+                <li><Check size={16} /> 99.9% High-Availability SLA</li>
+                <li><Check size={16} /> 24/7 Priority Hotline: {SALES_PHONE}</li>
+              </ul>
+
+              <a href={`tel:${SALES_PHONE}`} className="sa-btn-outline-lg" style={{ width: '100%', justifyContent: 'center' }}>
+                <PhoneCall size={16} /> Speak to Enterprise Sales
+              </a>
+            </div>
+          </div>
+
+          {/* Interactive Flat Price Estimator */}
+          <div className="sa-estimator-box">
+            <div className="sa-estimator-left">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', color: 'var(--sa-gold-primary)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>
+                <BadgePercent size={18} />
+                <span>Instant Society Cost Estimator</span>
+              </div>
+              <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+                Calculate Investment for Your Society
+              </h3>
+              <p style={{ color: 'var(--sa-text-muted)', fontSize: '0.925rem', marginBottom: '2rem' }}>
+                Drag the slider to match your society's total unit count to see exact transparent pricing.
+              </p>
 
               <div className="sa-calc-input-group">
                 <div className="sa-calc-label-row">
-                  <span className="sa-calc-label">Average Monthly Maintenance per Flat</span>
-                  <span className="sa-calc-val-badge">₹ {calcMaintenance.toLocaleString('en-IN')}</span>
+                  <span className="sa-calc-label">Total Flats in Society</span>
+                  <span className="sa-calc-val-badge">{calcUnits} Units</span>
                 </div>
                 <input 
                   type="range" 
-                  min="1000" 
-                  max="15000" 
-                  step="250" 
-                  value={calcMaintenance}
-                  onChange={(e) => setCalcMaintenance(Number(e.target.value))}
+                  min="20" 
+                  max="500" 
+                  step="5" 
+                  value={calcUnits}
+                  onChange={(e) => setCalcUnits(Number(e.target.value))}
                   className="sa-slider"
-                  id="slider-maintenance"
+                  id="slider-flats-pricing"
                 />
               </div>
 
-              <div style={{ background: 'rgba(212, 175, 55, 0.1)', border: '1px solid var(--sa-border-gold)', borderRadius: '12px', padding: '1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', color: 'var(--sa-gold-light)', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                  <Zap size={18} />
-                  <span>The SocietyArena Advantage</span>
+              <div style={{ background: 'rgba(212, 175, 55, 0.08)', border: '1px solid var(--sa-border-gold)', borderRadius: '12px', padding: '1rem', marginTop: '1.5rem' }}>
+                <div style={{ fontWeight: 700, color: 'var(--sa-gold-light)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                  Recommended: {dynamicPricing.plan}
                 </div>
-                <p style={{ fontSize: '0.825rem', color: 'var(--sa-text-muted)', margin: 0 }}>
-                  Automated recurring reminders reduce delayed dues by up to 88% within 45 days of launch.
-                </p>
+                <div style={{ fontSize: '0.8rem', color: 'var(--sa-text-muted)' }}>
+                  {dynamicPricing.tierDesc} • {dynamicPricing.savingsText}
+                </div>
               </div>
             </div>
 
-            {/* Calculated Output Box */}
-            <div className="sa-calc-results-box">
-              <div className="sa-result-row">
-                <div>
-                  <div className="sa-result-metric-lbl">Total Annual Society Fund Managed</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-subtle)' }}>Dues processed smoothly without manual cash</div>
-                </div>
-                <div className="sa-result-metric-val">
-                  ₹ {(annualCollection / 100000).toFixed(2)} Lakhs
+            <div className="sa-estimator-right">
+              <div className="sa-est-metric">
+                <div className="sa-est-metric-title">Monthly Society Investment</div>
+                <div className="sa-est-metric-val">₹ {dynamicPricing.monthlyTotal.toLocaleString('en-IN')}</div>
+                <div className="sa-est-metric-sub">
+                  That is only ~₹ {(dynamicPricing.monthlyTotal / calcUnits / 30).toFixed(2)} per flat / day!
                 </div>
               </div>
 
-              <div className="sa-result-row">
-                <div>
-                  <div className="sa-result-metric-lbl">Hours Saved by Committee Each Month</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-subtle)' }}>Zero manual spreadsheets or payment receipting</div>
+              <div className="sa-est-divider" />
+
+              <div className="sa-est-metric">
+                <div className="sa-est-metric-title">Total Annual Investment</div>
+                <div className="sa-est-metric-val" style={{ color: '#10B981' }}>
+                  ₹ {dynamicPricing.annualTotal.toLocaleString('en-IN')} / year
                 </div>
-                <div className="sa-result-metric-val" style={{ color: '#38BDF8' }}>
-                  ~ {hoursSavedPerMonth} Hours / mo
+                <div className="sa-est-metric-sub">
+                  Zero setup fees • 100% Free Data Migration • 30-Day Free Trial
                 </div>
               </div>
 
-              <div className="sa-result-row">
-                <div>
-                  <div className="sa-result-metric-lbl">Estimated Leakage & Penalty Prevented</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-subtle)' }}>Through automated GST logs & audit trails</div>
-                </div>
-                <div className="sa-result-metric-val" style={{ color: '#10B981' }}>
-                  ₹ {(estimatedLeakagePrevented / 1000).toFixed(0)}K / yr
-                </div>
-              </div>
-
-              <a href="#demo" className="sa-btn-primary-lg" style={{ width: '100%', justifyContent: 'center' }}>
-                <span>Claim These Savings for Your Society</span>
+              <a href="#demo" className="sa-btn-primary-lg" style={{ width: '100%', justifyContent: 'center', marginTop: '1.5rem' }}>
+                <span>Lock In This Price for Your Society</span>
                 <ArrowRight size={18} />
               </a>
+            </div>
+          </div>
+
+          {/* How Can We Setup The Price & Onboard Our Society */}
+          <div className="sa-setup-guide">
+            <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 3rem' }}>
+              <span className="sa-sec-badge">ONBOARDING SIMPLIFIED</span>
+              <h3 style={{ fontSize: '2.1rem', fontWeight: 800, marginBottom: '0.75rem' }}>
+                How Do We Setup The Platform for Your Society?
+              </h3>
+              <p style={{ color: 'var(--sa-text-muted)', fontSize: '1rem' }}>
+                Setting up SocietyArena requires zero technical effort from your managing committee. 
+                Our dedicated onboarding engineers handle 100% of the migration.
+              </p>
+            </div>
+
+            <div className="sa-steps-grid">
+              <div className="sa-step-card">
+                <div className="sa-step-number">01</div>
+                <h4>Share Roster & Select Plan</h4>
+                <p>
+                  Submit your flat count and society name. Share your existing owner/tenant roster and opening balances in simple Excel or CSV format.
+                </p>
+                <div className="sa-step-footer">
+                  <CheckCircle2 size={16} /> Zero manual data entry for you
+                </div>
+              </div>
+
+              <div className="sa-step-card">
+                <div className="sa-step-number">02</div>
+                <h4>24-Hour Configuration & Bank Link</h4>
+                <p>
+                  Our technical engineers configure your towers, unit billing formulas, and connect your society's existing bank account for direct UPI collections.
+                </p>
+                <div className="sa-step-footer">
+                  <CheckCircle2 size={16} /> Funds settle directly to society account
+                </div>
+              </div>
+
+              <div className="sa-step-card">
+                <div className="sa-step-number">03</div>
+                <h4>30-Day Free Trial & Resident Rollout</h4>
+                <p>
+                  Your managing committee and residents receive login credentials. Experience all premium features risk-free for 30 days before making any payment.
+                </p>
+                <div className="sa-step-footer">
+                  <CheckCircle2 size={16} /> Risk-free committee approval
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -819,7 +872,7 @@ const LandingPage: React.FC = () => {
               <h3>Take SocietyArena Wherever You Go</h3>
               <p>
                 Equip your residents and committee members with the high-performance SocietyArena mobile app. 
-                Experience seamless payments, instant visitor approvals, and community alerts directly from your pocket.
+                Experience instant dues payment, clubhouse reservations, and community circulars directly from your pocket.
               </p>
 
               <div className="sa-mobile-badge-list">
@@ -870,85 +923,15 @@ const LandingPage: React.FC = () => {
                 maxWidth: '280px'
               }}>
                 <img 
-                  src="/societyarena-logo.jpeg" 
+                  src="/societyarena-emblem.png" 
                   alt="SocietyArena Mobile App" 
-                  style={{ width: '100%', borderRadius: '24px', display: 'block' }} 
+                  style={{ width: '100%', borderRadius: '24px', display: 'block', background: '#090f24', padding: '1.5rem' }} 
                 />
                 <div style={{ marginTop: '1rem', fontWeight: 800, fontSize: '1.1rem', letterSpacing: '1px', color: 'var(--sa-gold-light)' }}>
                   SocietyArena Mobile v2.0
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sa-text-muted)' }}>
                   Production Cloud Sync Active
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Client Testimonials */}
-      <section className="sa-section" id="testimonials">
-        <div className="sa-container">
-          <span className="sa-sec-badge">TESTED & TRUSTED</span>
-          <h2 className="sa-sec-title">What Society Presidents & Residents Say</h2>
-          <p className="sa-sec-sub">
-            Read authentic feedback from housing societies that switched to SocietyArena.
-          </p>
-
-          <div className="sa-reviews-grid">
-            <div className="sa-review-card">
-              <div>
-                <div className="sa-stars">
-                  <Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" />
-                </div>
-                <p className="sa-review-quote">
-                  "Before SocietyArena, our managing committee spent 15 days every month chasing maintenance dues. 
-                  Now 95% of our 240 owners pay within the first 4 days via UPI! It has brought complete peace of mind."
-                </p>
-              </div>
-              <div className="sa-reviewer-row">
-                <div className="sa-reviewer-avatar">RK</div>
-                <div>
-                  <div className="sa-reviewer-name">Rajesh Kulkarni</div>
-                  <div className="sa-reviewer-role">RWA President • Palm Meadows Residency, Bengaluru</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="sa-review-card">
-              <div>
-                <div className="sa-stars">
-                  <Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" />
-                </div>
-                <p className="sa-review-quote">
-                  "The gate security and delivery management is so seamless. When courier agents arrive, 
-                  I get a clean photo alert on my phone. The clubhouse booking also works flawlessly with zero disputes."
-                </p>
-              </div>
-              <div className="sa-reviewer-row">
-                <div className="sa-reviewer-avatar">SP</div>
-                <div>
-                  <div className="sa-reviewer-name">Sneha Paranjpe</div>
-                  <div className="sa-reviewer-role">Flat Owner • Godrej Horizon, Pune</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="sa-review-card">
-              <div>
-                <div className="sa-stars">
-                  <Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" /><Star size={16} fill="currentColor" />
-                </div>
-                <p className="sa-review-quote">
-                  "Our accounting audit passed with flying colors for the first time in 6 years. 
-                  Every single expense, GST input, and vendor payout was transparently documented in SocietyArena."
-                </p>
-              </div>
-              <div className="sa-reviewer-row">
-                <div className="sa-reviewer-avatar">AN</div>
-                <div>
-                  <div className="sa-reviewer-name">Anand Narayanan</div>
-                  <div className="sa-reviewer-role">Treasurer • Silver Crest Towers, Hyderabad</div>
                 </div>
               </div>
             </div>
@@ -963,7 +946,7 @@ const LandingPage: React.FC = () => {
             <span className="sa-sec-badge" style={{ textAlign: 'center' }}>START YOUR TRANSFORMATION</span>
             <h2 className="sa-sec-title">Book an In-Person or Live Virtual Demo</h2>
             <p className="sa-sec-sub" style={{ marginBottom: '2.5rem' }}>
-              Our society onboarding specialists will tailor a customized walkthrough for your managing committee.
+              Our society onboarding specialists in Coimbatore will tailor a customized walkthrough for your managing committee.
             </p>
 
             {formSubmitted ? (
@@ -985,7 +968,7 @@ const LandingPage: React.FC = () => {
                   Demo Request Received!
                 </h3>
                 <p style={{ color: 'var(--sa-text-muted)', maxWidth: '520px', margin: '0 auto 2rem' }}>
-                  Thank you! Our regional representative is reaching out to you shortly at <strong>{demoForm.phoneNumber}</strong>. 
+                  Thank you! Our DT Venture representative is reaching out to you shortly at <strong>{demoForm.phoneNumber}</strong>. 
                   WhatsApp chat has also been prepared for instant scheduling.
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -1021,7 +1004,7 @@ const LandingPage: React.FC = () => {
                   <input 
                     type="text" 
                     required 
-                    placeholder="e.g. Bengaluru, Mumbai, Delhi, Pune" 
+                    placeholder="e.g. Coimbatore, Bengaluru, Chennai, Mumbai" 
                     className="sa-form-input"
                     value={demoForm.city}
                     onChange={(e) => setDemoForm({ ...demoForm, city: e.target.value })}
@@ -1033,7 +1016,7 @@ const LandingPage: React.FC = () => {
                   <input 
                     type="text" 
                     required 
-                    placeholder="Your Full Name (Committee Member / Resident)" 
+                    placeholder="Your Full Name (President, Secretary, Treasurer)" 
                     className="sa-form-input"
                     value={demoForm.contactPerson}
                     onChange={(e) => setDemoForm({ ...demoForm, contactPerson: e.target.value })}
@@ -1045,7 +1028,7 @@ const LandingPage: React.FC = () => {
                   <input 
                     type="tel" 
                     required 
-                    placeholder="e.g. 9876543210" 
+                    placeholder="e.g. 7812860791" 
                     className="sa-form-input"
                     value={demoForm.phoneNumber}
                     onChange={(e) => setDemoForm({ ...demoForm, phoneNumber: e.target.value })}
@@ -1056,7 +1039,7 @@ const LandingPage: React.FC = () => {
                   <label className="sa-form-label">Approximate Number of Flats</label>
                   <input 
                     type="text" 
-                    placeholder="e.g. 150 Flats" 
+                    placeholder="e.g. 120 Flats" 
                     className="sa-form-input"
                     value={demoForm.flatsCount}
                     onChange={(e) => setDemoForm({ ...demoForm, flatsCount: e.target.value })}
@@ -1067,7 +1050,7 @@ const LandingPage: React.FC = () => {
                   <label className="sa-form-label">Specific Questions or Requirements</label>
                   <textarea 
                     rows={3} 
-                    placeholder="Tell us about current challenges with billing, security gates, or existing software..." 
+                    placeholder="Tell us about your society's requirements for billing cycles, bank account integration, or platform setup..." 
                     className="sa-form-input"
                     value={demoForm.message}
                     onChange={(e) => setDemoForm({ ...demoForm, message: e.target.value })}
@@ -1097,14 +1080,18 @@ const LandingPage: React.FC = () => {
           <span className="sa-sec-badge">COMMON QUESTIONS</span>
           <h2 className="sa-sec-title">Frequently Asked Questions</h2>
           <p className="sa-sec-sub">
-            Have questions about onboarding, pricing, or data migration? We've got answers.
+            Have questions about onboarding, pricing setup, or data migration? We've got answers.
           </p>
 
           <div className="sa-faq-grid">
             {[
               {
-                q: 'How fast can our society be onboarded onto SocietyArena?',
-                a: 'Standard onboarding takes between 24 to 48 hours. Our technical team uploads your existing flat owner roster, tenant data, vehicle numbers, and opening balances via Excel or CSV with zero downtime.'
+                q: 'How do we setup the price and get started with SocietyArena?',
+                a: 'Setup is completely seamless. Choose your tier (Starter, Professional, or Enterprise) based on your flat count. Our Coimbatore onboarding team configures your society portal, bank account links, and dues cycle within 24 hours at zero setup cost.'
+              },
+              {
+                q: 'Are there any hidden setup, migration, or cancellation fees?',
+                a: 'No hidden fees whatsoever. Full data migration of your resident roster, historical payment balances, and flat records from Excel or physical registers is 100% free with all plans. We also provide a 30-day risk-free trial.'
               },
               {
                 q: 'Can we collect maintenance dues through UPI without high gateway fees?',
@@ -1117,10 +1104,6 @@ const LandingPage: React.FC = () => {
               {
                 q: 'How do elderly or non-tech-savvy residents use the system?',
                 a: 'SocietyArena was designed with extreme simplicity. Residents can view their outstanding balance and tap a simple "Pay via UPI" button. Our mobile app also supports 6 regional languages (Hindi, Tamil, Telugu, Kannada, Marathi, and English).'
-              },
-              {
-                q: 'What hardware is required for the main gate security guards?',
-                a: 'Any standard, budget Android tablet or smartphone connected to Wi-Fi or mobile data is all you need. We provide complete setup guidance and guard training.'
               }
             ].map((faq, idx) => {
               const isOpen = openFaqIndex === idx;
@@ -1145,24 +1128,24 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Luxury Footer */}
+      {/* Luxury Footer with DT Venture attribution, email, and Coimbatore location */}
       <footer className="sa-footer">
         <div className="sa-container">
           <div className="sa-footer-grid">
             <div className="sa-footer-brand">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                 <img 
-                  src="/societyarena-logo.jpeg" 
-                  alt="SocietyArena" 
-                  style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover' }}
+                  src="/societyarena-emblem.png" 
+                  alt="SocietyArena Emblem" 
+                  style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'contain', background: '#0e1a38', border: '1px solid var(--sa-border-gold)', padding: '2px' }}
                 />
                 <span className="sa-brand-name" style={{ fontSize: '1.25rem' }}>SOCIETYARENA</span>
               </div>
               <p>
-                India's premier smart society management operating system. Empowering gated communities 
-                with digital finance, biometric security, and elevated resident experiences.
+                India's premier smart society management operating system by DT Venture. 
+                Empowering gated communities with automated digital finance, audited accounting, and elevated resident experiences.
               </p>
-              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <a href={`tel:${SALES_PHONE}`} className="sa-phone-pill" style={{ textDecoration: 'none' }}>
                   <PhoneCall size={14} />
                   <span>Call Sales: {SALES_PHONE}</span>
@@ -1174,10 +1157,10 @@ const LandingPage: React.FC = () => {
               <h4>Platform</h4>
               <ul>
                 <li><a href="#features">Automated Billing</a></li>
-                <li><a href="#features">Gate & Security</a></li>
+                <li><a href="#features">Financial Ledgers</a></li>
                 <li><a href="#features">Helpdesk SLA</a></li>
                 <li><a href="#features">Clubhouse Booking</a></li>
-                <li><a href="#calculator">Savings Calculator</a></li>
+                <li><a href="#pricing">Platform Pricing</a></li>
               </ul>
             </div>
 
@@ -1186,14 +1169,14 @@ const LandingPage: React.FC = () => {
               <ul>
                 <li><a href="#solutions">For RWA Committees</a></li>
                 <li><a href="#solutions">For Residents & Owners</a></li>
-                <li><a href="#solutions">For Security Guards</a></li>
+                <li><a href="#pricing">Onboarding & Setup</a></li>
                 <li><a href="#mobile-app">Android Mobile APK</a></li>
                 <li><a href="/login">Platform Sign In</a></li>
               </ul>
             </div>
 
             <div className="sa-footer-col">
-              <h4>Sales Hotline & Support</h4>
+              <h4>Sales Hotline & DT Venture</h4>
               <ul>
                 <li>
                   <a href={`tel:${SALES_PHONE}`} style={{ color: 'var(--sa-gold-light)', fontWeight: 700 }}>
@@ -1206,10 +1189,14 @@ const LandingPage: React.FC = () => {
                   </a>
                 </li>
                 <li>
-                  <span style={{ color: 'var(--sa-text-muted)' }}>✉️ sales@societyarena.com</span>
+                  <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: 'var(--sa-text-muted)' }}>
+                    ✉️ {CONTACT_EMAIL}
+                  </a>
                 </li>
                 <li>
-                  <span style={{ color: 'var(--sa-text-subtle)' }}>📍 Pan-India Deployment & On-Site Support</span>
+                  <span style={{ color: 'var(--sa-gold-light)', fontWeight: 600 }}>
+                    📍 {LOCATION_DISPLAY}
+                  </span>
                 </li>
               </ul>
             </div>
@@ -1217,10 +1204,11 @@ const LandingPage: React.FC = () => {
 
           <div className="sa-footer-bottom">
             <div>
-              © 2026 SocietyArena Technologies. All rights reserved. Built with pride for luxury residential communities.
+              © 2026 SocietyArena by DT Venture. All rights reserved.
             </div>
             <div style={{ display: 'flex', gap: '1.5rem' }}>
               <a href="/login" style={{ color: 'var(--sa-text-muted)', textDecoration: 'none' }}>Client Portal Login</a>
+              <a href="#pricing" style={{ color: 'var(--sa-gold-light)', textDecoration: 'none' }}>Platform Pricing</a>
               <a href="#demo" style={{ color: 'var(--sa-gold-light)', textDecoration: 'none' }}>Request Society Demo</a>
             </div>
           </div>
