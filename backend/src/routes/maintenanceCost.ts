@@ -68,9 +68,11 @@ const recalculateDuesForAllMembers = async (tx: any, tenantId: string) => {
 };
 
 
+import { resolveDbConnectionString } from "../utils/prisma";
+
 // Helper: create MaintenanceCost table in public schema if it doesn't exist
 async function ensureMaintenanceCostTable() {
-  const connStr = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+  const connStr = resolveDbConnectionString();
   const isLocal = connStr.includes("localhost") || connStr.includes("127.0.0.1");
   const client = new pg.Client({
     connectionString: connStr,

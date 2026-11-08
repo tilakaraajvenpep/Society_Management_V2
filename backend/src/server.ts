@@ -1,5 +1,5 @@
 import app from "./app";
-import { ensureTenantSchemas } from "./utils/prisma";
+import { ensureTenantSchemas, resolveDbConnectionString } from "./utils/prisma";
 import pg from "pg";
 import { runReminderJob } from "./utils/reminderScheduler";
 
@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 5001;
 
 // Ensure critical tables exist in the public schema before anything else
 async function ensurePublicTables() {
-  const connStr = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+  const connStr = resolveDbConnectionString();
   const isLocal = connStr.includes("localhost") || connStr.includes("127.0.0.1");
   const client = new pg.Client({
     connectionString: connStr,

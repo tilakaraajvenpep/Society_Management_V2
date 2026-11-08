@@ -2,14 +2,27 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 class AppConstants {
-  // Candidate URLs
-  static const String cloudRenderApi = 'https://society-management-backend-kqs8.onrender.com/api';
-  static const String localWifiApi = 'http://192.168.0.106:5001/api';
-  static const String localHostApi = 'http://localhost:5001/api';
-  static const String emulatorApi = 'http://10.0.2.2:5001/api';
+  // Candidate backend endpoints for zero-config multi-environment fallback:
+  // 1. USB cable direct connection via adb reverse (tcp:5001)
+  // 2. Local Wi-Fi network host IPs
+  // 3. Android emulator loopback
+  // 4. Cloud production deployment
+  static const List<String> candidateHosts = [
+    'http://127.0.0.1:5001/api',       // USB Direct with adb reverse
+    'http://localhost:5001/api',       // USB / Localhost
+    'http://192.168.0.108:5001/api',   // Active Wi-Fi Host IP
+    'http://10.0.2.2:5001/api',        // Android Emulator
+    'http://192.168.0.106:5001/api',   // Alternative Wi-Fi IP
+    'http://192.168.0.101:5001/api',   // Alternative Wi-Fi IP
+    'http://192.168.56.1:5001/api',    // Ethernet / Local adapter
+    'https://society-management-backend-kqs8.onrender.com/api', // Cloud backend
+  ];
 
-  // Production Cloud Backend is the default so mobile app works daily out-of-the-box everywhere!
-  static String baseUrl = cloudRenderApi;
+  static const String cloudRenderApi = 'https://society-management-backend-kqs8.onrender.com/api';
+  static const String defaultTenantSlug = 'sunrise';
+
+  // Active base URL initialized to first candidate, then auto-discovered dynamically
+  static String baseUrl = 'http://127.0.0.1:5001/api';
   static const String appName = 'SocietyArena';
   static const String appVersion = '2.0.0';
 

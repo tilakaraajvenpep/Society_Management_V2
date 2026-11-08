@@ -6,7 +6,17 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+export const defaultSupabaseDbUrl = "postgresql://postgres.pgtlmyrunoiuwwkvkuls:Dhraja%404825@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres";
+
+export const resolveDbConnectionString = (): string => {
+  const envUrl = process.env.DATABASE_URL;
+  if (!envUrl || envUrl.includes("dpg-d8ok5uv7f7vs73ersoe0") || envUrl.includes("localhost:5432")) {
+    return defaultSupabaseDbUrl;
+  }
+  return envUrl;
+};
+
+const masterConnectionString = resolveDbConnectionString();
 const isLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
 const masterPool = new pg.Pool({ 
   connectionString: masterConnectionString,
@@ -21,7 +31,7 @@ const tenantClients: { [slug: string]: PrismaClient } = {};
 export const tenantStorage = new AsyncLocalStorage<{ tenantSlug: string }>();
 
 export const getTenantDbUrl = (tenantSlug: string): string => {
-  const masterUrl = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+  const masterUrl = resolveDbConnectionString();
   try {
     const parsed = new URL(masterUrl);
     parsed.searchParams.set("options", `-c search_path=society_${tenantSlug}`);
@@ -57,7 +67,7 @@ const prismaProxy = new Proxy(masterPrisma, {
 });
 
 export async function ensureTenantSchemas() {
-  const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+  const masterConnectionString = resolveDbConnectionString();
   const isClientLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
   const pgClient = new pg.Client({
     connectionString: masterConnectionString,
@@ -316,7 +326,7 @@ export async function ensureTenantSchemas() {
       try {
         await pgClient.query(`
           INSERT INTO "${schemaName}"."User" (id, "tenantId", email, password, name, role, "createdAt", "updatedAt", mobile, designation)
-          SELECT id, "tenantId", email, password, name, role, "createdAt", "updatedAt", mobile, designation
+          SELECT id, "tenantId", email, password, name, role::text::"${schemaName}"."Role", "createdAt", "updatedAt", mobile, designation
           FROM "public"."User"
           WHERE "tenantId" = $1
           ON CONFLICT (id) DO UPDATE SET

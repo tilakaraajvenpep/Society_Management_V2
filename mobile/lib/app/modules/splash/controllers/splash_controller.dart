@@ -68,28 +68,30 @@ class SplashController extends GetxController with GetSingleTickerProviderStateM
         }
       }
 
-      // Check if previously entered a tenant slug
+      // Check saved slug or default to sunrise tenant
       final savedSlug = await storage.read(key: 'tenant_slug');
-      if (savedSlug != null && savedSlug.trim().isNotEmpty) {
-        try {
-          final res = await apiClient.dio.get(
-            '/tenants/public/$savedSlug',
-            options: dio_lib.Options(
-              sendTimeout: const Duration(seconds: 4),
-              receiveTimeout: const Duration(seconds: 4),
-            ),
-          );
-          if (res.statusCode == 200 && res.data != null) {
-            Get.offAllNamed(Routes.LOGIN, arguments: {
-              'slug': savedSlug,
-              'tenantName': res.data['name'] ?? savedSlug,
-              'tenantId': res.data['id'],
-            });
-            return;
-          }
-        } catch (_) {
-          // Fall through to tenant slug
+      final slugToTry = (savedSlug != null && savedSlug.trim().isNotEmpty)
+          ? savedSlug.trim()
+          : 'sunrise';
+
+      try {
+        final res = await apiClient.dio.get(
+          '/tenants/public/$slugToTry',
+          options: dio_lib.Options(
+            sendTimeout: const Duration(seconds: 4),
+            receiveTimeout: const Duration(seconds: 4),
+          ),
+        );
+        if (res.statusCode == 200 && res.data != null) {
+          Get.offAllNamed(Routes.LOGIN, arguments: {
+            'slug': slugToTry,
+            'tenantName': res.data['name'] ?? slugToTry,
+            'tenantId': res.data['id'],
+          });
+          return;
         }
+      } catch (_) {
+        // Fall through to tenant slug if custom
       }
 
       Get.offAllNamed(Routes.TENANT_SLUG);

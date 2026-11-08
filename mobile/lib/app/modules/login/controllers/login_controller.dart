@@ -25,11 +25,15 @@ class LoginController extends GetxController {
       if (Get.arguments['tenantId'] != null) tenantId.value = Get.arguments['tenantId'];
     }
     if (slug.value.isEmpty) {
+      slug.value = 'sunrise';
       storage.read(key: 'tenant_slug').then((saved) {
         if (saved != null && saved.isNotEmpty) {
           slug.value = saved;
         }
       });
+    }
+    if (tenantName.value.isEmpty) {
+      tenantName.value = 'Sunrise Apartments';
     }
   }
 

@@ -26,7 +26,7 @@ class TenantSlugController extends GetxController {
     if (slug != null && slug.trim().isNotEmpty) {
       slugController.text = slug.trim();
     } else {
-      slugController.text = 'test';
+      slugController.text = 'sunrise';
     }
 
     // 2. Auto-login if valid token exists
@@ -89,23 +89,41 @@ class TenantSlugController extends GetxController {
         );
       }
     } on dio_lib.DioException catch (e) {
-      String msg = 'Cannot connect to backend server';
-      if (e.response?.statusCode == 404) {
-        msg = 'No active society found with code "$slug"';
-      } else if (e.type == dio_lib.DioExceptionType.connectionTimeout ||
+      // If network failure, attempt automatic silent failover across candidate hosts
+      if (e.type == dio_lib.DioExceptionType.connectionTimeout ||
           e.type == dio_lib.DioExceptionType.connectionError ||
           e.type == dio_lib.DioExceptionType.unknown) {
-        msg = 'Cannot reach server at ${AppConstants.baseUrl}.\nTap the server icon above to configure your server address.';
+        final newHost = await apiClient.autoDetectServer();
+        currentServerUrl.value = newHost;
+        try {
+          final retryRes = await apiClient.dio.get('/tenants/public/$slug');
+          if (retryRes.statusCode == 200 && retryRes.data != null) {
+            final tenantName = retryRes.data['name'] ?? slug;
+            final tenantId = retryRes.data['id'];
+            await storage.write(key: 'tenant_slug', value: slug);
+            Get.toNamed(Routes.LOGIN, arguments: {
+              'slug': slug,
+              'tenantName': tenantName,
+              'tenantId': tenantId,
+            });
+            return;
+          }
+        } catch (_) {}
+      }
+
+      String msg = 'Cannot connect to server. Please ensure Wi-Fi or USB is connected.';
+      if (e.response?.statusCode == 404) {
+        msg = 'No active society found with code "$slug"';
       } else if (e.response?.data != null && e.response?.data['message'] != null) {
         msg = e.response?.data['message'];
       }
       Get.snackbar(
-        'Connection Error',
+        'Notice',
         msg,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red.shade700,
         colorText: Colors.white,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 4),
       );
     } catch (e) {
       Get.snackbar('Error', 'An unexpected error occurred: $e',

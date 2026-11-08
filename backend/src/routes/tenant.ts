@@ -1,6 +1,6 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import prisma, { masterPrisma, getTenantPrisma, getTenantDbUrl } from "../utils/prisma";
+import prisma, { masterPrisma, getTenantPrisma, getTenantDbUrl, resolveDbConnectionString } from "../utils/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 import { Client } from "pg";
 import { exec } from "child_process";
@@ -128,7 +128,7 @@ router.post("/", authenticate, authorize(["SUPER_ADMIN"]), async (req, res) => {
     return res.status(400).json({ message: `A society with name "${name}" or slug "${tenantSlug}" already exists.` });
   }
 
-  const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+  const masterConnectionString = resolveDbConnectionString();
   const isClientLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
   const pgClient = new Client({
     connectionString: masterConnectionString,
@@ -879,7 +879,7 @@ router.delete("/:id", authenticate, authorize(["SUPER_ADMIN"]), async (req, res)
 
     // 2. Drop the isolated tenant schema
     const schemaName = `society_${tenant.slug}`;
-    const masterConnectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/society_management";
+    const masterConnectionString = resolveDbConnectionString();
     const isClientLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
     const pgClient = new Client({
       connectionString: masterConnectionString,

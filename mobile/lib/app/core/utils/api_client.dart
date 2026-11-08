@@ -8,21 +8,16 @@ import 'constants.dart';
 class ApiClient extends GetxService {
   late Dio dio;
   final storage = const FlutterSecureStorage();
+  bool _isAutoDetecting = false;
 
   Future<ApiClient> init() async {
-    final savedBaseUrl = await storage.read(key: 'custom_base_url');
-    if (savedBaseUrl != null && savedBaseUrl.trim().isNotEmpty) {
-      AppConstants.baseUrl = savedBaseUrl.trim();
-    } else {
-      // By default use Cloud Render production server so mobile app works daily everywhere without setup!
-      AppConstants.baseUrl = AppConstants.cloudRenderApi;
-      await autoDetectServer();
-    }
+    // 1. First probe candidate hosts dynamically to find the best working server
+    await autoDetectServer();
 
     dio = Dio(BaseOptions(
       baseUrl: AppConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
       headers: {
         'Accept': 'application/json',
       },
@@ -31,39 +26,119 @@ class ApiClient extends GetxService {
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await storage.read(key: 'jwt_token');
-        if (token != null) {
+        if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
         return handler.next(options);
       },
-      onError: (DioException e, handler) {
+      onError: (DioException e, handler) async {
         if (e.response?.statusCode == 401) {
-          storage.delete(key: 'jwt_token');
+          await storage.delete(key: 'jwt_token');
           Get.offAllNamed('/login');
+          return handler.next(e);
         }
+
+        // Automatic seamless failover to alternative candidate host on connection drop
+        final isConnectionError = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.unknown ||
+            (e.response != null && e.response!.statusCode! >= 502);
+
+        if (isConnectionError && !_isAutoDetecting) {
+          final oldUrl = AppConstants.baseUrl;
+          final switched = await _failoverToNextHost(oldUrl);
+          if (switched) {
+            try {
+              final newOptions = e.requestOptions;
+              newOptions.baseUrl = AppConstants.baseUrl;
+              final retryResponse = await dio.fetch(newOptions);
+              return handler.resolve(retryResponse);
+            } catch (_) {
+              // Retry failed, proceed with error
+            }
+          }
+        }
+
         return handler.next(e);
       },
     ));
     return this;
   }
 
-  Future<void> autoDetectServer() async {
-    if (kIsWeb) return;
+  /// Automatically tests candidate hosts with fast timeouts and selects the best active server
+  Future<String> autoDetectServer() async {
+    if (kIsWeb) return AppConstants.baseUrl;
+    _isAutoDetecting = true;
 
-    // Check if active local dev machine server is reachable; if so, switch to it, otherwise stick to cloudRenderApi
     try {
       final probeDio = Dio(BaseOptions(
-        connectTimeout: const Duration(milliseconds: 1500),
-        receiveTimeout: const Duration(milliseconds: 1500),
+        connectTimeout: const Duration(milliseconds: 1400),
+        receiveTimeout: const Duration(milliseconds: 1400),
+        validateStatus: (status) => status != null && status < 500,
       ));
-      final response = await probeDio.get('${AppConstants.localWifiApi}/tenants/public/test');
-      if (response.statusCode == 200 || response.statusCode == 404) {
-        AppConstants.baseUrl = AppConstants.localWifiApi;
-        return;
+
+      for (final host in AppConstants.candidateHosts) {
+        try {
+          // Probe public endpoint or root API
+          final probeUrl = '$host/tenants/public/${AppConstants.defaultTenantSlug}';
+          final response = await probeDio.get(probeUrl);
+          if (response.statusCode == 200 || response.statusCode == 404) {
+            AppConstants.baseUrl = host;
+            if (Get.isRegistered<ApiClient>()) {
+              dio.options.baseUrl = host;
+            }
+            if (kDebugMode) {
+              print('[ApiClient] Successfully connected to server: $host');
+            }
+            _isAutoDetecting = false;
+            return host;
+          }
+        } catch (_) {
+          // Try next candidate host silently
+          continue;
+        }
       }
-    } catch (_) {
-      // Local dev server not reachable, remain on cloudRenderApi
+
+      // Fallback to cloud if local hosts unavailable
       AppConstants.baseUrl = AppConstants.cloudRenderApi;
+      if (Get.isRegistered<ApiClient>()) {
+        dio.options.baseUrl = AppConstants.cloudRenderApi;
+      }
+      return AppConstants.baseUrl;
+    } finally {
+      _isAutoDetecting = false;
+    }
+  }
+
+  Future<bool> _failoverToNextHost(String failedHost) async {
+    _isAutoDetecting = true;
+    try {
+      final probeDio = Dio(BaseOptions(
+        connectTimeout: const Duration(milliseconds: 1400),
+        receiveTimeout: const Duration(milliseconds: 1400),
+        validateStatus: (status) => status != null && status < 500,
+      ));
+
+      for (final host in AppConstants.candidateHosts) {
+        if (host == failedHost) continue;
+        try {
+          final probeUrl = '$host/tenants/public/${AppConstants.defaultTenantSlug}';
+          final response = await probeDio.get(probeUrl);
+          if (response.statusCode == 200 || response.statusCode == 404) {
+            AppConstants.baseUrl = host;
+            dio.options.baseUrl = host;
+            if (kDebugMode) {
+              print('[ApiClient] Auto-failover succeeded to: $host');
+            }
+            return true;
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+      return false;
+    } finally {
+      _isAutoDetecting = false;
     }
   }
 
@@ -94,7 +169,9 @@ class ApiClient extends GetxService {
       }
       return null;
     } catch (e) {
-      print('Error uploading file: $e');
+      if (kDebugMode) {
+        print('Error uploading file: $e');
+      }
       return null;
     }
   }

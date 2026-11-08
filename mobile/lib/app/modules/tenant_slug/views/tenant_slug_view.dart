@@ -8,17 +8,6 @@ class TenantSlugView extends GetView<TenantSlugController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_ethernet, color: Color(0xFF2563eb)),
-            tooltip: 'Server Connection',
-            onPressed: controller.showServerConfigDialog,
-          ),
-        ],
-      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -97,27 +86,6 @@ class TenantSlugView extends GetView<TenantSlugController> {
                       )
                     : const Text('Continue to Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               )),
-              const SizedBox(height: 24),
-              Center(
-                child: InkWell(
-                  onTap: controller.showServerConfigDialog,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.dns_outlined, size: 14, color: Colors.grey),
-                        const SizedBox(width: 6),
-                        Obx(() => Text(
-                          'Server: ${controller.currentServerUrl.value}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey, decoration: TextDecoration.underline),
-                        )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
