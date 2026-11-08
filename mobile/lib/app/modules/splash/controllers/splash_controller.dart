@@ -68,11 +68,11 @@ class SplashController extends GetxController with GetSingleTickerProviderStateM
         }
       }
 
-      // Check saved slug or default to sunrise tenant
+      // Check saved slug or default to test tenant
       final savedSlug = await storage.read(key: 'tenant_slug');
       final slugToTry = (savedSlug != null && savedSlug.trim().isNotEmpty)
           ? savedSlug.trim()
-          : 'sunrise';
+          : 'test';
 
       try {
         final res = await apiClient.dio.get(

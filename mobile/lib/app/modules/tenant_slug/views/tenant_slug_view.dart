@@ -60,12 +60,60 @@ class TenantSlugView extends GetView<TenantSlugController> {
               const SizedBox(height: 40),
               TextField(
                 controller: controller.slugController,
-                decoration: const InputDecoration(
-                  labelText: 'Society Code (e.g. sunrise)',
-                  prefixIcon: Icon(Icons.business),
-                  hintText: 'e.g. sunrise',
+                decoration: InputDecoration(
+                  labelText: 'Society Code (e.g. test, sms, sunrise)',
+                  prefixIcon: const Icon(Icons.business),
+                  hintText: 'e.g. test',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
                 onSubmitted: (_) => controller.continueToLogin(),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Available Societies:',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.apartment, size: 14, color: Color(0xFF2563EB)),
+                    label: const Text('test', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      controller.slugController.text = 'test';
+                      controller.continueToLogin();
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.apartment, size: 14, color: Color(0xFF2563EB)),
+                    label: const Text('sms', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      controller.slugController.text = 'sms';
+                      controller.continueToLogin();
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.apartment, size: 14, color: Color(0xFF2563EB)),
+                    label: const Text('greenvalley', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      controller.slugController.text = 'greenvalley';
+                      controller.continueToLogin();
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.apartment, size: 14, color: Color(0xFF2563EB)),
+                    label: const Text('sunrise', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      controller.slugController.text = 'sunrise';
+                      controller.continueToLogin();
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               Obx(() => ElevatedButton(

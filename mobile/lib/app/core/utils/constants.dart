@@ -8,7 +8,7 @@ class AppConstants {
   // 3. Local Wi-Fi network host IPs
   // 4. Android emulator loopback
   static const List<String> candidateHosts = [
-    'https://society-management-backend-kqs8.onrender.com/api', // Cloud production backend
+    'https://society-management-backend-94o1.onrender.com/api', // Cloud production backend
     'http://127.0.0.1:5001/api',       // USB Direct with adb reverse
     'http://localhost:5001/api',       // USB / Localhost
     'http://192.168.0.108:5001/api',   // Active Wi-Fi Host IP
@@ -18,11 +18,11 @@ class AppConstants {
     'http://192.168.56.1:5001/api',    // Ethernet / Local adapter
   ];
 
-  static const String cloudRenderApi = 'https://society-management-backend-kqs8.onrender.com/api';
-  static const String defaultTenantSlug = 'sunrise';
+  static const String cloudRenderApi = 'https://society-management-backend-94o1.onrender.com/api';
+  static const String defaultTenantSlug = 'test';
 
   // Active base URL initialized to cloud production, with dynamic fallback
-  static String baseUrl = 'https://society-management-backend-kqs8.onrender.com/api';
+  static String baseUrl = 'https://society-management-backend-94o1.onrender.com/api';
   static const String appName = 'SocietyArena';
   static const String appVersion = '2.0.0';
 
@@ -31,7 +31,7 @@ class AppConstants {
     if (uri != null && uri.hasAuthority) {
       return '${uri.scheme}://${uri.authority}';
     }
-    return 'https://society-management-backend-kqs8.onrender.com';
+    return 'https://society-management-backend-94o1.onrender.com';
   }
 
   static String resolveImageUrl(String? url) {

@@ -157,7 +157,7 @@ class MemberHomeController extends GetxController {
                 ),
                 ActionChip(
                   label: const Text('Render Cloud', style: TextStyle(fontSize: 11)),
-                  onPressed: () => textController.text = 'https://society-management-backend-kqs8.onrender.com/api',
+                  onPressed: () => textController.text = 'https://society-management-backend-94o1.onrender.com/api',
                 ),
               ],
             )

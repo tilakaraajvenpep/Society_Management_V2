@@ -92,7 +92,7 @@ class LoginView extends GetView<LoginController> {
                         controller: controller.emailController,
                         decoration: InputDecoration(
                           labelText: 'Email or Mobile Number',
-                          hintText: 'e.g. member@sunrise.com',
+                          hintText: 'e.g. tilak@gmail.com or 7812860791',
                           prefixIcon: const Icon(Icons.person_outline, size: 20),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),

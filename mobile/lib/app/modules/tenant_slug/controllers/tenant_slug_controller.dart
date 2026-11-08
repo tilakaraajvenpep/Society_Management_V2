@@ -26,7 +26,7 @@ class TenantSlugController extends GetxController {
     if (slug != null && slug.trim().isNotEmpty) {
       slugController.text = slug.trim();
     } else {
-      slugController.text = 'sunrise';
+      slugController.text = 'test';
     }
 
     // 2. Auto-login if valid token exists
@@ -172,7 +172,7 @@ class TenantSlugController extends GetxController {
                   ActionChip(
                     avatar: const Icon(Icons.cloud_done, size: 14, color: Colors.blue),
                     label: const Text('Cloud (Production Default)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    onPressed: () => textController.text = 'https://society-management-backend-kqs8.onrender.com/api',
+                    onPressed: () => textController.text = 'https://society-management-backend-94o1.onrender.com/api',
                   ),
                   ActionChip(
                     avatar: const Icon(Icons.wifi, size: 14),
