@@ -17,6 +17,7 @@ export const resolveDbConnectionString = (): string => {
 };
 
 const masterConnectionString = resolveDbConnectionString();
+process.env.DATABASE_URL = masterConnectionString;
 const isLocalhost = masterConnectionString.includes("localhost") || masterConnectionString.includes("127.0.0.1");
 const masterPool = new pg.Pool({ 
   connectionString: masterConnectionString,

@@ -71,14 +71,16 @@ class ApiClient extends GetxService {
     _isAutoDetecting = true;
 
     try {
-      final probeDio = Dio(BaseOptions(
-        connectTimeout: const Duration(milliseconds: 1400),
-        receiveTimeout: const Duration(milliseconds: 1400),
-        validateStatus: (status) => status != null && status < 500,
-      ));
-
       for (final host in AppConstants.candidateHosts) {
         try {
+          final isCloud = host.startsWith('https://');
+          final timeout = isCloud ? const Duration(seconds: 4) : const Duration(milliseconds: 1400);
+          final probeDio = Dio(BaseOptions(
+            connectTimeout: timeout,
+            receiveTimeout: timeout,
+            validateStatus: (status) => status != null && status < 500,
+          ));
+
           // Probe public endpoint or root API
           final probeUrl = '$host/tenants/public/${AppConstants.defaultTenantSlug}';
           final response = await probeDio.get(probeUrl);

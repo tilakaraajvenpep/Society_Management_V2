@@ -1,5 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config();
+
+import { ensureTenantSchemas, resolveDbConnectionString, defaultSupabaseDbUrl } from "./utils/prisma";
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("dpg-d8ok5uv7f7vs73ersoe0") || process.env.DATABASE_URL.includes("localhost:5432")) {
+  process.env.DATABASE_URL = defaultSupabaseDbUrl;
+}
+
 import app from "./app";
-import { ensureTenantSchemas, resolveDbConnectionString } from "./utils/prisma";
 import pg from "pg";
 import { runReminderJob } from "./utils/reminderScheduler";
 
