@@ -163,6 +163,33 @@ async function ensurePublicTables() {
       `);
     }
 
+    // Ensure Expense, Vendor and CashTransaction columns
+    const otherColFixes = [
+      { table: "Expense", col: "notes", def: "TEXT" },
+      { table: "Expense", col: "paymentType", def: "TEXT NOT NULL DEFAULT 'ONE_TIME'" },
+      { table: "Expense", col: "category", def: "TEXT" },
+      { table: "Expense", col: "paidByMemberId", def: "TEXT" },
+      { table: "Expense", col: "isRecurring", def: "BOOLEAN NOT NULL DEFAULT false" },
+      { table: "Vendor", col: "address", def: "TEXT" },
+      { table: "Vendor", col: "email", def: "TEXT" },
+      { table: "Vendor", col: "notes", def: "TEXT" },
+      { table: "CashTransaction", col: "status", def: "TEXT NOT NULL DEFAULT 'PENDING'" },
+      { table: "CashTransaction", col: "updatedAt", def: "TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP" },
+    ];
+    for (const { table, col, def } of otherColFixes) {
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = '${table}' AND column_name = '${col}'
+          ) THEN
+            ALTER TABLE "${table}" ADD COLUMN "${col}" ${def};
+          END IF;
+        EXCEPTION WHEN others THEN NULL;
+        END $$
+      `);
+    }
+
     // Ensure Event table has imageUrl
     await client.query(`
       DO $$ BEGIN
