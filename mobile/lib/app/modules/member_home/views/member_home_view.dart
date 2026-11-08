@@ -317,11 +317,6 @@ class _MemberDashboardTab extends GetView<MemberHomeController> {
             onPressed: () => controller.navigateToMenu('profile'),
           ),
           IconButton(
-            icon: const Icon(Icons.settings_ethernet),
-            tooltip: 'Server Connection',
-            onPressed: controller.showServerConfigDialog,
-          ),
-          IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFFef4444)),
             tooltip: 'logout'.tr,
             onPressed: controller.logout,
@@ -992,14 +987,6 @@ class _MemberProfileTab extends GetView<MemberHomeController> {
                     onTap: () {
                       const _MemberDashboardTab()._showLanguageDialog(context);
                     },
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.settings_ethernet, color: Color(0xFF64748b)),
-                    title: const Text('Server Connection', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(AppConstants.baseUrl, style: const TextStyle(fontSize: 11)),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: controller.showServerConfigDialog,
                   ),
                   const Divider(height: 1),
                   ListTile(
